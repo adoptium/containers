@@ -20,4 +20,7 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Build - Linux
-        run: docker build -f ${{ matrix.version }}/${{ matrix.variant }}/${{ matrix.distro }}/Dockerfile.releases.full .
+        run: docker build -t ci-openjdk -f ${{ matrix.version }}/${{ matrix.variant }}/${{ matrix.distro }}/Dockerfile.releases.full .
+
+      - name: Test
+        run: docker run -t ci-openjdk java -version 

@@ -1,0 +1,23 @@
+name: CI
+
+# Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:    
+  build:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        distro: [centos, ubuntu]
+        version: [8, 11, 16]
+        variant: [jdk]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Build - Linux
+        run: docker build -f ${{ matrix.version }}/${{ matrix.variant }}/${{ matrix.distro }}/Dockerfile.releases.full .

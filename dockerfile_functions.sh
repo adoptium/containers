@@ -142,8 +142,7 @@ print_windows_ver() {
 	nanoserver_pat="nanoserver.*"
 	if [[ "$servertype" =~ ${nanoserver_pat} ]]; then
 		cat >> "$1" <<-EOI
-	FROM mcr.microsoft.com/windows/servercore:${os_version} as installer
-
+	FROM mcr.microsoft.com/windows/nanoserver:${os_version}
 
 EOI
 	else
@@ -194,10 +193,18 @@ print_debianslim_pkg() {
 }
 
 print_windows_pkg() {
-    cat >> "$1" <<'EOI'
+	servertype=$(echo "$file" | cut -f4 -d"/")
+	nanoserver_pat="nanoserver.*"
+	if [[ "$servertype" =~ ${nanoserver_pat} ]]; then
+    	cat >> "$1" <<'EOI'
+SHELL ["cmd", "/s", "/c"]
+EOI
+	else
+    	cat >> "$1" <<'EOI'
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 EOI
+	fi
 }
 
 # Select the alpine OS packages.
@@ -564,20 +571,20 @@ print_windows_java_install_post() {
     Remove-Item openjdk.msi -Force
 EOI
 	else
+		copy_version=$(echo $jver | tr -d "jdk" | tr + _)
+		if [[ "$version" != "8" ]]; then
+			copy_version=$(echo $copy_version | tr -d "-")
+		fi
 		cat >> "$1" <<-EOI
-    Write-Host 'Removing openjdk.zip ...'; \\
-    Remove-Item openjdk.zip -Force
-
-FROM mcr.microsoft.com/windows/nanoserver:${os_version}
-
+ENV JAVA_HOME=C:\\\\openjdk-${version}
+# "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
-# Set JAVA_HOME and PATH environment variables
-RUN setx /M JAVA_HOME "C:\\\\openjdk-${version}" & \\
-    setx /M PATH "%PATH%;%JAVA_HOME%\\\\bin"
-
-COPY --from=installer ["/openjdk-${version}", "/openjdk-${version}"]
-
+RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \\
+        && setx /M PATH %JAVA_HOME%\bin;%PATH% \\
+        && echo Complete.
 USER ContainerUser
+
+COPY --from=eclipse-temurin:${copy_version}-jdk-windowsservercore-${os_version} \$JAVA_HOME \$JAVA_HOME
 EOI
 	fi
 }
@@ -623,26 +630,6 @@ RUN Write-Host ('Downloading ${BINARY_URL} ...'); \\
     }; \\
     \\
     Remove-Item -Path C:\temp -Recurse | Out-Null; \\
-EOI
-	else
-		JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" windows-nano windows);
-		# shellcheck disable=SC1083
-		ESUM=$(get_shasum "${shasums}" windows-nano "${osfamily}");
-		BINARY_URL=$(get_v3_binary_url "${JAVA_URL}");
-
-		cat >> "$1" <<-EOI
-RUN Write-Host ('Downloading ${BINARY_URL} ...'); \\
-    curl.exe -LfsSo openjdk.zip ${BINARY_URL} ; \\
-    Write-Host ('Verifying sha256 (${ESUM}) ...'); \\
-    if ((Get-FileHash openjdk.zip -Algorithm sha256).Hash -ne '${ESUM}') { \\
-            Write-Host 'FAILED!'; \\
-            exit 1; \\
-    }; \\
-    \\
-    Write-Host 'Expanding Zip ...'; \\
-    tar.exe -xf openjdk.zip -C C:\\ ; \\
-    \$jdkDirectory=(Get-ChildItem -Directory | ForEach-Object { \$_.FullName } | Select-String 'jdk'); \\
-    Move-Item -Path \$jdkDirectory C:\\openjdk-${version}; \\
 EOI
 	fi
 
@@ -767,17 +754,6 @@ print_java_env() {
 ENV JAVA_HOME=${jhome} \\
     PATH="${jhome}/bin:\$PATH"
 EOI
-	else
-		servertype=$(echo "$file" | cut -f4 -d"/" | head -qn1)
-		nanoserver_pat="nanoserver.*"
-		if [[ "$servertype" =~ ${nanoserver_pat} ]]; then
-			cat >> "$1" <<-EOI
-ENV JAVA_HOME=C:\\\\openjdk-${version} \\
-    ProgramFiles="C:\\\\Program Files" \\
-    WindowsPATH="C:\\\\Windows\\\\system32;C:\\\\Windows"
-ENV PATH="\${WindowsPATH};\${JAVA_HOME}\\\\bin"
-EOI
-		fi
 	fi
 }
 
@@ -830,11 +806,22 @@ EOI
 	fi
 }
 
+print_test() {
+	cat >> "$1" <<-EOI
+
+RUN echo Verifying install ... \\
+    && echo   javac --version && javac --version \\
+    && echo   java --version && java --version \\
+    && echo Complete.
+	EOI
+}
+
 print_cmd() {
 	# for version > 8, set CMD["jshell"] in the Dockerfile
 	above_8="^(9|[1-9][0-9]+)$"
 	if [[ "${version}" =~ ${above_8} && "${package}" == "jdk" ]]; then
 		cat >> "$1" <<-EOI
+
 		CMD ["jshell"]
 		EOI
 	fi
@@ -940,6 +927,7 @@ generate_dockerfile() {
 		print_"${osfamily}"_java_install "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}";
 		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";
 		print_java_options "${file}" "${bld}" "${btype}";
+		print_test "${file}";
 		print_cmd "${file}";
 	else
 		print_"${os}"_ver "${file}" "${bld}" "${btype}" "${os}";
@@ -951,6 +939,7 @@ generate_dockerfile() {
 		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";
 		print_java_options "${file}" "${bld}" "${btype}";
 		print_scc_gen "${file}" "${vm}" "${osfamily}" "${os}";
+		print_test "${file}";
 		print_cmd "${file}";
 	fi
 	echo "done"

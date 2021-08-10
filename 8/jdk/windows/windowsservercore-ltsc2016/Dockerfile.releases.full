@@ -46,3 +46,8 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/relea
     Remove-Item -Path C:\temp -Recurse | Out-Null; \
     Write-Host 'Removing openjdk.msi ...'; \
     Remove-Item openjdk.msi -Force
+
+RUN echo Verifying install ... \
+    && echo   javac --version && javac --version \
+    && echo   java --version && java --version \
+    && echo Complete.

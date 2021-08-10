@@ -55,3 +55,8 @@ RUN set -eux; \
 
 ENV JAVA_HOME=/opt/java/openjdk \
     PATH="/opt/java/openjdk/bin:$PATH"
+
+RUN echo Verifying install ... \
+    && echo   javac --version && javac --version \
+    && echo   java --version && java --version \
+    && echo Complete.

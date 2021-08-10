@@ -77,6 +77,7 @@ function generate_official_image_tags() {
 		full_ver_tag="${full_ver_tag}-${openj9_version}-${distro}"
 	else
 		full_ver_tag="${full_ver_tag}-${distro}"
+		# Commented out as this added the -hotspot tag which we don't need for temurin
 		# extra_ver_tags=", ${ver}-${pkg}"
 	fi
 	ver_tag="${ver}-${pkg}-${distro}"
@@ -93,6 +94,7 @@ function generate_official_image_tags() {
 			all_tags="${all_tags}, ${vm_tags_val}"
 			if [ "${vm}" == "hotspot" ]; then
 				extra_shared_tags=", latest"
+				# Commented out as this added the -hotspot tag which we don't need for temurin
 				# extra_ver_tags="${extra_ver_tags}, ${pkg}"
 			fi
 		fi

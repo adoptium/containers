@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:    
-  build:
+  build_linux:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -21,3 +21,28 @@ jobs:
 
       - name: Build - Linux
         run: docker build -t ci-openjdk -f ${{ matrix.version }}/${{ matrix.variant }}/${{ matrix.distro }}/Dockerfile.releases.full .
+
+  build_windows:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2016, windows-2019]
+        version: [8, 11, 16]
+        variant: [jdk]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Build - Windows
+        shell: bash
+        run: |
+          case ${{ matrix.os }} in
+            'windows-2019')
+              distro='windowsservercore-1809'
+              ;;
+            'windows-2016')
+              distro='windowsservercore-ltsc2016'
+              ;;
+          esac
+          docker build -t ci-openjdk -f ${{ matrix.version }}/${{ matrix.variant }}/windows/${distro}/Dockerfile.releases.full .

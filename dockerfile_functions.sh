@@ -568,7 +568,8 @@ print_windows_java_install_post() {
 	if [ "${servertype}" == "windowsservercore" ]; then
 		cat >> "$1" <<-EOI
     Write-Host 'Removing openjdk.msi ...'; \\
-    Remove-Item openjdk.msi -Force
+    Remove-Item openjdk.msi -Force; \\
+    \\
 EOI
 	else
 		copy_version=$(echo $jver | tr -d "jdk" | tr + _)
@@ -813,13 +814,25 @@ print_test() {
 	else
 		arg="-version"
 	fi
-	cat >> "$1" <<-EOI
+	servertype=$(echo "$file" | cut -f4 -d"/")
+	nanoserver_pat="nanoserver.*"
+	if [[ "${osfamily}" != "windows" ]] || [[ "$servertype" =~ ${nanoserver_pat} ]]; then
+		cat >> "$1" <<-EOI
 
 RUN echo Verifying install ... \\
     && echo   javac ${arg} && javac ${arg} \\
     && echo   java ${arg} && java ${arg} \\
     && echo Complete.
 	EOI
+	else
+		cat >> "$1" <<-EOI
+    Write-Host 'Verifying install ...'; \\
+    Write-Host '  javac ${arg}'; javac ${arg}; \\
+    Write-Host '  java ${arg}'; java ${arg}; \\
+    \\
+    Write-Host 'Complete.'
+	EOI
+	fi
 }
 
 print_cmd() {

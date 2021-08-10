@@ -48,6 +48,6 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/relea
     Remove-Item openjdk.msi -Force
 
 RUN echo Verifying install ... \
-    && echo   javac --version && javac --version \
-    && echo   java --version && java --version \
+    && echo   javac -version && javac -version \
+    && echo   java -version && java -version \
     && echo Complete.

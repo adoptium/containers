@@ -807,11 +807,17 @@ EOI
 }
 
 print_test() {
+	above_8="^(9|[1-9][0-9]+)$"
+	if [[ "${version}" =~ ${above_8} ]]; then
+		arg="--version"
+	else
+		arg="-version"
+	fi
 	cat >> "$1" <<-EOI
 
 RUN echo Verifying install ... \\
-    && echo   javac --version && javac --version \\
-    && echo   java --version && java --version \\
+    && echo   javac ${arg} && javac ${arg} \\
+    && echo   java ${arg} && java ${arg} \\
     && echo Complete.
 	EOI
 }

@@ -77,7 +77,7 @@ function generate_official_image_tags() {
 		full_ver_tag="${full_ver_tag}-${openj9_version}-${distro}"
 	else
 		full_ver_tag="${full_ver_tag}-${distro}"
-		extra_ver_tags=", ${ver}-${pkg}"
+		# extra_ver_tags=", ${ver}-${pkg}"
 	fi
 	ver_tag="${ver}-${pkg}-${distro}"
 	all_tags="${full_ver_tag}, ${ver_tag}"
@@ -85,9 +85,6 @@ function generate_official_image_tags() {
 	if [ "${pkg}" == "jdk" ]; then
 		jdk_tag="${ver}-${distro}"
 		all_tags="${all_tags}, ${jdk_tag}"
-		if [ "${vm}" == "hotspot" ]; then
-			extra_ver_tags="${extra_ver_tags}, ${ver}"
-		fi
 		# jdk builds also have additional tags
 		# Add the "latest", "hotspot" and "openj9" tags for the right version
 		if [ "${ver}" == "${latest_version}" ]; then
@@ -96,7 +93,7 @@ function generate_official_image_tags() {
 			all_tags="${all_tags}, ${vm_tags_val}"
 			if [ "${vm}" == "hotspot" ]; then
 				extra_shared_tags=", latest"
-				extra_ver_tags="${extra_ver_tags}, ${pkg}"
+				# extra_ver_tags="${extra_ver_tags}, ${pkg}"
 			fi
 		fi
 	fi

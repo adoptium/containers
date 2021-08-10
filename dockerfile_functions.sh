@@ -622,7 +622,7 @@ RUN Write-Host ('Downloading ${BINARY_URL} ...'); \\
     \\
     Write-Host 'Installing using MSI ...'; \\
     \$proc = Start-Process -FilePath "msiexec.exe" -ArgumentList '/i', 'openjdk.msi', '/L*V', 'C:\temp\OpenJDK.log', \\
-    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome' -Wait -Passthru; \\
+    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-${version}' -Wait -Passthru; \\
     \$proc.WaitForExit() ; \\
     if (\$proc.ExitCode -ne 0) { \\
             Write-Host 'FAILED installing MSI!' ; \\

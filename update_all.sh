@@ -27,12 +27,6 @@ do
 	echo "                      Writing Dockerfiles for Version ${ver}                   "
 	echo "                                                                               "
 	echo "==============================================================================="
-	# Generate the Dockerfiles for the unofficial images.
-	./update_multiarch.sh "${ver}"
-
 	# Now generate the Dockerfiles for the official images.
 	./update_multiarch.sh "${ver}"
-
-	# Restore the original files.
-	git checkout config/hotspot.config
 done

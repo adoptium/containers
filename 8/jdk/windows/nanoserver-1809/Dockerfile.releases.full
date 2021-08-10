@@ -23,7 +23,7 @@ SHELL ["cmd", "/s", "/c"]
 
 ENV JAVA_VERSION jdk8u302-b08
 
-ENV JAVA_HOME=C:\\openjdk-8
+ENV JAVA_HOME C:\\openjdk-8
 # "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \

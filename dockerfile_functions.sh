@@ -576,7 +576,7 @@ EOI
 			copy_version=$(echo $copy_version | tr -d "-")
 		fi
 		cat >> "$1" <<-EOI
-ENV JAVA_HOME=C:\\\\openjdk-${version}
+ENV JAVA_HOME C:\\\\openjdk-${version}
 # "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \\

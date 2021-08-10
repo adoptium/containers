@@ -89,9 +89,9 @@ function generate_official_image_tags() {
 		# jdk builds also have additional tags
 		# Add the "latest", "hotspot" and "openj9" tags for the right version
 		if [ "${ver}" == "${latest_version}" ]; then
-			vm_tags_val="${vm}-${distro}"
+			# Commented out as this added the -hotspot tag which we don't need for temurin
+			# vm_tags_val="${vm}-${distro}"
 			# shellcheck disable=SC2154
-			all_tags="${all_tags}, ${vm_tags_val}"
 			if [ "${vm}" == "hotspot" ]; then
 				extra_shared_tags=", latest"
 				# Commented out as this added the -hotspot tag which we don't need for temurin
@@ -106,11 +106,17 @@ function generate_official_image_tags() {
 		windows_version=$(echo $distro | awk -F '-' '{ print $1 }' )
 		windows_version_number=$(echo $distro | awk -F '-' '{ print $2 }' )
 		windows_shared_tags=$(echo ${all_tags} | sed "s/$distro/$windows_version/g")
-		all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_ver_tags}${extra_shared_tags}"
 		case $distro in
-			nanoserver*) constraints="${distro}, windowsservercore-${windows_version_number}" ;;
-			*) constraints="${distro}" ;;
+			nanoserver*) 
+				constraints="${distro}, windowsservercore-${windows_version_number}"
+				all_shared_tags="${windows_shared_tags}"
+				;;
+			*) 
+				constraints="${distro}"
+				all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_ver_tags}${extra_shared_tags}"
+				;;
 		esac
+		echo $all_shared_tags
 	else
 	all_shared_tags="${shared_tags}${extra_ver_tags}${extra_shared_tags}"
 	fi

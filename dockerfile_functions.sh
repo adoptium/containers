@@ -568,8 +568,7 @@ print_windows_java_install_post() {
 	if [ "${servertype}" == "windowsservercore" ]; then
 		cat >> "$1" <<-EOI
     Write-Host 'Removing openjdk.msi ...'; \\
-    Remove-Item openjdk.msi -Force; \\
-    \\
+    Remove-Item openjdk.msi -Force
 EOI
 	else
 		copy_version=$(echo $jver | tr -d "jdk" | tr + _)
@@ -826,7 +825,8 @@ RUN echo Verifying install ... \\
 	EOI
 	else
 		cat >> "$1" <<-EOI
-    Write-Host 'Verifying install ...'; \\
+
+RUN Write-Host 'Verifying install ...'; \\
     Write-Host '  javac ${arg}'; javac ${arg}; \\
     Write-Host '  java ${arg}'; java ${arg}; \\
     \\

@@ -116,7 +116,6 @@ function generate_official_image_tags() {
 				all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_ver_tags}${extra_shared_tags}"
 				;;
 		esac
-		echo $all_shared_tags
 	else
 	all_shared_tags="${shared_tags}${extra_ver_tags}${extra_shared_tags}"
 	fi

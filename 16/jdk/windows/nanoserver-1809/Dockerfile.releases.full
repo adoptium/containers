@@ -23,7 +23,7 @@ SHELL ["cmd", "/s", "/c"]
 
 ENV JAVA_VERSION jdk-16.0.2+7
 
-ENV JAVA_HOME=C:\\openjdk-16
+ENV JAVA_HOME C:\\openjdk-16
 # "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \

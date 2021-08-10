@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+# Script for updating multiarch docker images for a specific openjdk version
 set -o pipefail
 
 # Dockerfiles to be generated

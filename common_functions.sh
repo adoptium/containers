@@ -362,65 +362,6 @@ function build_tags() {
 	rm -f ${tmpfile}
 }
 
-# Build the URL using adoptopenjdk.net v2 api based on the given parameters
-# request_type = info / binary
-# release_type = releases / nightly
-# url_impl = hotspot
-# url_arch = aarch64 / ppc64le / s390x / x64
-# url_pkg  = jdk / jre
-# url_rel  = latest / ${version}
-function get_v2_url() {
-	local request_type=$1
-	local release_type=$2
-	local url_impl=$3
-	local url_pkg=$4
-	local url_rel=$5
-	local url_arch=$6
-	local url_heapsize=normal
-	local url_version=openjdk${version}
-
-	baseurl="https://api.adoptopenjdk.net/v2/${request_type}/${release_type}/${url_version}"
-	specifiers="openjdk_impl=${url_impl}&type=${url_pkg}&release=${url_rel}&heap_size=${url_heapsize}"
-	windows_pat="windows.*"
-	if [ -n "${url_arch}" ]; then
-		if [[ "${url_arch}" =~ ${windows_pat} ]]; then
-			specifiers="${specifiers}&arch=x64&os=windows"
-		else
-			specifiers="${specifiers}&os=linux&arch=${url_arch}"
-		fi
-	else
-		specifiers="${specifiers}&os=linux"
-	fi
-
-	echo "${baseurl}?${specifiers}"
-}
-
-# Get the binary github link for a release given a V2 API URL
-function get_v2_binary_url() {
-	local v2_url=$1
-	local info_file=/tmp/info_$$.json
-
-	if ! curl -Lso ${info_file} "${v2_url}" || [ ! -s ${info_file} ]; then
-		rm -f ${info_file}
-		return;
-	fi
-	< ${info_file} grep "binary_link" | awk -F '"' '{ print $4 }'
-	rm -f ${info_file}
-}
-
-# Get the installer github link for a release given a V2 API URL
-function get_v2_installer_url() {
-	local v2_url=$1
-	local info_file=/tmp/info_$$.json
-
-	if ! curl -Lso ${info_file} "${v2_url}" || [ ! -s ${info_file} ]; then
-		rm -f ${info_file}
-		return;
-	fi
-	< ${info_file} grep "installer_link" | awk -F '"' '{ print $4 }'
-	rm -f ${info_file}
-}
-
 # Build the URL using adoptopenjdk.net v3 api based on the given parameters
 # request_type = feature_releases
 # release_type = ga / ea

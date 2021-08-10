@@ -17,40 +17,23 @@
 # limitations under the License.
 #
 
-FROM mcr.microsoft.com/windows/servercore:1809 as installer
+FROM mcr.microsoft.com/windows/nanoserver:1809
 
-
-# $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
-SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+SHELL ["cmd", "/s", "/c"]
 
 ENV JAVA_VERSION jdk8u302-b08
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08.1/OpenJDK8U-jdk_x64_windows_hotspot_8u302b08.zip ...'); \
-    curl.exe -LfsSo openjdk.zip https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08.1/OpenJDK8U-jdk_x64_windows_hotspot_8u302b08.zip ; \
-    Write-Host ('Verifying sha256 (3df3ebee978f5c9e9b4e34a74ce8d4b0c8f5bb7dfa83f2b315129c1eee6b70c4) ...'); \
-    if ((Get-FileHash openjdk.zip -Algorithm sha256).Hash -ne '3df3ebee978f5c9e9b4e34a74ce8d4b0c8f5bb7dfa83f2b315129c1eee6b70c4') { \
-            Write-Host 'FAILED!'; \
-            exit 1; \
-    }; \
-    \
-    Write-Host 'Expanding Zip ...'; \
-    tar.exe -xf openjdk.zip -C C:\ ; \
-    $jdkDirectory=(Get-ChildItem -Directory | ForEach-Object { $_.FullName } | Select-String 'jdk'); \
-    Move-Item -Path $jdkDirectory C:\openjdk-8; \
-    Write-Host 'Removing openjdk.zip ...'; \
-    Remove-Item openjdk.zip -Force
-
-FROM mcr.microsoft.com/windows/nanoserver:1809
-
+ENV JAVA_HOME=C:\\openjdk-8
+# "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
-# Set JAVA_HOME and PATH environment variables
-RUN setx /M JAVA_HOME "C:\\openjdk-8" & \
-    setx /M PATH "%PATH%;%JAVA_HOME%\\bin"
-
-COPY --from=installer ["/openjdk-8", "/openjdk-8"]
-
+RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
+        && setx /M PATH %JAVA_HOME%\bin;%PATH% \
+        && echo Complete.
 USER ContainerUser
-ENV JAVA_HOME=C:\\openjdk-8 \
-    ProgramFiles="C:\\Program Files" \
-    WindowsPATH="C:\\Windows\\system32;C:\\Windows"
-ENV PATH="${WindowsPATH};${JAVA_HOME}\\bin"
+
+COPY --from=eclipse-temurin:8u302-b08-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
+
+RUN echo Verifying install ... \
+    && echo   javac -version && javac -version \
+    && echo   java -version && java -version \
+    && echo Complete.

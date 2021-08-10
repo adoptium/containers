@@ -21,6 +21,3 @@ jobs:
 
       - name: Build - Linux
         run: docker build -t ci-openjdk -f ${{ matrix.version }}/${{ matrix.variant }}/${{ matrix.distro }}/Dockerfile.releases.full .
-
-      - name: Test
-        run: docker run -t ci-openjdk java -version 

@@ -25,7 +25,13 @@ set -o pipefail
 # shellcheck source=common_functions.sh
 source ./common_functions.sh
 
-official_docker_image_file="eclipse-temurin"
+if [[ -z "$1" ]]; then
+	official_docker_image_file="eclipse-temurin"
+else
+	official_docker_image_file="$1"
+	mkdir -p $(dirname "$1")
+fi
+
 oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
 
 # shellcheck disable=SC2034 # used externally
@@ -202,7 +208,6 @@ do
 			do
 				for file in $(find . -name "Dockerfile.*" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
 				do
-					echo $file
 					# file will look like ./12/jdk/debian/Dockerfile.openj9.nightly.slim
 					# dockerfile name
 					dfname=$(basename "${file}")

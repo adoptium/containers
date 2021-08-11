@@ -46,7 +46,7 @@ jobs:
         if: runner.os == 'Windows'
       - uses: actions/checkout@v2
       - name: Create Manifest
-        run: bash dockerhub_doc_config_update.sh library/temurin-compliance
+        run: bash dockerhub_doc_config_update.sh library/temurin-compliance && cat library/temurin-compliance
       - name: Prepare Environment
         run: ${{ matrix.runs.prepare }}
       - name: Pull Dependencies

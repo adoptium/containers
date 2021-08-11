@@ -7,3 +7,4 @@ hadolint/
 shellcheck/
 eclipse-temurin
 *hotspot.txt
+library/

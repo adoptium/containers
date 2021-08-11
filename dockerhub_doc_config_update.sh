@@ -26,7 +26,7 @@ set -o pipefail
 source ./common_functions.sh
 
 official_docker_image_file="eclipse-temurin"
-oses="centos ubuntu"
+oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
 
 # shellcheck disable=SC2034 # used externally
 hotspot_latest_tags="latest"
@@ -198,21 +198,23 @@ do
 		print_official_text "#------------------------------v${ver} images---------------------------------"
 		for pkg in ${all_packages}
 		do
-			# Iterate through each of the Dockerfiles.
-			for file in $(find . -name "Dockerfile.*" | grep "/${ver}" | grep "${pkg}" | sort -n)
+			for os in ${oses}
 			do
-				# file will look like ./12/jdk/debian/Dockerfile.openj9.nightly.slim
-				# dockerfile name
-				dfname=$(basename "${file}")
-				# dockerfile dir
-				dfdir=$(dirname $file | cut -c 3-)
-				os=$(echo "${file}" | awk -F '/' '{ print $4 }')
-				# build = release or nightly
-				build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
-				# btype = full or slim
-				btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
-
-				generate_official_image_info
+				for file in $(find . -name "Dockerfile.*" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
+				do
+					echo $file
+					# file will look like ./12/jdk/debian/Dockerfile.openj9.nightly.slim
+					# dockerfile name
+					dfname=$(basename "${file}")
+					# dockerfile dir
+					dfdir=$(dirname $file | cut -c 3-)
+					os=$(echo "${file}" | awk -F '/' '{ print $4 }')
+					# build = release or nightly
+					build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
+					# btype = full or slim
+					btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
+					generate_official_image_info
+				done
 			done
 		done
 	done

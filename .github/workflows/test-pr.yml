@@ -24,9 +24,10 @@ jobs:
       - id: generate-jobs
         name: Generate Jobs
         run: |
-          bash dockerhub_doc_config_update.sh library/temurin-compliance
+          export GENERATE_STACKBREW_LIBRARY='./dockerhub_doc_config_update.sh /dev/stdout'
+          export GITHUB_REPOSITORY="eclipse-temurin"
           git clone --depth 1 https://github.com/docker-library/bashbrew.git -b master ~/bashbrew
-          strategy="$(.github/workflows/generate.sh ~/bashbrew)"
+          strategy="$(~/bashbrew/scripts/github-actions/generate.sh)"
           jq . <<<"$strategy" # sanity check / debugging aid
           echo "::set-output name=strategy::$strategy"
 
@@ -45,8 +46,6 @@ jobs:
           # https://github.com/docker-library/bashbrew/blob/a40a54d4d81b9fd2e39b4d7ba3fe203e8b022a67/scripts/github-actions/generate.sh#L146-L149
         if: runner.os == 'Windows'
       - uses: actions/checkout@v2
-      - name: Create Manifest
-        run: bash dockerhub_doc_config_update.sh library/temurin-compliance && cat library/temurin-compliance
       - name: Prepare Environment
         run: ${{ matrix.runs.prepare }}
       - name: Pull Dependencies

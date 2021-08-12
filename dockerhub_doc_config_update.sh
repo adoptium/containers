@@ -32,6 +32,8 @@ else
 fi
 
 oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
+# The image which is used by default when pulling shared tags on linux e.g 8-jdk
+default_linux_image="focal"
 
 # shellcheck disable=SC2034 # used externally
 hotspot_latest_tags="latest"
@@ -64,7 +66,7 @@ function generate_official_image_tags() {
 	
 	case $os in
 		"ubuntu") distro="focal" ;;
-        "centos") distro="centos" ;;
+        "centos") distro="centos7" ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		*) distro=undefined;;
 	esac
@@ -144,7 +146,9 @@ function print_official_image_file() {
 	# Print them all
 	{
 	  echo "Tags: ${all_tags}"
-	  echo "SharedTags: ${all_shared_tags}"
+	  if [[ "${os}" == "windows" ]] || [[ "${distro}" == "${default_linux_image}" ]]; then
+	  	echo "SharedTags: ${all_shared_tags}"
+	  fi
 	  echo "Architectures: ${arches}"
 	  echo "GitCommit: ${gitcommit}"
 	  echo "Directory: ${dfdir}"
@@ -159,7 +163,7 @@ function print_official_image_file() {
 rm -f ${official_docker_image_file}
 print_official_header
 
-official_os_ignore_array=(alpine centos clefos debian debianslim leap tumbleweed ubi ubi-minimal)
+official_os_ignore_array=(alpine clefos debian debianslim leap tumbleweed ubi ubi-minimal)
 
 # Generate config and doc info only for "supported" official builds.
 function generate_official_image_info() {

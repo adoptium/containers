@@ -25,7 +25,12 @@ set -o pipefail
 # shellcheck source=common_functions.sh
 source ./common_functions.sh
 
-official_docker_image_file="eclipse-temurin"
+if [[ -z "$1" ]]; then
+	official_docker_image_file="eclipse-temurin"
+else
+	official_docker_image_file="$1"
+fi
+
 oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
 
 # shellcheck disable=SC2034 # used externally

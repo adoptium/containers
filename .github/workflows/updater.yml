@@ -19,5 +19,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           title: "Update Dockerfiles"
+          body: "This is an automatically generated pull request, please check it before merging"
           commit-message: "dockerfile: automated nightly updates"
           author: "eclipse-temurin-bot <temurin-bot@eclipse.org>"

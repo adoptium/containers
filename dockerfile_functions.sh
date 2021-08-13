@@ -286,7 +286,7 @@ EOI
 print_centos_pkg() {
 	cat >> "$1" <<'EOI'
 RUN yum install -y tzdata openssl curl binutils ca-certificates fontconfig gzip tar \
-    && yum update -y; yum clean all
+    && yum clean all
 EOI
 }
 

@@ -175,13 +175,14 @@ print_lang_locale() {
 
 # Select the ubuntu OS packages
 print_ubuntu_pkg() {
+	packages="tzdata curl ca-certificates fontconfig locales"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
-		binutils=" binutils"
+		packages+=" binutils"
 	fi
 	cat >> "$1" <<EOI
 RUN apt-get update \\
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl${binutils} ca-certificates fontconfig locales \\
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${packages} \\
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \\
     && locale-gen en_US.UTF-8 \\
     && rm -rf /var/lib/apt/lists/*
@@ -288,12 +289,13 @@ EOI
 
 # Select the CentOS packages.
 print_centos_pkg() {
+	packages="tzdata openssl curl ca-certificates fontconfig gzip tar"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
-		binutils=" binutils"
+		packages+=" binutils"
 	fi
 	cat >> "$1" <<EOI
-RUN yum install -y tzdata openssl curl${binutils} ca-certificates fontconfig gzip tar \\
+RUN yum install -y ${packages} \\
     && yum clean all
 EOI
 }

@@ -16,6 +16,8 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         checkName: test
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        timeoutSeconds: 3600
+        intervalSeconds: 20
 
     - name: Enable Automerge
       if: steps.wait-for-build.outputs.conclusion == 'success'

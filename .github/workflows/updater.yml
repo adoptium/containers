@@ -25,4 +25,5 @@ jobs:
           body: "This is an automatically generated pull request, please check it before merging"
           branch: "dockerfile_bot"
           commit-message: "dockerfile: automated nightly updates"
+          labels: automerge
           author: "eclipse-temurin-bot <temurin-bot@eclipse.org>"

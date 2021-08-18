@@ -9,6 +9,16 @@ jobs:
 
     if: github.event.pull_request.user.login == 'eclipse-temurin-bot' && contains(github.event.pull_request.labels.*.name, 'automerge')
     steps:
-    - uses: alexwilson/enable-github-automerge-action@1.0.0
+    - name: Wait for tests to complete
+      uses: fountainhead/action-wait-for-check@v1.0.0
+      id: wait-for-build
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        checkName: test
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    - name: Enable Automerge
+      if: steps.wait-for-build.outputs.conclusion == 'success'
+      uses: alexwilson/enable-github-automerge-action@1.0.0
       with:
         github-token: "${{ secrets.GITHUB_TOKEN }}"

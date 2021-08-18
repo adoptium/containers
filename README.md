@@ -2,6 +2,8 @@
 
 This repository contains the Dockerfiles for the official Adoptium images of Eclipse Temurin OpenJDK. These images are made available in Dockerhub.
 
+If you are looking for the usage README then please head to the [Official Docker Hub Documentation](https://hub.docker.com/_/eclipse-temurin).
+
 ## Supported Images
 
 | OS | Version | Dockerfile |

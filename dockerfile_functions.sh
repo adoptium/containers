@@ -829,7 +829,13 @@ print_test() {
 		cat >> "$1" <<-EOI
 
 RUN echo Verifying install ... \\
+	EOI
+		if [[ "${package}" == "jdk" ]]; then
+		cat >> "$1" <<-EOI
     && echo   javac ${arg} && javac ${arg} \\
+	EOI
+		fi
+		cat >> "$1" <<-EOI
     && echo   java ${arg} && java ${arg} \\
     && echo Complete.
 	EOI
@@ -837,7 +843,13 @@ RUN echo Verifying install ... \\
 		cat >> "$1" <<-EOI
 
 RUN Write-Host 'Verifying install ...'; \\
+	EOI
+		if [[ "${package}" == "jdk" ]]; then
+		cat >> "$1" <<-EOI
     Write-Host '  javac ${arg}'; javac ${arg}; \\
+	EOI
+		fi
+		cat >> "$1" <<-EOI
     Write-Host '  java ${arg}'; java ${arg}; \\
     \\
     Write-Host 'Complete.'

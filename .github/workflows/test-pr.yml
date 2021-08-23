@@ -8,9 +8,22 @@ defaults:
     shell: 'bash -Eeuo pipefail -x {0}'
 
 jobs:
+  enable-auto-merge:
+    name: Auto Merge
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'eclipse-temurin-bot'
+    steps:
+    - name: Enable Automerge
+      if: needs.test.result == 'success'
+      uses: alexwilson/enable-github-automerge-action@1.0.0
+      with:
+        github-token: "${{ secrets.GITHUB_TOKEN }}"
+
   generate-jobs:
     name: Generate Jobs
+    needs: enable-auto-merge
     runs-on: ubuntu-latest
+    if: always()
     outputs:
       strategy: ${{ steps.generate-jobs.outputs.strategy }}
     steps:
@@ -44,15 +57,3 @@ jobs:
         run: ${{ matrix.runs.test }}
       - name: '"docker images"'
         run: ${{ matrix.runs.images }}
-        
-  enable-auto-merge:
-    name: Auto Merge
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'eclipse-temurin-bot'
-    steps:
-    - name: Enable Automerge
-      if: needs.test.result == 'success'
-      uses: alexwilson/enable-github-automerge-action@1.0.0
-      with:
-        github-token: "${{ secrets.GITHUB_TOKEN }}"

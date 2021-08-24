@@ -24,28 +24,15 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 
 ENV JAVA_VERSION jdk-11.0.12+7
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.12%2B7/OpenJDK11U-jdk_x64_windows_hotspot_11.0.12_7.msi ...'); \
-    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.12%2B7/OpenJDK11U-jdk_x64_windows_hotspot_11.0.12_7.msi ; \
-    Write-Host ('Verifying sha256 (80546d8a36ad0cdf69305f72f42465093b9d0388f45819b05cc640ecd1310b32) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '80546d8a36ad0cdf69305f72f42465093b9d0388f45819b05cc640ecd1310b32') { \
-        Write-Host 'FAILED!'; \
-        exit 1; \
-    }; \
-    \
-    New-Item -ItemType Directory -Path C:\temp | Out-Null; \
-    \
-    Write-Host 'Installing using MSI ...'; \
-    $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList '/i', 'openjdk.msi', '/L*V', 'C:\temp\OpenJDK.log', \
-    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-11' -Wait -Passthru; \
-    $proc.WaitForExit() ; \
-    if ($proc.ExitCode -ne 0) { \
-        Write-Host 'FAILED installing MSI!' ; \
-        exit 1; \
-    }; \
-    \
-    Remove-Item -Path C:\temp -Recurse | Out-Null; \
-    Write-Host 'Removing openjdk.msi ...'; \
-    Remove-Item openjdk.msi -Force
+ENV JAVA_HOME C:\\openjdk-
+# "ERROR: Access to the registry path is denied."
+USER ContainerAdministrator
+RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
+    && setx /M PATH %JAVA_HOME%\bin;%PATH% \
+    && echo Complete.
+USER ContainerUser
+
+COPY --from=eclipse-temurin:11.0.12_7-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN Write-Host 'Verifying install ...'; \
     Write-Host 'javac --version'; javac --version; \

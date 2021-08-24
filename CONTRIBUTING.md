@@ -5,9 +5,9 @@ You can contribute to this project in many different ways.  **We appreciate all 
 
 ## Project description
 
-containers is a project that contains the dockerfiles and scripts to produce Temurin container images
+containers is a project that contains the DockerFiles and scripts to produce Temurin container images
 
-* https://github.com/adoptium/containers
+* [https://github.com/adoptium/containers](https://github.com/adoptium/containers)
 
 ## Developer resources
 

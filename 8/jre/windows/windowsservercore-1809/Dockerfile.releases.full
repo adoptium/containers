@@ -24,28 +24,15 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 
 ENV JAVA_VERSION jdk8u302-b08
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jre_x64_windows_hotspot_8u302b08.msi ...'); \
-    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jre_x64_windows_hotspot_8u302b08.msi ; \
-    Write-Host ('Verifying sha256 (34e5eea737dfaca57ec5162e6fece5259f403fa419c7bcab572e9cdd2bcf8dd1) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '34e5eea737dfaca57ec5162e6fece5259f403fa419c7bcab572e9cdd2bcf8dd1') { \
-        Write-Host 'FAILED!'; \
-        exit 1; \
-    }; \
-    \
-    New-Item -ItemType Directory -Path C:\temp | Out-Null; \
-    \
-    Write-Host 'Installing using MSI ...'; \
-    $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList '/i', 'openjdk.msi', '/L*V', 'C:\temp\OpenJDK.log', \
-    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-8' -Wait -Passthru; \
-    $proc.WaitForExit() ; \
-    if ($proc.ExitCode -ne 0) { \
-        Write-Host 'FAILED installing MSI!' ; \
-        exit 1; \
-    }; \
-    \
-    Remove-Item -Path C:\temp -Recurse | Out-Null; \
-    Write-Host 'Removing openjdk.msi ...'; \
-    Remove-Item openjdk.msi -Force
+ENV JAVA_HOME C:\\openjdk-
+# "ERROR: Access to the registry path is denied."
+USER ContainerAdministrator
+RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
+    && setx /M PATH %JAVA_HOME%\bin;%PATH% \
+    && echo Complete.
+USER ContainerUser
+
+COPY --from=eclipse-temurin:8u302b08-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN Write-Host 'Verifying install ...'; \
     Write-Host 'java -version'; java -version; \

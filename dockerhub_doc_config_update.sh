@@ -31,7 +31,7 @@ else
 	official_docker_image_file="$1"
 fi
 
-oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
+oses="alpine ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="focal"
 

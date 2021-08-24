@@ -590,8 +590,8 @@ ENV JAVA_HOME C:\\\\openjdk-${version}
 # "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \\
-        && setx /M PATH %JAVA_HOME%\bin;%PATH% \\
-        && echo Complete.
+    && setx /M PATH %JAVA_HOME%\bin;%PATH% \\
+    && echo Complete.
 USER ContainerUser
 
 COPY --from=eclipse-temurin:${copy_version}-jdk-windowsservercore-${os_version} \$JAVA_HOME \$JAVA_HOME
@@ -624,8 +624,8 @@ RUN Write-Host ('Downloading ${BINARY_URL} ...'); \\
     ${DOWNLOAD_COMMAND} ; \\
     Write-Host ('Verifying sha256 (${ESUM}) ...'); \\
     if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '${ESUM}') { \\
-            Write-Host 'FAILED!'; \\
-            exit 1; \\
+        Write-Host 'FAILED!'; \\
+        exit 1; \\
     }; \\
     \\
     New-Item -ItemType Directory -Path C:\temp | Out-Null; \\
@@ -635,8 +635,8 @@ RUN Write-Host ('Downloading ${BINARY_URL} ...'); \\
     '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-${version}' -Wait -Passthru; \\
     \$proc.WaitForExit() ; \\
     if (\$proc.ExitCode -ne 0) { \\
-            Write-Host 'FAILED installing MSI!' ; \\
-            exit 1; \\
+        Write-Host 'FAILED installing MSI!' ; \\
+        exit 1; \\
     }; \\
     \\
     Remove-Item -Path C:\temp -Recurse | Out-Null; \\
@@ -832,11 +832,11 @@ RUN echo Verifying install ... \\
 	EOI
 		if [[ "${package}" == "jdk" ]]; then
 			cat >> "$1" <<-EOI
-    && echo   javac ${arg} && javac ${arg} \\
+    && echo javac ${arg} && javac ${arg} \\
 	EOI
 		fi
 		cat >> "$1" <<-EOI
-    && echo   java ${arg} && java ${arg} \\
+    && echo java ${arg} && java ${arg} \\
     && echo Complete.
 	EOI
 	else
@@ -846,11 +846,11 @@ RUN Write-Host 'Verifying install ...'; \\
 	EOI
 		if [[ "${package}" == "jdk" ]]; then
 			cat >> "$1" <<-EOI
-    Write-Host '  javac ${arg}'; javac ${arg}; \\
+    Write-Host 'javac ${arg}'; javac ${arg}; \\
 	EOI
 		fi
 		cat >> "$1" <<-EOI
-    Write-Host '  java ${arg}'; java ${arg}; \\
+    Write-Host 'java ${arg}'; java ${arg}; \\
     \\
     Write-Host 'Complete.'
 	EOI

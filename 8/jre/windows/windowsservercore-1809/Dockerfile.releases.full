@@ -28,8 +28,8 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/relea
     curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jre_x64_windows_hotspot_8u302b08.msi ; \
     Write-Host ('Verifying sha256 (34e5eea737dfaca57ec5162e6fece5259f403fa419c7bcab572e9cdd2bcf8dd1) ...'); \
     if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '34e5eea737dfaca57ec5162e6fece5259f403fa419c7bcab572e9cdd2bcf8dd1') { \
-            Write-Host 'FAILED!'; \
-            exit 1; \
+        Write-Host 'FAILED!'; \
+        exit 1; \
     }; \
     \
     New-Item -ItemType Directory -Path C:\temp | Out-Null; \
@@ -39,8 +39,8 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/relea
     '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-8' -Wait -Passthru; \
     $proc.WaitForExit() ; \
     if ($proc.ExitCode -ne 0) { \
-            Write-Host 'FAILED installing MSI!' ; \
-            exit 1; \
+        Write-Host 'FAILED installing MSI!' ; \
+        exit 1; \
     }; \
     \
     Remove-Item -Path C:\temp -Recurse | Out-Null; \
@@ -48,6 +48,6 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/relea
     Remove-Item openjdk.msi -Force
 
 RUN Write-Host 'Verifying install ...'; \
-    Write-Host '  java -version'; java -version; \
+    Write-Host 'java -version'; java -version; \
     \
     Write-Host 'Complete.'

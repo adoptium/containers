@@ -27,13 +27,13 @@ ENV JAVA_HOME C:\\openjdk-8
 # "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
-        && setx /M PATH %JAVA_HOME%\bin;%PATH% \
-        && echo Complete.
+    && setx /M PATH %JAVA_HOME%\bin;%PATH% \
+    && echo Complete.
 USER ContainerUser
 
 COPY --from=eclipse-temurin:8u302-b08-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
-    && echo   javac -version && javac -version \
-    && echo   java -version && java -version \
+    && echo javac -version && javac -version \
+    && echo java -version && java -version \
     && echo Complete.

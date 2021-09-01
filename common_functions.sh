@@ -188,6 +188,7 @@ function get_arches() {
 			continue;
 		fi
 		# Arch is supported only if the shasum is not empty !
+		# alpine-linux is for musl based images
 		# shellcheck disable=SC2154,SC1083
 		local shasum=$(sarray=$1[${arch}]; eval esum=\${"$sarray"}; echo "${esum}");
 		if [ -n "${shasum}" ]; then
@@ -577,6 +578,7 @@ function get_sums_for_build() {
 	printf "\t[version]=\"%s\"\n" "${full_version}" >> "${ofile_build_time}"
 	# Need to get shasums for each of the OS Families
 	# families = alpine-linux, linux and windows
+	# alpine-linux is for musl based images
 	for os_fam in ${os_families}
 	do
 		# bash doesnt support '-' in the name of a variable

@@ -51,5 +51,3 @@ ENV JAVA_HOME=/opt/java/openjdk \
 RUN echo Verifying install ... \
     && echo java --version && java --version \
     && echo Complete.
-
-CMD ["jshell"]

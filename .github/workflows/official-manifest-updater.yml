@@ -21,7 +21,11 @@ jobs:
           path: scripts
 
       - name: Run updater
-        run: "bash scripts/dockerhub_doc_config_update.sh library/eclipse-temurin"
+        run: |
+          cd scripts
+          bash dockerhub_doc_config_update.sh ../library/eclipse-temurin
+          cd ../
+          rm -rf scripts
 
       - uses: peter-evans/create-pull-request@v3
         with:

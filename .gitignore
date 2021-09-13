@@ -6,5 +6,6 @@ manifest_commands.sh
 hadolint/
 shellcheck/
 eclipse-temurin
+official-eclipse-temurin
 *hotspot.txt
 library/

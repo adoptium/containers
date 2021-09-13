@@ -32,6 +32,7 @@ jobs:
           token: ${{ secrets.ADOPTIUM_TEMURIN_BOT_TOKEN }}
           commit-message: 'eclipse-temurin: dockerfile updates'
           author: "eclipse-temurin-bot <temurin-bot@eclipse.org>"
+          push-to-fork: 'eclipse-temurin-bot/official-images'
           branch: eclipse-temurin
           title: 'eclipse-temurin: dockerfile updates'
           body: |

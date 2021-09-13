@@ -160,7 +160,9 @@ function print_official_image_file() {
 	fi
 	
 	if [[ ${diff_count} -eq 0 ]]; then
-		gitcommit="${official_gitcommit}"
+		commit="${official_gitcommit}"
+	else
+		commit="${gitcommit}"
 	fi
 
 	# Print them all
@@ -170,7 +172,7 @@ function print_official_image_file() {
 	  	echo "SharedTags: ${all_shared_tags}"
 	  fi
 	  echo "Architectures: ${arches}"
-	  echo "GitCommit: ${gitcommit}"
+	  echo "GitCommit: ${commit}"
 	  echo "Directory: ${dfdir}"
 	  echo "File: ${dfname}"
 	  if [ $os == "windows" ]; then

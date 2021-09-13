@@ -31,6 +31,9 @@ else
 	official_docker_image_file="$1"
 fi
 
+# Fetch the latest manifest from the official repo
+wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
+
 # TODO When we have Apline musl builds we should add alpine to the follow list
 oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
@@ -144,6 +147,22 @@ function generate_official_image_arches() {
 }
 
 function print_official_image_file() {
+	# Retrieve the latest manifest block
+	official_manifest=$(sed -n "/${all_tags}/,/^$/p" official-eclipse-temurin)
+	# Retrieve the git commit sha from the official manifest
+	official_gitcommit=$(echo "${official_manifest}" | grep 'GitCommit: ' | awk '{print $2}')
+	# See if there are any changes between the two commit sha's
+	if git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" >/dev/null 2>&1; then
+		diff_count=$(git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" | wc -l)
+	else
+		# Forcefully sets a diff if the file doesn't exist
+		diff_count=1
+	fi
+	
+	if [[ ${diff_count} -eq 0 ]]; then
+		gitcommit="${official_gitcommit}"
+	fi
+
 	# Print them all
 	{
 	  echo "Tags: ${all_tags}"

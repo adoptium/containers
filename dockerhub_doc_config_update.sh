@@ -35,7 +35,7 @@ fi
 wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
 
 # TODO When we have Apline musl builds we should add alpine to the follow list
-oses="ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
+oses="alpine ubuntu centos windowsservercore-1809 windowsservercore-ltsc2016 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="focal"
 
@@ -192,7 +192,7 @@ rm -f ${official_docker_image_file}
 print_official_header
 
 # TODO once we have musl based alpine images we can remove alpine
-official_os_ignore_array=(alpine clefos debian debianslim leap tumbleweed ubi ubi-minimal)
+official_os_ignore_array=(clefos debian debianslim leap tumbleweed ubi ubi-minimal)
 
 # Generate config and doc info only for "supported" official builds.
 function generate_official_image_info() {

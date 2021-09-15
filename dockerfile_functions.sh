@@ -341,26 +341,16 @@ print_java_install_pre() {
 		EOI
 		elif [ "${sarch}" == "armv7l" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" arm "${osfamily}");
-			if [ "${os}" == "centos" ]; then
-				archString="arm"
-			else
-				archString="armhf|armv7l"
-			fi
 			cat >> "$1" <<-EOI
-       ${archString}) \\
+       armhf|arm) \\
          ESUM='$(get_shasum "${shasums}" armv7l "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
          ;; \\
 		EOI
 		elif [ "${sarch}" == "ppc64le" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" ppc64le "${osfamily}");
-			if [ "${os}" == "centos" ]; then
-				archString="powerpc:common64"
-			else
-				archString="ppc64el|ppc64le"
-			fi
 			cat >> "$1" <<-EOI
-       ${archString}) \\
+       ppc64el|powerpc:common64) \\
          ESUM='$(get_shasum "${shasums}" ppc64le "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
          ;; \\
@@ -368,7 +358,7 @@ print_java_install_pre() {
 		elif [ "${sarch}" == "s390x" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" s390x "${osfamily}");
 			cat >> "$1" <<-EOI
-       s390x) \\
+       s390x|s390:64-bit) \\
          ESUM='$(get_shasum "${shasums}" s390x "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
 		EOI
@@ -390,13 +380,8 @@ EOI
 		EOI
 		elif [ "${sarch}" == "x86_64" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" x64 "${osfamily}");
-			if [ "${os}" == "centos" ]; then
-				archString="i386:x86-64"
-			else
-				archString="amd64|x86_64"
-			fi
 			cat >> "$1" <<-EOI
-       ${archString}) \\
+       amd64|i386:x86-64) \\
          ESUM='$(get_shasum "${shasums}" x86_64 "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
          ;; \\

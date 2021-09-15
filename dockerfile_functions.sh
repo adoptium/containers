@@ -554,7 +554,7 @@ RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \\
     && echo Complete.
 USER ContainerUser
 
-COPY --from=eclipse-temurin:${copy_version}-jdk-windowsservercore-${os_version} \$JAVA_HOME \$JAVA_HOME
+COPY --from=eclipse-temurin:${copy_version}-${pkg}-windowsservercore-${os_version} \$JAVA_HOME \$JAVA_HOME
 EOI
 	fi
 }

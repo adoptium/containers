@@ -149,13 +149,18 @@ function generate_official_image_arches() {
 function print_official_image_file() {
 	# Retrieve the latest manifest block
 	official_manifest=$(sed -n "/${all_tags}/,/^$/p" official-eclipse-temurin)
-	# Retrieve the git commit sha from the official manifest
-	official_gitcommit=$(echo "${official_manifest}" | grep 'GitCommit: ' | awk '{print $2}')
-	# See if there are any changes between the two commit sha's
-	if git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" >/dev/null 2>&1; then
-		diff_count=$(git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" | wc -l)
+	if [[ "${official_manifest}" != "" ]]; then
+		# Retrieve the git commit sha from the official manifest
+		official_gitcommit=$(echo "${official_manifest}" | grep 'GitCommit: ' | awk '{print $2}')
+		# See if there are any changes between the two commit sha's
+		if git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" >/dev/null 2>&1; then
+			diff_count=$(git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" | wc -l)
+		else
+			# Forcefully sets a diff if the file doesn't exist
+			diff_count=1
+		fi
 	else
-		# Forcefully sets a diff if the file doesn't exist
+		# Forcefully sets a diff if a new dockerfile has been added
 		diff_count=1
 	fi
 	

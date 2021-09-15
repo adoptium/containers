@@ -222,9 +222,7 @@ function generate_official_image_info() {
 # Official docker images = https://hub.docker.com/_/adoptopenjdk
 for vm in ${all_jvms}
 do
-	# Official images support different versions
-	official_supported_versions="8 11 16"
-	for ver in ${official_supported_versions}
+	for ver in ${supported_versions}
 	do
 		print_official_text
 		print_official_text "#------------------------------v${ver} images---------------------------------"

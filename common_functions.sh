@@ -52,8 +52,8 @@ PR_TEST_OSES="ubuntu"
 runtype="build"
 
 # Current JVM versions supported
-export supported_versions="8 11 16"
-export latest_version="16"
+export supported_versions="8 11 16 17"
+export latest_version="17"
 
 # Current builds supported
 export supported_builds="releases"
@@ -61,7 +61,7 @@ export supported_builds="releases"
 function check_version() {
 	local version=$1
 	case ${version} in
-	8|9|10|11|12|13|14|15|16)
+	8|11|16|17)
 		;;
 	*)
 		echo "ERROR: Invalid version"

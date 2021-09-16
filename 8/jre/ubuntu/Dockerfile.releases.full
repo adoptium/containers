@@ -36,11 +36,11 @@ RUN set -eux; \
          ESUM='9951a36430c14548f78569135956e929db2554bfc706bb3fe0bf9a14acd28055'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jre_aarch64_linux_hotspot_8u302b08.tar.gz'; \
          ;; \
-       ppc64el|ppc64le) \
+       ppc64el|powerpc:common64) \
          ESUM='0f242dc94b2c46f231e811427e30031cd1c7e5667979f8b403296008863d150e'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jre_ppc64le_linux_hotspot_8u302b08.tar.gz'; \
          ;; \
-       amd64|x86_64) \
+       amd64|i386:x86-64) \
          ESUM='a74e63657ad04151a8f95202071d2895f1cc9295c910ad3c361ff1cc27395107'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jre_x64_linux_hotspot_8u302b08.tar.gz'; \
          ;; \

@@ -45,3 +45,12 @@ This script will create a file called _eclipse-temurin_.
 
 Then edit the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin), replacing all of the contents.
 
+At the bottom of that edit screen add a title and description for the commit and click on hte _Propose Change_ button.
+
+In the next screen click on the _Create Pull Request Button_.
+
+Once that PR has been created it will be automatically tested and reviewed by Docker Hub staff and eventually released.
+
+### Diff Output at Docker Hub
+
+It can be useful to look at the diff output created by one of the Docker Hub GitHub Actions on the Pull Request.

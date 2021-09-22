@@ -9,3 +9,4 @@ eclipse-temurin
 official-eclipse-temurin
 *hotspot.txt
 library/
+.vscode/

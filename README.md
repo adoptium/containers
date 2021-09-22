@@ -45,7 +45,7 @@ This script will create a file called _eclipse-temurin_.
 
 Then edit the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin), replacing all of the contents.
 
-At the bottom of that edit screen add a title and description for the commit and click on hte _Propose Change_ button.
+At the bottom of that edit screen add a title and description for the commit and click on the _Propose Change_ button.
 
 In the next screen click on the _Create Pull Request Button_.
 

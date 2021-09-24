@@ -380,8 +380,13 @@ EOI
 		EOI
 		elif [ "${sarch}" == "x86_64" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" x64 "${osfamily}");
+			if [ "${osfamily}" == "alpine-linux" ]; then
+				print_arch="x86_64"
+			else
+				print_arch="amd64|i386:x86-64"
+			fi
 			cat >> "$1" <<-EOI
-       amd64|i386:x86-64) \\
+       ${print_arch}) \\
          ESUM='$(get_shasum "${shasums}" x86_64 "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
          ;; \\
@@ -395,13 +400,27 @@ EOI
          ;; \\
     esac; \\
 EOI
-	cat >> "$1" <<'EOI'
+	if [ "${osfamily}" == "alpine-linux" ]; then
+		cat >> "$1" <<'EOI'
+	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+	  mkdir -p /opt/java/openjdk; \
+	  tar --extract \
+	      --file /tmp/openjdk.tar.gz \
+	      --directory /opt/java/openjdk \
+	      --strip-components 1 \
+	      --no-same-owner \
+	  ; \
+EOI
+	else
+		cat >> "$1" <<'EOI'
     curl -LfsSo /tmp/openjdk.tar.gz ${BINARY_URL}; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p /opt/java/openjdk; \
     cd /opt/java/openjdk; \
     tar -xf /tmp/openjdk.tar.gz --strip-components=1; \
 EOI
+	fi
 }
 
 print_java_install_post() {
@@ -620,7 +639,6 @@ print_alpine_java_install() {
 
 	cat >> "$1" <<-EOI
 RUN set -eux; \\
-    apk add --no-cache --virtual .fetch-deps curl; \\
     ARCH="\$(apk --print-arch)"; \\
     case "\${ARCH}" in \\
 EOI
@@ -628,10 +646,6 @@ EOI
 	if [ "${btype}" == "slim" ]; then
 		print_alpine_slim_package "$1"
 	fi
-	cat >> "$1" <<-EOI
-    apk del --purge .fetch-deps; \\
-    rm -rf /var/cache/apk/*; \\
-EOI
 	print_java_install_post "$1"
 }
 

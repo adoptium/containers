@@ -31,8 +31,9 @@ test_buckets_file="config/test_buckets.list"
 all_jvms="hotspot"
 
 # Supported arches for each of the os_families
-os_families="linux windows"
+os_families="linux alpine-linux windows"
 linux_arches="aarch64 armv7l ppc64le s390x x86_64"
+alpine_linux_arches="x86_64"
 windows_arches="windows-amd windows-nano"
 
 # All supported packages
@@ -142,9 +143,9 @@ function set_arch_os() {
 			# shellcheck disable=SC2034 # used externally
 			current_arch="x86_64"
 			# shellcheck disable=SC2034 # used externally
-			oses="centos ubuntu"
+			oses="alpine centos ubuntu"
 			# shellcheck disable=SC2034 # used externally
-			os_family="linux"
+			os_family="alpine-linux linux"
 			;;
 		esac
 		;;

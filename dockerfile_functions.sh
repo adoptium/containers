@@ -381,7 +381,7 @@ EOI
 		elif [ "${sarch}" == "x86_64" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" x64 "${osfamily}");
 			if [ "${osfamily}" == "alpine-linux" ]; then
-				print_arch="x86_64"
+				print_arch="amd64|x86_64"
 			else
 				print_arch="amd64|i386:x86-64"
 			fi

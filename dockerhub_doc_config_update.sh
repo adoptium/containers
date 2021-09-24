@@ -142,7 +142,7 @@ function generate_official_image_arches() {
 		# ppc64el is ppc64le
 		# arm is arm32v7 and aarch64 is arm64v8 for docker builds
 		# shellcheck disable=SC2046,SC2005,SC1003,SC2086,SC2063
-		arches=$(echo $(grep ') \\' ${file} | sed 's/\(powerpc:common64\)//;s/\(i386:x86-64\)//;s/\(arm64\)//;s/\(armhf\)//;s/\(s390:64-bit\)//;s/\(arm\)/arm32v7/;s/\(ppc64el\)/ppc64le/;s/\(aarch64\)/arm64v8/;' | grep -v "*" | sed 's/) \\//g; s/|//g' | sort) | sed 's/ /, /g')
+		arches=$(echo $(grep ') \\' ${file} | sed 's/\(powerpc:common64\)//;s/\(i386:x86-64\)//;s/\(x86_64\)//;s/\(arm64\)//;s/\(armhf\)//;s/\(s390:64-bit\)//;s/\(arm\)/arm32v7/;s/\(ppc64el\)/ppc64le/;s/\(aarch64\)/arm64v8/;' | grep -v "*" | sed 's/) \\//g; s/|//g' | sort) | sed 's/ /, /g')
 	fi
 }
 

@@ -504,19 +504,9 @@ function get_sums_for_build_arch() {
 		if [ -z "${availability}" ]; then
 			# If there are multiple builds for a single version, then pick the latest one.
 			if [ "${arch}" == "windows-amd" ]; then
-				shasums_url=$(python3 -c "import sys, json; print(json.load(sys.stdin)[0]['binaries'][0]['installer']['checksum_link'])" < "${shasum_file}")
-				if [ -z "$shasums_url" ]; then
-					shasums_url=$(python3 -c "import sys, json; print(json.load(sys.stdin)[0]['binaries'][0]['package']['checksum_link'])" < "${shasum_file}")
-				fi
+				shasum=$(python3 -c "import sys, json; print(json.load(sys.stdin)[0]['binaries'][0]['installer']['checksum'])" < "${shasum_file}")
 			else
-				shasums_url=$(python3 -c "import sys, json; print(json.load(sys.stdin)[0]['binaries'][0]['package']['checksum_link'])" < "${shasum_file}")
-			fi
-			shasum=$(curl -Ls "${shasums_url}" | sed -e 's/<[^>]*>//g' | awk '{ print $1 }');
-			# Sometimes shasum files are missing, check for error and do not print on error.
-			shasum_available=$(echo "${shasum}" | grep -e "No" -e "Not");
-			if [ -n "${shasum_available}" ]; then
-				echo "shasum file not available at url: ${shasums_url}"
-				break;
+				shasum=$(python3 -c "import sys, json; print(json.load(sys.stdin)[0]['binaries'][0]['package']['checksum'])" < "${shasum_file}")
 			fi
 			# Get the release version for this arch from the info file
 			arch_build_version=$(python3 -c "import sys, json; print(json.load(sys.stdin)[0]['release_name'])" < "${shasum_file}")

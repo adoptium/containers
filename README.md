@@ -62,5 +62,5 @@ Once that PR has been created it will be automatically tested and reviewed by Do
 ### Diff Output at Docker Hub
 
 It can be useful to look at the diff output created by one of the Docker Hub GitHub Actions on the Pull Request. This output
-should not be read aas a traditional PR (since Docker Hub bots do move things around, so you may see what looks like odd deletions)
+should not be read as a traditional PR (since Docker Hub bots do move things around, so you may see what looks like odd deletions)
 but as a sanity check to make sure you see the platoforms/architectures that you expect.

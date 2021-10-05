@@ -135,7 +135,7 @@ print_windows_ver() {
 		*1909) os_version="1909" ;;
 		*ltsc2016) os_version="ltsc2016" ;;
 		*1809) os_version="1809" ;;
-		*20h2) os_version="20H2" ;;
+		*ltsc2022) os_version="ltsc2022" ;;
 	esac
 
 	servertype=$(echo "$file" | cut -f4 -d"/")
@@ -547,7 +547,7 @@ print_windows_java_install_post() {
 	local os=$4
 
 	case $os in
-		*20h2) os_version="20H2" ;;
+		*ltsc2022) os_version="ltsc2022" ;;
 		*ltsc2019) os_version="ltsc2019" ;;
 		*1909) os_version="1909" ;;
 		*ltsc2016) os_version="ltsc2016" ;;

@@ -129,6 +129,9 @@ function set_arch_os() {
 				# this variable will only be set when running under GitHub Actions
 				if [ -n "${BUILD_OS}" ]; then
 					case ${BUILD_OS} in
+					windows-2022)
+						oses="windowsservercore-ltsc2022 nanoserver-ltsc2022"
+						;;
 					windows-2019)
 						oses="windowsservercore-1809 nanoserver-1809 windowsservercore-ltsc2019"
 						;;

@@ -39,6 +39,10 @@ RUN set -eux; \
        armhf|arm) \
          ESUM='666f159ab0a2dd09c776681eb7cecaf04dc17e35deb213e588fe4f00c2fcac24'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u302-b08/OpenJDK8U-jdk_arm_linux_hotspot_8u302b08.tar.gz'; \
+         # Fixes libatomic.so.1: cannot open shared object file
+         apt-get update \
+         && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \
+         && rm -rf /var/lib/apt/lists/* \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='c2940f3772d4467a818a0221e80c2c720b6d427a886aaed37262e451ddbb0a56'; \

@@ -345,6 +345,16 @@ print_java_install_pre() {
        armhf|arm) \\
          ESUM='$(get_shasum "${shasums}" armv7l "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
+		EOI
+			if [ "${version}" == "8" ] && [ "${vm}" == "hotspot" ] && [ "${os}" == "ubuntu" ]; then
+				cat >> "$1" <<-EOI
+         # Fixes libatomic.so.1: cannot open shared object file
+         apt-get update \\
+         && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \\
+         && rm -rf /var/lib/apt/lists/* \\
+		EOI
+			fi
+			cat >> "$1" <<-EOI
          ;; \\
 		EOI
 		elif [ "${sarch}" == "ppc64le" ]; then

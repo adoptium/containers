@@ -56,6 +56,7 @@ print_official_header() {
 	print_official_text
 	print_official_text "Maintainers: George Adams <george.adams@microsoft.com> (@gdams)"
 	print_official_text "GitRepo: https://github.com/adoptium/containers.git"
+	print_official_text "GitFetch: refs/heads/main"
 }
 
 function generate_official_image_tags() {

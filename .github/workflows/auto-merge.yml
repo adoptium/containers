@@ -14,5 +14,5 @@ jobs:
         uses: daneden/enable-automerge-action@v1
         with:
           github-token: ${{ secrets.ADOPTIUM_TEMURIN_BOT_TOKEN }}
-          allowed-author: "gdams"
+          allowed-author: "eclipse-temurin-bot"
           merge-method: SQUASH

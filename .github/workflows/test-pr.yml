@@ -49,3 +49,12 @@ jobs:
         run: ${{ matrix.runs.test }}
       - name: '"docker images"'
         run: ${{ matrix.runs.images }}
+
+  conclusion:
+    name: conclusion
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Result
+        run: ${{ needs.test.result == 'success' }}

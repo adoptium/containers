@@ -1,0 +1,18 @@
+name: Automerge
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+jobs:
+  automerge:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'automerge') }}
+    name: Enable Automerge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable automerge on dependabot PRs
+        uses: daneden/enable-automerge-action@v1
+        with:
+          github-token: ${{ secrets.ADOPTIUM_TEMURIN_BOT_TOKEN }}
+          allowed-author: "gdams"
+          merge-method: SQUASH

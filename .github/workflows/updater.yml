@@ -2,8 +2,8 @@ name: Dockerfile Updater
 on:
   workflow_dispatch:
   schedule:
-    # https://crontab.guru/every-night-at-midnight
-    - cron: "0 0 * * *"
+    # Runs every half hour
+    - cron: "*/30 * * * *"
 
 jobs:
   update_dockerfile:

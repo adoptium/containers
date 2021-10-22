@@ -285,7 +285,12 @@ print_env() {
 
 	# shellcheck disable=SC2154
 	shasums="${package}"_"${vm}"_"${version}"_"${build}"_sums
-	jverinfo="${shasums}[version]"
+	if [ "${osfamily}" == "windows" ]; then
+		# Sometimes the windows version can differ from the Linux one
+		jverinfo="${shasums}[version-windows_windows-amd]"
+	else
+		jverinfo="${shasums}[version]"
+	fi
 	# shellcheck disable=SC1083,SC2086 # TODO not sure about intention here
 	eval jver=\${$jverinfo}
 	jver="${jver}" # to satifsy shellcheck SC2154

@@ -22,7 +22,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ADOPTIUM_TEMURIN_BOT_TOKEN }}
         with:
           title: "Update Dockerfiles"
-          body: "This is an automatically generated pull request, please check it before merging"
+          body: "This is an automatically generated pull request, it will be automatically merged if all the CI tests pass."
           branch: "dockerfile_bot"
           commit-message: "dockerfile: automated nightly updates"
           labels: automerge

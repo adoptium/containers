@@ -526,7 +526,10 @@ function get_sums_for_build_arch() {
 			# The parent version will automatically be the latest for all arches as returned by the v2 API
 			if [[ "${arch_build_base_version}" != "${full_version_base_version}"* || "${arch_build_vm_type}" != "${full_version_vm_type}" ]]; then
 				echo "Parent version not matching for arch ${arch}: ${arch_build_version}, ${full_version}"
-				break;
+				# We only ship x64 for windows-amd so don't update the dockerfile if binary is unavailable
+				if [ "${arch}" != "windows-amd" ]; then
+					break;
+				fi
 			fi
 			# Get the build date for this arch tarball
 			arch_last_build_date="$(curl -Lv "${shasums_url}" 2>&1 | grep "Last-Modified" | sed 's/< Last-Modified: //')"
@@ -554,8 +557,6 @@ function get_sums_for_build() {
 	local build=$4
 
 	info_url=$(get_v3_url feature_releases "${build}" "${vm}" "${pkg}");
-	# Repeated requests from a script triggers a error threshold on adoptopenjdk.net
-	sleep 1;
 	info=$(curl -Ls "${info_url}")
 	err=$(echo "${info}" | grep -e "Error" -e "No matches" -e "Not found")
 	if [ -n "${err}" ]; then
@@ -567,7 +568,7 @@ function get_sums_for_build() {
 	printf "declare -A %s_%s_%s_%s_sums=(\n" "${pkg}" "${vm}" "${ver}" "${build}" >> "${ofile_sums}"
 	# We have another array for storing the last build time for each arch
 	printf "declare -A %s_%s_%s_%s_build_time=(\n" "${pkg}" "${vm}" "${ver}" "${build}" >> "${ofile_build_time}"
-	# Capture the full version according to adoptopenjdk
+	# Capture the full version according to adoptium
 	printf "\t[version]=\"%s\"\n" "${full_version}" >> "${ofile_sums}"
 	printf "\t[version]=\"%s\"\n" "${full_version}" >> "${ofile_build_time}"
 	# Need to get shasums for each of the OS Families

@@ -527,7 +527,7 @@ function get_sums_for_build_arch() {
 			if [[ "${arch_build_base_version}" != "${full_version_base_version}"* || "${arch_build_vm_type}" != "${full_version_vm_type}" ]]; then
 				echo "Parent version not matching for arch ${arch}: ${arch_build_version}, ${full_version}"
 				# We only ship x64 for windows-amd so don't update the dockerfile if binary is unavailable
-				if [ "${arch}" != "windows-amd" ]; then
+				if [ "${arch}" != "windows-amd" ] && [ "${os_family}" != "alpine-linux" ]; then
 					break;
 				fi
 			fi

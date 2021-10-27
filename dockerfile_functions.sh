@@ -288,6 +288,9 @@ print_env() {
 	if [ "${osfamily}" == "windows" ]; then
 		# Sometimes the windows version can differ from the Linux one
 		jverinfo="${shasums}[version-windows_windows-amd]"
+	elif [ "${osfamily}" == "alpine-linux" ]; then
+		# Sometimes the alpine linux version can differ from the Linux one
+		jverinfo="${shasums}[version-alpine-linux_x86_64]"
 	else
 		jverinfo="${shasums}[version]"
 	fi

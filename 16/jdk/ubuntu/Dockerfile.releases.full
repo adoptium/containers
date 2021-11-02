@@ -34,11 +34,11 @@ RUN set -eux; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='cb77d9d126f97898dfdc8b5fb694d1e0e5d93d13a0a6cb2aeda76f8635384340'; \
-         BINARY_URL='https://github.com/adoptium/temurin16-binaries/releases/download/jdk-16.0.2%2B7/OpenJDK16U-jdk_aarch64_linux_hotspot_16.0.2_7.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        armhf|arm) \
          ESUM='7721ef81416af8122a28448f3d661eb4bda40a9f78d400e4ecc55b58e627a00c'; \
-         BINARY_URL='https://github.com/adoptium/temurin16-binaries/releases/download/jdk-16.0.2%2B7/OpenJDK16U-jdk_arm_linux_hotspot_16.0.2_7.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='36ebe6c72f2fc19b8b17371f731390e15fa3aab08c28b55b9a8b71d0a578adc9'; \

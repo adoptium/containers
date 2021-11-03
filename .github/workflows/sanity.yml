@@ -1,0 +1,14 @@
+name: Sanity
+
+on:
+  pull_request:
+
+jobs:
+  sanity:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run Sanity Check Script
+        run: " bash sanity.sh"

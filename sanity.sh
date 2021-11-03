@@ -28,7 +28,7 @@ fi
 
 # Check for empty Shasum Windows
 if [[ $(grep -R "Hash -ne '\'" . | wc -l | awk '{print $1}') != 0 ]]; then
-    echo "detected empty ESUM"
+    echo "detected empty Hash"
     exit 1
 fi
 

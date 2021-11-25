@@ -175,7 +175,7 @@ print_lang_locale() {
 
 # Select the ubuntu OS packages
 print_ubuntu_pkg() {
-	packages="tzdata curl ca-certificates fontconfig locales"
+	packages="tzdata curl ca-certificates fontconfig locales python-is-python3"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"
@@ -682,8 +682,8 @@ RUN set -eux; \\
 EOI
 	print_java_install_pre "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}"
 	if [ "${btype}" == "slim" ]; then
-		if [ "${os}" == "ubi" ]; then	
-			print_ubi_slim_package "$1"	
+		if [ "${os}" == "ubi" ]; then
+			print_ubi_slim_package "$1"
 		elif [ "${os}" == "ubi-minimal" ]; then
 			print_ubi-minimal_slim_package "$1"
 		fi

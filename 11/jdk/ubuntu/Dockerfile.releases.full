@@ -46,11 +46,11 @@ RUN set -eux; \
          ;; \
        s390x|s390:64-bit) \
          ESUM='9d280d86fdf6a7d9e5cbf54dc37f1d6d09dfe676ff5c684802fdfa3932eee63e'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.13_8.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='3b1c0c34be4c894e64135a454f2d5aaa4bd10aea04ec2fa0c0efe6bb26528e30'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_x64_linux_hotspot_11.0.13_8.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

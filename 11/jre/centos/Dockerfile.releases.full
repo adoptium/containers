@@ -35,7 +35,7 @@ RUN set -eux; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='8f267876675dac3da3f4ceccd44d812b57098505eeec5fb1688d54bdeffcd1da'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.13_8.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='fb0a27e6e1f26a1ee79daa92e4cfe3ec0d676acfe114d99dd84b3414f056e8a0'; \

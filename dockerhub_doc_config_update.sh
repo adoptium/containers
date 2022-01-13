@@ -34,7 +34,7 @@ fi
 # Fetch the latest manifest from the official repo
 wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
 
-oses="alpine ubuntu centos windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809 windowsservercore-ltsc2016"
+oses="alpine ubuntu centos windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="focal"
 

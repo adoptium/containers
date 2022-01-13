@@ -133,7 +133,6 @@ print_windows_ver() {
 	case $os in
 		*ltsc2019) os_version="ltsc2019" ;;
 		*1909) os_version="1909" ;;
-		*ltsc2016) os_version="ltsc2016" ;;
 		*1809) os_version="1809" ;;
 		*ltsc2022) os_version="ltsc2022" ;;
 	esac
@@ -568,7 +567,6 @@ print_windows_java_install_post() {
 		*ltsc2022) os_version="ltsc2022" ;;
 		*ltsc2019) os_version="ltsc2019" ;;
 		*1909) os_version="1909" ;;
-		*ltsc2016) os_version="ltsc2016" ;;
 		*1809) os_version="1809" ;;
 	esac
 
@@ -612,9 +610,6 @@ print_windows_java_install() {
 		BINARY_URL=$(get_v3_installer_url "${JAVA_URL}");
 
 		DOWNLOAD_COMMAND="curl.exe -LfsSo openjdk.msi ${BINARY_URL}"
-		if [ "${serverversion}" == "ltsc2016" ]; then
-			DOWNLOAD_COMMAND="[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 ; Invoke-WebRequest -Uri ${BINARY_URL} -O 'openjdk.msi'"
-		fi
 
 		cat >> "$1" <<-EOI
 RUN Write-Host ('Downloading ${BINARY_URL} ...'); \\

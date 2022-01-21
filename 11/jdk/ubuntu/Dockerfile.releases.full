@@ -27,30 +27,18 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION jdk-11.0.13+8
+ENV JAVA_VERSION jdk-11.0.14+9
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        aarch64|arm64) \
-         ESUM='a77013bff10a5e9c59159231dd5c4bd071fc4c24beed42bd49b82803ba9506ef'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.13_8.tar.gz'; \
-         ;; \
-       armhf|arm) \
-         ESUM='61ee45c4ef21a85a116a87e1bca2e2a420b3af432be8d801bd52c660ffebaa9f'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_arm_linux_hotspot_11.0.13_8.tar.gz'; \
-         ;; \
-       ppc64el|powerpc:common64) \
-         ESUM='82f14cda71cff99c878bf8400598a87235adb6c81b0337f7077c27e5cac1190c'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_ppc64le_linux_hotspot_11.0.13_8.tar.gz'; \
-         ;; \
-       s390x|s390:64-bit) \
-         ESUM='9d280d86fdf6a7d9e5cbf54dc37f1d6d09dfe676ff5c684802fdfa3932eee63e'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.13_8.tar.gz'; \
+         ESUM='0ba188a2a739733163cd0049344429d2284867e04ca452879be24f3b54320c9a'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.14%2B9/OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.14_9.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
-         ESUM='3b1c0c34be4c894e64135a454f2d5aaa4bd10aea04ec2fa0c0efe6bb26528e30'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.13%2B8/OpenJDK11U-jdk_x64_linux_hotspot_11.0.13_8.tar.gz'; \
+         ESUM='1189bee178d11402a690edf3fbba0c9f2ada1d3a36ff78929d81935842ef24a9'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.14%2B9/OpenJDK11U-jdk_x64_linux_hotspot_11.0.14_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

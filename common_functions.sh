@@ -33,7 +33,7 @@ all_jvms="hotspot"
 # Supported arches for each of the os_families
 os_families="linux alpine-linux windows"
 linux_arches="aarch64 armv7l ppc64le s390x x86_64"
-alpine_linux_arches="x86_64"
+alpine_linux_arches="x86_64 aarch64"
 windows_arches="windows-amd windows-nano"
 
 # All supported packages

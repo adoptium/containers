@@ -174,7 +174,7 @@ print_lang_locale() {
 
 # Select the ubuntu OS packages
 print_ubuntu_pkg() {
-	packages="tzdata curl ca-certificates fontconfig locales python-is-python3"
+	packages="tzdata curl ca-certificates fontconfig locales"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"

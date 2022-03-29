@@ -252,7 +252,11 @@ function check_image() {
 # $4 = OS
 # $5 = String to look for.
 function parse_vm_entry() {
-	entry=$( < config/"$1".config grep -B 4 -E "$2\/$3\/$4$|$2\/$3\/windows\/$4$" | grep "$5" | sed "s/$5 //")
+	local vm=$1;
+	local ver=$2;
+	local pkg=$3;
+	local os=$4;
+	entry=$( < config/"$vm".config grep -B 4 -E "[[:space:]]$ver\/$pkg\/$os$|[[:space:]]$ver\/$pkg\/windows\/$os$" | grep "$5" | sed "s/$5 //")
 	echo "${entry}"
 }
 

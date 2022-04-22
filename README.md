@@ -12,6 +12,11 @@ In general, we support Ubuntu, CentOS and Windows containers.
 
 Alpine (Musl) will be supported in the near future.
 
+## Update Policy
+
+As these are official Docker Hub images, Docker Inc maintains the base image and so any CVEs in the base O/S layer gets updated by them in short order.
+For JDK version updates, we release on a quarterly cadence whenever a Patch Set Update (PSU) is available.
+
 ## Maintenance of Dockerfiles
 
 This section is for maintainers of the containers repository.

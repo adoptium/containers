@@ -44,6 +44,10 @@ RUN set -eux; \
          ESUM='a04587018c9719dca21073f19d56b335c4985f41afe7d99b24852c1a94b917e5'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.3%2B7/OpenJDK17U-jdk_ppc64le_linux_hotspot_17.0.3_7.tar.gz'; \
          ;; \
+       s390x|s390:64-bit) \
+         ESUM='d9456cdf9719f9d8a11f26b2dd176cd6a8478d96ced09396765c7473482bc7f1'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.3%2B7/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.3_7.tar.gz'; \
+         ;; \
        amd64|i386:x86-64) \
          ESUM='81f5bed21077f9fbb04909b50391620c78b9a3c376593c0992934719c0de6b73'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.3%2B7/OpenJDK17U-jdk_x64_linux_hotspot_17.0.3_7.tar.gz'; \

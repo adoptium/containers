@@ -76,21 +76,15 @@ function generate_official_image_tags() {
 	esac
 
 	# Official image build tags are as below
-	# 8u212-jre-openj9_0.12.1
-	# 8-jre-openj9
-	# 8u212-jdk-hotspot
+	# 8-jre
+	# 8u212-jdk
 	full_ver_tag="${ojdk_version}-${pkg}"
 
 	unset extra_shared_tags extra_ver_tags
-	# Add the openj9 version
-	if [ "${vm}" == "openj9" ]; then
-		openj9_version=$(echo "${full_version}" | awk -F '_' '{ print $2 }')
-		full_ver_tag="${full_ver_tag}-${openj9_version}-${distro}"
-	else
-		full_ver_tag="${full_ver_tag}-${distro}"
-		# Commented out as this added the -hotspot tag which we don't need for temurin
-		# extra_ver_tags=", ${ver}-${pkg}"
-	fi
+	full_ver_tag="${full_ver_tag}-${distro}"
+	# Commented out as this added the -hotspot tag which we don't need for temurin
+	# extra_ver_tags=", ${ver}-${pkg}"
+	
 	ver_tag="${ver}-${pkg}-${distro}"
 	all_tags="${full_ver_tag}, ${ver_tag}"
 	# jdk builds also have additional tags

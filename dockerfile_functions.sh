@@ -41,11 +41,11 @@ print_legal() {
 
 # Print the supported Ubuntu OS
 print_ubuntu_ver() {
-	if [ ${current_arch} == "armv7l" ]; then
-		os_version="18.04"
-	else
-		os_version="20.04"
-	fi
+	local os=$4
+	case $os in
+		focal) os_version="20.04" ;;
+		jammy) os_version="22.04" ;;
+	esac
 
 	cat >> "$1" <<-EOI
 	FROM ubuntu:${os_version}
@@ -353,13 +353,15 @@ print_java_install_pre() {
          ESUM='$(get_shasum "${shasums}" armv7l "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
 		EOI
-			if [ "${version}" == "8" ] && [ "${vm}" == "hotspot" ] && [ "${os}" == "ubuntu" ]; then
-				cat >> "$1" <<-EOI
+			if [ "${version}" == "8" ] && [ "${vm}" == "hotspot" ]; then
+				if [ "${os}" == "focal" ] || [ "${os}" == "jammy" ]; then
+					cat >> "$1" <<-EOI
          # Fixes libatomic.so.1: cannot open shared object file
          apt-get update \\
          && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \\
          && rm -rf /var/lib/apt/lists/* \\
 		EOI
+				fi
 			fi
 			cat >> "$1" <<-EOI
          ;; \\
@@ -958,12 +960,16 @@ generate_dockerfile() {
 		print_test "${file}";
 		print_cmd "${file}";
 	else
-		print_"${os}"_ver "${file}" "${bld}" "${btype}" "${os}";
+		distro="${os}"
+		case $file in
+			*ubuntu*) distro="ubuntu"; ;;
+		esac
+		print_"${distro}"_ver "${file}" "${bld}" "${btype}" "${os}";
 		print_lang_locale "${file}" "${osfamily}";
-		print_"${os}"_pkg "${file}" "${osfamily}";
+		print_"${distro}"_pkg "${file}" "${osfamily}";
 		print_env "${file}" "${osfamily}" "${os}";
 		copy_slim_script "${file}";
-		print_"${os}"_java_install "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}";
+		print_"${distro}"_java_install "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}";
 		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";
 		print_java_options "${file}" "${bld}" "${btype}";
 		print_scc_gen "${file}" "${vm}" "${osfamily}" "${os}";

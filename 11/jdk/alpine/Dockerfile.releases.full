@@ -21,7 +21,7 @@ FROM alpine:3.15
 
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN apk add --no-cache tzdata musl-locales musl-locales-lang \
+RUN apk add --no-cache libretls musl-locales musl-locales-lang tzdata zlib \
     && rm -rf /var/cache/apk/*
 
 ENV JAVA_VERSION jdk-11.0.15+10

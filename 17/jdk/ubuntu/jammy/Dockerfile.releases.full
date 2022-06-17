@@ -34,7 +34,7 @@ RUN set -eux; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='2e3c19c1707205c6b90cc04b416e8d83078ed98417d5a69dce3cf7dc0d7cfbca'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.3%2B7/OpenJDK17U-jdk_aarch64_linux_hotspot_17.0.3_7.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        armhf|arm) \
          ESUM='d76c462f44c9f306a0fe4468a0218a261ab152f358a8fb55ec80865bf35e2c41'; \

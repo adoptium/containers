@@ -22,12 +22,12 @@ FROM mcr.microsoft.com/windows/servercore:1809
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV JAVA_VERSION jdk-17.0.3+7
+ENV JAVA_VERSION 
 
 RUN Write-Host ('Downloading https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.3%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.3_7.msi ...'); \
     curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.3%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.3_7.msi ; \
-    Write-Host ('Verifying sha256 (fb4bcc5a075fd79a641faf10b18a724222be4db669d3005282000a62ba928469) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne 'fb4bcc5a075fd79a641faf10b18a724222be4db669d3005282000a62ba928469') { \
+    Write-Host ('Verifying sha256 () ...'); \
+    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '') { \
         Write-Host 'FAILED!'; \
         exit 1; \
     }; \

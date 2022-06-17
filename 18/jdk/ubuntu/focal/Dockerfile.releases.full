@@ -27,15 +27,11 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION jdk-18.0.1+10
+ENV JAVA_VERSION 
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
-         ESUM='37ceaf232a85cce46bcccfd71839854e8b14bf3160e7ef72a676b9cae45ee8af'; \
-         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.1%2B10/OpenJDK18U-jdk_aarch64_linux_hotspot_18.0.1_10.tar.gz'; \
-         ;; \
        armhf|arm) \
          ESUM='0ddec3c165ab0b662a57a845db3fdaeb840660b493f164696b03df76aadf61c8'; \
          BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.1%2B10/OpenJDK18U-jdk_arm_linux_hotspot_18.0.1_10.tar.gz'; \

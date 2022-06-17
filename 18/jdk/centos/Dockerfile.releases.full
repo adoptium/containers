@@ -24,15 +24,11 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN yum install -y tzdata openssl curl ca-certificates fontconfig gzip tar binutils \
     && yum clean all
 
-ENV JAVA_VERSION jdk-18.0.1+10
+ENV JAVA_VERSION 
 
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
-         ESUM='37ceaf232a85cce46bcccfd71839854e8b14bf3160e7ef72a676b9cae45ee8af'; \
-         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.1%2B10/OpenJDK18U-jdk_aarch64_linux_hotspot_18.0.1_10.tar.gz'; \
-         ;; \
        ppc64el|powerpc:common64) \
          ESUM='7c3376b4eb14a58d27816776e965f1b214c17c4c2e918dc9e996a0f30e76550e'; \
          BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.1%2B10/OpenJDK18U-jdk_ppc64le_linux_hotspot_18.0.1_10.tar.gz'; \

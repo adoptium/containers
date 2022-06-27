@@ -225,7 +225,8 @@ print_alpine_pkg() {
 # Select the alpine OS musl based packages.
 print_alpine_musl_pkg() {
 	cat >> "$1" <<'EOI'
-RUN apk add --no-cache libretls musl-locales musl-locales-lang tzdata zlib \
+# fontconfig and ttf-dejavu added to support serverside image generation by Java programs
+RUN apk add --no-cache fontconfig libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
     && rm -rf /var/cache/apk/*
 EOI
 }

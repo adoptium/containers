@@ -15,7 +15,7 @@ body:
       render: shell
     validations:
       required: true
-   - type: textarea
+  - type: textarea
     id: docker_version
     attributes:
       label: Please add the version of Docker you are running

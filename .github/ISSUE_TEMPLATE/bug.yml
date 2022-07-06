@@ -10,7 +10,7 @@ body:
     id: image
     attributes:
       label: Please add the exact image (with tag) that you are using
-      description: Please paste the output of `docker --version` into this field.
+      description: Please paste the exact image (with tag) that you are using
       placeholder: e.g eclipse-temurin:17-jdk
     validations:
       required: true

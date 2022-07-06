@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: Thanks for taking the time to fill out this bug report!
-  - type: textarea
+  - type: input
     id: image
     attributes:
       label: Please add the exact image (with tag) that you are using
@@ -15,7 +15,7 @@ body:
       render: shell
     validations:
       required: true
-  - type: textarea
+  - type: input
     id: docker_version
     attributes:
       label: Please add the version of Docker you are running

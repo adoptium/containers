@@ -1,0 +1,39 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to fill out this bug report!
+  - type: input
+    id: image
+    attributes:
+      label: Please add the exact image (with tag) that you are using
+      description: Please paste the exact image (with tag) that you are using
+      placeholder: e.g eclipse-temurin:17-jdk
+    validations:
+      required: true
+  - type: input
+    id: docker_version
+    attributes:
+      label: Please add the version of Docker you are running
+      description: Please paste the output of `docker --version` into this field.
+      placeholder: Paste docker version here
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+      value: "A bug happened!"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell

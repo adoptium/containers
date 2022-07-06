@@ -12,7 +12,6 @@ body:
       label: Please add the exact image (with tag) that you are using
       description: Please paste the output of `docker --version` into this field.
       placeholder: e.g eclipse-temurin:17-jdk
-      render: shell
     validations:
       required: true
   - type: input
@@ -21,7 +20,6 @@ body:
       label: Please add the version of Docker you are running
       description: Please paste the output of `docker --version` into this field.
       placeholder: Paste docker version here
-      render: shell
     validations:
       required: true
   - type: textarea

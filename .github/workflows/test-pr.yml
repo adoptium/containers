@@ -2,6 +2,9 @@ name: Test PR
 
 on:
   pull_request:
+  push:
+    branches:
+      - testci
 
 defaults:
   run:
@@ -47,8 +50,25 @@ jobs:
         run: ${{ matrix.runs.build }}
       - name: Test ${{ matrix.name }}
         run: ${{ matrix.runs.test }}
-      - name: '"docker images"'
+      - name: 'List docker images'
         run: ${{ matrix.runs.images }}
+      - name: Scan Vulnerability
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ matrix.meta.entries[0].tags[0] }}'
+          format: 'sarif'
+          output: 'scan_dockerimage_result.sarif'
+          severity: 'CRITICAL,HIGH'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'scan_dockerimage_result.sarif'
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: '${{ matrix.meta.entries[0].tags[0] }}'
+          format: 'cyclonedx-json'
+          artifact-name: "SBOM_${{ matrix.name }}.json"
 
   conclusion:
     name: conclusion
@@ -56,5 +76,5 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Result
+      - name: Check Test Result
         run: ${{ needs.test.result == 'success' }}

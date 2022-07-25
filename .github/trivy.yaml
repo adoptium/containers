@@ -1,0 +1,8 @@
+exit-code: 0
+severity: 'CRITICAL,HIGH'
+ignore-unfixed: true
+format: 'sarif'
+output: 'scan_dockerfile_result.sarif'
+misconfiguration:
+  file-patterns:
+    - "dockerfile:.*Dockerfile.releases.full"

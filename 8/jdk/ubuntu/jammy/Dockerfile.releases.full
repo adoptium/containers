@@ -32,6 +32,10 @@ ENV JAVA_VERSION jdk8u342-b07
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
+       ppc64el|powerpc:common64) \
+         ESUM='bc943c3e6bc1232ea4e7dd114831b609d83a79f271907941a18f1d7206f741b2'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u342-b07/OpenJDK8U-jdk_ppc64le_linux_hotspot_8u342b07.tar.gz'; \
+         ;; \
        amd64|i386:x86-64) \
          ESUM='8252c0e11d542ea0f9ce6b8f147d1a2bea4a17e9fc299da270288f5a4f35b1f3'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u342-b07/OpenJDK8U-jdk_x64_linux_hotspot_8u342b07.tar.gz'; \

@@ -36,6 +36,10 @@ RUN set -eux; \
          ESUM='bb345cabf3e305ff3ce390918d5f69e5cfbced3d9844e0b0531c2690f9ed06ef'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16%2B8/OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.16_8.tar.gz'; \
          ;; \
+       armhf|arm) \
+         ESUM='2b0b390ba17963d70883506a72b58d315cab7a24b418fdab5351728f328f398e'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16%2B8/OpenJDK11U-jdk_arm_linux_hotspot_11.0.16_8.tar.gz'; \
+         ;; \
        ppc64el|powerpc:common64) \
          ESUM='40dea12da26443ad731f9348187b65451711659337e83b6409a2bcf0f057cd2a'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.16%2B8/OpenJDK11U-jdk_ppc64le_linux_hotspot_11.0.16_8.tar.gz'; \

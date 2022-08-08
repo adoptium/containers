@@ -832,7 +832,7 @@ print_test() {
 
 RUN echo Verifying install ... \\
 EOI
-	if [[ "${version}" =~ ${above_8} ]]; then
+	if [[ "${version}" =~ ${above_8} ]] && [[ "${osfamily}" != "windows" ]] ; then
 		cat >> "$1" <<-EOI
     && fileEncoding="\$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "\$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \\
 EOI

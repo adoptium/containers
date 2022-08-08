@@ -166,7 +166,8 @@ print_lang_locale() {
 	local os=$2
 	if [ "$os" != "windows" ]; then
 		cat >> "$1" <<-EOI
-	ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
+# Default to UTF-8 file.encoding
+ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 	EOI
 	fi
@@ -174,7 +175,7 @@ print_lang_locale() {
 
 # Select the ubuntu OS packages
 print_ubuntu_pkg() {
-	packages="tzdata curl ca-certificates fontconfig locales"
+	packages="tzdata wget ca-certificates fontconfig locales"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"
@@ -234,7 +235,7 @@ EOI
 # Select the ubi OS packages.
 print_ubi_pkg() {
 	cat >> "$1" <<'EOI'
-RUN dnf install -y tzdata openssl curl ca-certificates fontconfig glibc-langpack-en gzip tar \
+RUN dnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
     && dnf update -y; dnf clean all
 EOI
 }
@@ -242,14 +243,14 @@ EOI
 # Select the ubi OS packages.
 print_ubi-minimal_pkg() {
 	cat >> "$1" <<'EOI'
-RUN microdnf install -y tzdata openssl curl ca-certificates fontconfig glibc-langpack-en gzip tar \
+RUN microdnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
     && microdnf update -y; microdnf clean all
 EOI
 }
 
 # Select the CentOS packages.
 print_centos_pkg() {
-	packages="tzdata openssl curl ca-certificates fontconfig gzip tar"
+	packages="tzdata openssl wget ca-certificates fontconfig gzip tar"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"
@@ -268,7 +269,7 @@ print_clefos_pkg() {
 # Select the Leap packages.
 print_leap_pkg() {
 	cat >> "$1" <<'EOI'
-RUN zypper install --no-recommends -y timezone openssl curl ca-certificates fontconfig gzip tar \
+RUN zypper install --no-recommends -y timezone openssl wget ca-certificates fontconfig gzip tar \
     && zypper update -y; zypper clean --all
 EOI
 }
@@ -420,33 +421,44 @@ EOI
          ;; \\
     esac; \\
 EOI
-	if [ "${osfamily}" == "alpine-linux" ]; then
-		cat >> "$1" <<'EOI'
+cat >> "$1" <<'EOI'
 	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
 	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-	  mkdir -p /opt/java/openjdk; \
+	  mkdir -p "$JAVA_HOME"; \
 	  tar --extract \
 	      --file /tmp/openjdk.tar.gz \
-	      --directory /opt/java/openjdk \
+	      --directory "$JAVA_HOME" \
 	      --strip-components 1 \
 	      --no-same-owner \
 	  ; \
 EOI
-	else
-		cat >> "$1" <<'EOI'
-    curl -LfsSo /tmp/openjdk.tar.gz ${BINARY_URL}; \
-    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-    mkdir -p /opt/java/openjdk; \
-    cd /opt/java/openjdk; \
-    tar -xf /tmp/openjdk.tar.gz --strip-components=1; \
-EOI
-	fi
 }
 
 print_java_install_post() {
 	cat >> "$1" <<-EOI
-    rm -rf /tmp/openjdk.tar.gz;
+    rm /tmp/openjdk.tar.gz;
 EOI
+}
+
+print_ubuntu_java_install_post() {
+	above_8="^(9|[1-9][0-9]+)$"
+	cat >> "$1" <<-EOI
+    rm /tmp/openjdk.tar.gz; \\
+# https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
+    find "\$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \\
+EOI
+	if [[ "${version}" =~ ${above_8} ]]; then
+		cat >> "$1" <<-EOI
+    ldconfig; \\
+# https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
+# https://openjdk.java.net/jeps/341
+    java -Xshare:dump;
+EOI
+	else
+		cat >> "$1" <<-EOI
+    ldconfig;
+EOI
+	fi
 }
 
 # Call the script to create the slim package for Ubuntu
@@ -550,7 +562,7 @@ EOI
 	if [ "${btype}" == "slim" ]; then
 		print_ubuntu_slim_package "$1"
 	fi
-	print_java_install_post "$1"
+	print_ubuntu_java_install_post "$1"
 }
 
 print_debian_java_install() {
@@ -750,9 +762,9 @@ print_java_env() {
 
 	if [ "$os" != "windows" ]; then
 		cat >> "$1" <<-EOI
+ENV JAVA_HOME ${jhome}
+ENV PATH \$JAVA_HOME/bin:\$PATH
 
-ENV JAVA_HOME=${jhome} \\
-    PATH="${jhome}/bin:\$PATH"
 EOI
 	fi
 }
@@ -819,7 +831,12 @@ print_test() {
 		cat >> "$1" <<-EOI
 
 RUN echo Verifying install ... \\
-	EOI
+EOI
+	if [[ "${version}" =~ ${above_8} ]]; then
+		cat >> "$1" <<-EOI
+    && fileEncoding="\$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "\$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \\
+EOI
+	fi
 		if [[ "${package}" == "jdk" ]]; then
 			cat >> "$1" <<-EOI
     && echo javac ${arg} && javac ${arg} \\
@@ -966,12 +983,12 @@ generate_dockerfile() {
 			*ubuntu*) distro="ubuntu"; ;;
 		esac
 		print_"${distro}"_ver "${file}" "${bld}" "${btype}" "${os}";
+		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";
 		print_lang_locale "${file}" "${osfamily}";
 		print_"${distro}"_pkg "${file}" "${osfamily}";
 		print_env "${file}" "${osfamily}" "${os}";
 		copy_slim_script "${file}";
 		print_"${distro}"_java_install "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}";
-		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";
 		print_java_options "${file}" "${bld}" "${btype}";
 		print_scc_gen "${file}" "${vm}" "${osfamily}" "${os}";
 		print_test "${file}";

@@ -34,5 +34,6 @@ USER ContainerUser
 COPY --from=eclipse-temurin:11.0.16_8-jre-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
+    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
     && echo java --version && java --version \
     && echo Complete.

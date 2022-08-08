@@ -34,6 +34,7 @@ USER ContainerUser
 COPY --from=eclipse-temurin:18.0.2_9-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
+    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
     && echo javac --version && javac --version \
     && echo java --version && java --version \
     && echo Complete.

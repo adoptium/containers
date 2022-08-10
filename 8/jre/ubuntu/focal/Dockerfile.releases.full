@@ -36,6 +36,10 @@ ENV JAVA_VERSION jdk8u345-b01
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
+       aarch64|arm64) \
+         ESUM='65b8bd74382d6514d2458ff4375468651791a55a186a5bffe0803204801e9c94'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jre_aarch64_linux_hotspot_8u345b01.tar.gz'; \
+         ;; \
        armhf|arm) \
          ESUM='a9dd1ea4280a85158191101688bbf1920c4676a3849e22dc7783fb61f60d6199'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jre_arm_linux_hotspot_8u345b01.tar.gz'; \
@@ -43,6 +47,10 @@ RUN set -eux; \
          apt-get update \
          && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \
          && rm -rf /var/lib/apt/lists/* \
+         ;; \
+       ppc64el|powerpc:common64) \
+         ESUM='0e58c3fb39303969d7d6ff660c0b63997ab0ee68af3452f3d17f2892c61a58f6'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jre_ppc64le_linux_hotspot_8u345b01.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
          ESUM=''; \

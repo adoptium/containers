@@ -371,7 +371,7 @@ print_java_install_pre() {
 		elif [ "${sarch}" == "ppc64le" ]; then
 			JAVA_URL=$(get_v3_url feature_releases "${bld}" "${vm}" "${pkg}" ppc64le "${osfamily}");
 			cat >> "$1" <<-EOI
-       ppc64el|powerpc:common64) \\
+       ppc64le|powerpc:common64) \\
          ESUM='$(get_shasum "${shasums}" ppc64le "${osfamily}")'; \\
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
          ;; \\

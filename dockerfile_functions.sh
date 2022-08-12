@@ -175,7 +175,7 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 # Select the ubuntu OS packages
 print_ubuntu_pkg() {
-	packages="tzdata wget ca-certificates fontconfig locales"
+	packages="tzdata curl wget ca-certificates fontconfig locales"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"

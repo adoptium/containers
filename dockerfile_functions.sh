@@ -250,7 +250,7 @@ EOI
 
 # Select the CentOS packages.
 print_centos_pkg() {
-	packages="tzdata openssl wget ca-certificates fontconfig gzip tar"
+	packages="tzdata openssl curl wget ca-certificates fontconfig gzip tar"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"

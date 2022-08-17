@@ -2,6 +2,9 @@ name: Test PR
 
 on:
   pull_request:
+  push:
+    branches:
+      - testci
 
 defaults:
   run:
@@ -49,7 +52,9 @@ jobs:
         run: ${{ matrix.runs.test }}
       - name: 'List docker images'
         run: ${{ matrix.runs.images }}
-      - name: Scan Vulnerability
+      - name: Scan Vulnerability on Linux(Windows support, soon)
+        if: runner.os == 'Linux'
+        id: scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ matrix.meta.entries[0].tags[0] }}'
@@ -57,6 +62,7 @@ jobs:
           output: 'scan_dockerimage_result.sarif'
           severity: 'CRITICAL,HIGH'
       - name: Upload Trivy scan results to GitHub Security tab
+        if: steps.scan.conclusion == 'success'
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'scan_dockerimage_result.sarif'

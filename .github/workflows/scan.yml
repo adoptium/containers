@@ -2,6 +2,9 @@ name: Scan
 
 on:
   pull_request:
+  push:
+    branches:
+      - testci
 
 jobs:
   scan:

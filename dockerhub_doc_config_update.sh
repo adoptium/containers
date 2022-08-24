@@ -54,7 +54,8 @@ print_official_text() {
 print_official_header() {
 	print_official_text "# Eclipse Temurin OpenJDK images provided by the Eclipse Foundation."
 	print_official_text
-	print_official_text "Maintainers: George Adams <george.adams@microsoft.com> (@gdams)"
+	print_official_text "Maintainers: George Adams <george.adams@microsoft.com> (@gdams),"
+	print_official_text "             Stewart Addison <sxa@redhat.com> (@sxa)"
 	print_official_text "GitRepo: https://github.com/adoptium/containers.git"
 	print_official_text "GitFetch: refs/heads/main"
 }

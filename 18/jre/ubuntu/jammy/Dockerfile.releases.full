@@ -31,29 +31,21 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION jdk-18.0.2+9
+ENV JAVA_VERSION jdk-18.0.2.1+1
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        aarch64|arm64) \
-         ESUM='b95934d11105c5a99a8bf087fdfc28a8a644b4265b6cf7518d70404a4dc82da2'; \
-         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2%2B9/OpenJDK18U-jre_aarch64_linux_hotspot_18.0.2_9.tar.gz'; \
-         ;; \
-       armhf|arm) \
-         ESUM='bec2d075e81e4732835f71b7ea5c91b4a42e7b7d38b99ab845f76b421cc0b00e'; \
-         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2%2B9/OpenJDK18U-jre_arm_linux_hotspot_18.0.2_9.tar.gz'; \
-         ;; \
-       ppc64el|powerpc:common64) \
-         ESUM='b084a373f3d4a8735f10a68cf2e73ff5c454162c62dd1bd268265b22ae1d8818'; \
-         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2%2B9/OpenJDK18U-jre_ppc64le_linux_hotspot_18.0.2_9.tar.gz'; \
+         ESUM='e11e00438c2f6f79f86ff1ca2b015913b0e16bd9491953a082d5c786402cb50a'; \
+         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2.1%2B1/OpenJDK18U-jre_aarch64_linux_hotspot_18.0.2.1_1.tar.gz'; \
          ;; \
        s390x|s390:64-bit) \
-         ESUM='67de23a526b4feda63d87dc57b6755beb997e3231017ab1cd70ef9193637979a'; \
-         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2%2B9/OpenJDK18U-jre_s390x_linux_hotspot_18.0.2_9.tar.gz'; \
+         ESUM='52bc6f5420ae46e8b9868c63c1d9b5af77d21ef5bda413617b2ad3fbb6b6c64a'; \
+         BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2.1%2B1/OpenJDK18U-jre_s390x_linux_hotspot_18.0.2.1_1.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
-         ESUM='efcfe9206ce467a0a197463283e74621f4ba037994d29606c572766945a01a91'; \
+         ESUM=''; \
          BINARY_URL='https://github.com/adoptium/temurin18-binaries/releases/download/jdk-18.0.2%2B9/OpenJDK18U-jre_x64_linux_hotspot_18.0.2_9.tar.gz'; \
          ;; \
        *) \

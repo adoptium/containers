@@ -31,30 +31,30 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION jdk-19+36
+ENV JAVA_VERSION jdk-19.0.1.1+1
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='da77060192d3021a2e06eb51a91acdfacb0b993fc75a3b4cafe9c39c6132cc51'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_aarch64_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_aarch64_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        armhf|arm) \
          ESUM='f6c4895b8d33118c75403d08f9697af0b77769d0e8574cb678518a0ab3b74a12'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_arm_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_arm_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='3ab0b2320d5bb0f2fef9fd831338fd51170e6b8db887af23bc26dfc51bdf338c'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_ppc64le_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_ppc64le_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        s390x|s390:64-bit) \
          ESUM='d81e72c1c627287e3ab6189e16b411193c8963595242e5652ccd9f9e1e91ddd8'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_s390x_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_s390x_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='ef2caf3221cb3d209ba7662d9542f23e25b3b97696de3103264c5a519aad30b6'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_x64_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_x64_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

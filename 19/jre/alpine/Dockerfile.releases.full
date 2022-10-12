@@ -29,14 +29,14 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN apk add --no-cache fontconfig libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
     && rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION jdk-19+36
+ENV JAVA_VERSION jdk-19.0.1.1+1
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        amd64|x86_64) \
          ESUM='7bab3dc6b349e4447be72bf3574ee88172052589c0e434fa6e6284b234d0286d'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_x64_alpine-linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_x64_alpine-linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

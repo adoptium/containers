@@ -28,22 +28,22 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN yum install -y tzdata openssl curl wget ca-certificates fontconfig gzip tar binutils \
     && yum clean all
 
-ENV JAVA_VERSION jdk-19+36
+ENV JAVA_VERSION jdk-19.0.1.1+1
 
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='da77060192d3021a2e06eb51a91acdfacb0b993fc75a3b4cafe9c39c6132cc51'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_aarch64_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_aarch64_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='3ab0b2320d5bb0f2fef9fd831338fd51170e6b8db887af23bc26dfc51bdf338c'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_ppc64le_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_ppc64le_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='ef2caf3221cb3d209ba7662d9542f23e25b3b97696de3103264c5a519aad30b6'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19%2B36/OpenJDK19U-jre_x64_linux_hotspot_19_36.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1.1%2B1/OpenJDK19U-jre_x64_linux_hotspot_19.0.1.1_1.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

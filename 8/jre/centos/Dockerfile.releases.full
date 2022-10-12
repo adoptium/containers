@@ -28,22 +28,22 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN yum install -y tzdata openssl curl wget ca-certificates fontconfig gzip tar \
     && yum clean all
 
-ENV JAVA_VERSION jdk8u345-b01
+ENV JAVA_VERSION jdk8u351-b01
 
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='65b8bd74382d6514d2458ff4375468651791a55a186a5bffe0803204801e9c94'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jre_aarch64_linux_hotspot_8u345b01.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u351-b01/OpenJDK8U-jre_aarch64_linux_hotspot_8u351b01.tar.gz'; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='0e58c3fb39303969d7d6ff660c0b63997ab0ee68af3452f3d17f2892c61a58f6'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jre_ppc64le_linux_hotspot_8u345b01.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u351-b01/OpenJDK8U-jre_ppc64le_linux_hotspot_8u351b01.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='2422a8831fe414b9dba4c443ee3562431dfcde27577124f0db58ec903afc262a'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jre_x64_linux_hotspot_8u345b01.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u351-b01/OpenJDK8U-jre_x64_linux_hotspot_8u351b01.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

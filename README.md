@@ -19,9 +19,9 @@ For JDK version updates, we release on a quarterly cadence whenever a Patch Set 
 
 This section is for maintainers of the containers repository.
 
-### Nightly automated Job
+### Hourly automated Job
 
-A [Updater GitHub Action](.github/workflows/updater.yml) runs every night which triggers the
+A [Updater GitHub Action](.github/workflows/updater.yml) runs every 30 mins which triggers the
 [`./update_all.sh`](./update_all.sh) script to update the Dockerfiles by creating a Pull Request containing any changes.
 
 #### update_all.sh
@@ -34,7 +34,7 @@ A [Updater GitHub Action](.github/workflows/updater.yml) runs every night which 
 
 ### Manual Release
 
-During a release you can also run [`./update_all.sh`](./update_all.sh) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the _Run Workflow_ button and making sure the `main` (default) branch is selected, then click the next _Run Workflow_ button.
+During a release you can also run [`./update_all.sh`](./update_all.sh) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
 
 ### Review and Merge PR
 
@@ -52,18 +52,25 @@ git checkout main
 ./dockerhub_doc_config_update.sh
 ```
 
-This script will create a file called _eclipse-temurin_.
+This script will create a file called _eclipse-temurin_ by default.
 
-Then edit the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin), replacing all of the contents.
+Create new PR to replace [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with new content of _eclipse-temurin_ 
 
-At the bottom of that edit screen add a title and description for the commit and click on the _Propose Change_ button.
+- Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 
+- Cliek **edit(pencil button)** 
+- Remove its content
+- Copy-paste _eclipse-temurin_'s content
+- At the bottom of that edit screen' Propose changes seciont
+  - add **title** e.g [eclipse-temurin: XXXXX]
+  - add **description** for the commit 
+  - click  **Propose Change** button.
 
-In the next screen click on the _Create Pull Request Button_.
+In the next screen click on the **Create Pull Request** button.
 
 Once that PR has been created it will be automatically tested and reviewed by Docker Hub staff and eventually released.
 
 ### Diff Output at Docker Hub
 
-It can be useful to look at the diff output created by one of the Docker Hub GitHub Actions on the Pull Request. This output
+It can be useful to look at the "Diff for XXX:" output created by one of the Docker Hub GitHub Actions on the Pull Request. This output
 should not be read as a traditional PR (since Docker Hub bots do move things around, so you may see what looks like odd deletions)
 but as a sanity check to make sure you see the platforms/architectures that you expect.

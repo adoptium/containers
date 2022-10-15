@@ -57,7 +57,7 @@ This script will create a file called _eclipse-temurin_ by default.
 Create new PR to replace [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with new content of _eclipse-temurin_ 
 
 - Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 
-- Cliek **edit(pencil button)** 
+- Click **edit(pencil button)** 
 - Remove its content
 - Copy-paste _eclipse-temurin_'s content
 - At the bottom of that edit screen' Propose changes seciont

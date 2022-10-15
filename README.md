@@ -60,7 +60,7 @@ Create new PR to replace [Manifest on Docker Hub](https://github.com/docker-libr
 - Click **edit(pencil button)** 
 - Remove its content
 - Copy-paste _eclipse-temurin_'s content
-- At the bottom of that edit screen' Propose changes seciont
+- At the bottom of that edit screen' Propose changes section
   - add **title** e.g [eclipse-temurin: XXXXX]
   - add **description** for the commit 
   - click  **Propose Change** button.

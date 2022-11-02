@@ -38,9 +38,6 @@ oses="alpine ubuntu centos windowsservercore-ltsc2022 nanoserver-ltsc2022 window
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="jammy"
 
-# shellcheck disable=SC2034 # used externally
-hotspot_latest_tags="latest"
-
 git_repo="https://github.com/adoptium/containers/blob/master"
 
 # Get the latest git commit of the current repo.
@@ -92,16 +89,11 @@ function generate_official_image_tags() {
 	if [ "${pkg}" == "jdk" ]; then
 		jdk_tag="${ver}-${distro}"
 		all_tags="${all_tags}, ${jdk_tag}"
-		# jdk builds also have additional tags
-		# Add the "latest", "hotspot" and "openj9" tags for the right version
+		# make "eclipse-temurin:latest" point to newest supported JDK
+		# shellcheck disable=SC2154
 		if [ "${ver}" == "${latest_version}" ]; then
-			# Commented out as this added the -hotspot tag which we don't need for temurin
-			# vm_tags_val="${vm}-${distro}"
-			# shellcheck disable=SC2154
 			if [ "${vm}" == "hotspot" ]; then
 				extra_shared_tags=", latest"
-				# Commented out as this added the -hotspot tag which we don't need for temurin
-				# extra_ver_tags="${extra_ver_tags}, ${pkg}"
 			fi
 		fi
 	fi
@@ -232,7 +224,7 @@ do
 			do
 				for file in $(find . -name "Dockerfile.*" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
 				do
-					# file will look like ./12/jdk/debian/Dockerfile.openj9.nightly.slim
+					# file will look like ./19/jdk/alpine/Dockerfile.releases.full
 					# dockerfile name
 					dfname=$(basename "${file}")
 					# dockerfile dir

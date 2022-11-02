@@ -770,25 +770,13 @@ EOI
 }
 
 # Turn on JVM specific optimization flags.
-# Hotspot container support = https://bugs.openjdk.java.net/browse/JDK-8189497
-# OpenJ9 container support = https://www.eclipse.org/openj9/docs/xxusecontainersupport/
-# OpenJ9 Idle tuning = https://www.eclipse.org/openj9/docs/xxidletuninggconidle/
+# Hotspot@JDK9: https://bugs.openjdk.java.net/browse/JDK-8189497
 print_java_options() {
 	case ${vm} in
 	hotspot)
 		case ${version} in
 		9)
 			JOPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap";
-			;;
-		esac
-		;;
-	openj9)
-		case ${os} in
-		windows)
-			JOPTS="-XX:+IgnoreUnrecognizedVMOptions -XX:+IdleTuningGcOnIdle";
-			;;
-		*)
-			JOPTS="-XX:+IgnoreUnrecognizedVMOptions -XX:+IdleTuningGcOnIdle -Xshareclasses:name=openj9_system_scc,cacheDir=/opt/java/.scc,readonly,nonFatal";
 			;;
 		esac
 		;;
@@ -875,82 +863,6 @@ print_cmd() {
 	fi
 }
 
-print_scc_gen() {
-	local vm=$2;
-	local osfamily=$3;
-	local os=$4;
-
-	if [[ "${vm}" == "openj9" && "${osfamily}" != "windows" ]]; then
-        cat >> "$1" <<'EOI'
-
-# Create OpenJ9 SharedClassCache (SCC) for bootclasses to improve the java startup.
-# Downloads and runs tomcat to generate SCC for bootclasses at /opt/java/.scc/openj9_system_scc
-# Does a dry-run and calculates the optimal cache size and recreates the cache with the appropriate size.
-# With SCC, OpenJ9 startup is improved ~50% with an increase in image size of ~14MB
-# Application classes can be create a separate cache layer with this as the base for further startup improvement
-
-RUN set -eux; \
-EOI
-		if [[ "${os}" == "alpine" ]]; then
-			cat >> "$1" <<'EOI'
-    apk add --no-cache --virtual .scc-deps curl; \
-EOI
-		fi
-		cat >> "$1" <<'EOI'
-    unset OPENJ9_JAVA_OPTIONS; \
-    SCC_SIZE="50m"; \
-    DOWNLOAD_PATH_TOMCAT=/tmp/tomcat; \
-    INSTALL_PATH_TOMCAT=/opt/tomcat-home; \
-    TOMCAT_CHECKSUM="0db27185d9fc3174f2c670f814df3dda8a008b89d1a38a5d96cbbe119767ebfb1cf0bce956b27954aee9be19c4a7b91f2579d967932207976322033a86075f98"; \
-    TOMCAT_DWNLD_URL="https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.35/bin/apache-tomcat-9.0.35.tar.gz"; \
-    \
-    mkdir -p "${DOWNLOAD_PATH_TOMCAT}" "${INSTALL_PATH_TOMCAT}"; \
-    curl -LfsSo "${DOWNLOAD_PATH_TOMCAT}"/tomcat.tar.gz "${TOMCAT_DWNLD_URL}"; \
-    echo "${TOMCAT_CHECKSUM} *${DOWNLOAD_PATH_TOMCAT}/tomcat.tar.gz" | sha512sum -c -; \
-    tar -xf "${DOWNLOAD_PATH_TOMCAT}"/tomcat.tar.gz -C "${INSTALL_PATH_TOMCAT}" --strip-components=1; \
-    rm -rf "${DOWNLOAD_PATH_TOMCAT}"; \
-    \
-    java -Xshareclasses:name=dry_run_scc,cacheDir=/opt/java/.scc,bootClassesOnly,nonFatal,createLayer -Xscmx$SCC_SIZE -version; \
-    export OPENJ9_JAVA_OPTIONS="-Xshareclasses:name=dry_run_scc,cacheDir=/opt/java/.scc,bootClassesOnly,nonFatal"; \
-    "${INSTALL_PATH_TOMCAT}"/bin/startup.sh; \
-    sleep 5; \
-    "${INSTALL_PATH_TOMCAT}"/bin/shutdown.sh -force; \
-    sleep 15; \
-    FULL=$( (java -Xshareclasses:name=dry_run_scc,cacheDir=/opt/java/.scc,printallStats 2>&1 || true) | awk '/^Cache is [0-9.]*% .*full/ {print substr($3, 1, length($3)-1)}'); \
-    DST_CACHE=$(java -Xshareclasses:name=dry_run_scc,cacheDir=/opt/java/.scc,destroy 2>&1 || true); \
-    SCC_SIZE=$(echo $SCC_SIZE | sed 's/.$//'); \
-    SCC_SIZE=$(awk "BEGIN {print int($SCC_SIZE * $FULL / 100.0)}"); \
-    [ "${SCC_SIZE}" -eq 0 ] && SCC_SIZE=1; \
-    SCC_SIZE="${SCC_SIZE}m"; \
-    java -Xshareclasses:name=openj9_system_scc,cacheDir=/opt/java/.scc,bootClassesOnly,nonFatal,createLayer -Xscmx$SCC_SIZE -version; \
-    unset OPENJ9_JAVA_OPTIONS; \
-    \
-    export OPENJ9_JAVA_OPTIONS="-Xshareclasses:name=openj9_system_scc,cacheDir=/opt/java/.scc,bootClassesOnly,nonFatal"; \
-    "${INSTALL_PATH_TOMCAT}"/bin/startup.sh; \
-    sleep 5; \
-    "${INSTALL_PATH_TOMCAT}"/bin/shutdown.sh -force; \
-    sleep 5; \
-    FULL=$( (java -Xshareclasses:name=openj9_system_scc,cacheDir=/opt/java/.scc,printallStats 2>&1 || true) | awk '/^Cache is [0-9.]*% .*full/ {print substr($3, 1, length($3)-1)}'); \
-    echo "SCC layer is $FULL% full."; \
-    rm -rf "${INSTALL_PATH_TOMCAT}"; \
-    if [ -d "/opt/java/.scc" ]; then \
-          chmod -R 0777 /opt/java/.scc; \
-    fi; \
-    \
-EOI
-		if [[ "${os}" == "alpine" ]]; then
-			cat >> "$1" <<'EOI'
-    apk del --purge .scc-deps; \
-    rm -rf /var/cache/apk/*; \
-EOI
-    	fi
-		cat >> "$1" <<'EOI'
-    echo "SCC generation phase completed";
-
-EOI
-	fi
-}
-
 # Generate the dockerfile for a given build, build_type and OS
 generate_dockerfile() {
 	local file=$1
@@ -990,7 +902,6 @@ generate_dockerfile() {
 		copy_slim_script "${file}";
 		print_"${distro}"_java_install "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}";
 		print_java_options "${file}" "${bld}" "${btype}";
-		print_scc_gen "${file}" "${vm}" "${osfamily}" "${os}";
 		print_test "${file}";
 		print_cmd "${file}";
 	fi

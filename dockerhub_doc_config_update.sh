@@ -34,7 +34,7 @@ fi
 # Fetch the latest manifest from the official repo
 wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
 
-oses="alpine ubuntu centos windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
+oses="alpine debian ubuntu centos windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="jammy"
 
@@ -70,8 +70,9 @@ function generate_official_image_tags() {
 	ojdk_version=${ojdk_version//+/_}
 	
 	case $os in
+    "centos") distro="centos7" ;;
+		"debian") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		"ubuntu") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
-        "centos") distro="centos7" ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		*) distro=$os;;
 	esac

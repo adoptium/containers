@@ -141,7 +141,7 @@ function set_arch_os() {
 			# shellcheck disable=SC2034 # used externally
 			current_arch="x86_64"
 			# shellcheck disable=SC2034 # used externally
-			oses="alpine centos focal jammy"
+			oses="alpine buster centos focal jammy"
 			# shellcheck disable=SC2034 # used externally
 			os_family="alpine-linux linux"
 			;;
@@ -260,7 +260,7 @@ function parse_vm_entry() {
 	local ver=$2;
 	local pkg=$3;
 	local os=$4;
-	entry=$( < config/"$vm".config grep -B 4 -E "[[:space:]]$ver\/$pkg\/$os$|[[:space:]]$ver\/$pkg\/windows\/$os$|[[:space:]]$ver\/$pkg\/ubuntu\/$os$" | grep "$5" | sed "s/$5 //")
+	entry=$( < config/"$vm".config grep -B 4 -E "[[:space:]]$ver\/$pkg\/$os$|[[:space:]]$ver\/$pkg\/windows\/$os$|[[:space:]]$ver\/$pkg\/debian\/$os$|[[:space:]]$ver\/$pkg\/ubuntu\/$os$" | grep "$5" | sed "s/$5 //")
 	echo "${entry}"
 }
 

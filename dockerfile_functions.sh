@@ -356,7 +356,7 @@ print_java_install_pre() {
          BINARY_URL='$(get_v3_binary_url "${JAVA_URL}")'; \\
 		EOI
 			if [ "${version}" == "8" ] && [ "${vm}" == "hotspot" ]; then
-				if [ "${os}" == "focal" ] || [ "${os}" == "jammy" ]; then
+				if [ "${os}" == "buster" ] || [ "${os}" == "focal" ] || [ "${os}" == "jammy" ]; then
 					cat >> "$1" <<-EOI
          # Fixes libatomic.so.1: cannot open shared object file
          apt-get update \\
@@ -980,6 +980,7 @@ generate_dockerfile() {
 	else
 		distro="${os}"
 		case $file in
+			*debian*) distro="debian"; ;;
 			*ubuntu*) distro="ubuntu"; ;;
 		esac
 		print_"${distro}"_ver "${file}" "${bld}" "${btype}" "${os}";

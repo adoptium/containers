@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-FROM redhat/ubi9-minimal
+FROM redhat/ubi9-minimal-minimal
 
 ENV JAVA_HOME /opt/java/openjdk
 ENV PATH $JAVA_HOME/bin:$PATH
@@ -25,8 +25,8 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN dnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && dnf update -y; dnf clean all
+RUN microdnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+    && microdnf clean all
 
 ENV JAVA_VERSION jdk-19.0.1+10
 
@@ -36,6 +36,10 @@ RUN set -eux; \
        aarch64|arm64) \
          ESUM='c69ffc5474be076b200e8cc72417b838e4f830b36603d593fb8ca6d11b81969b'; \
          BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1%2B10/OpenJDK19U-jre_aarch64_linux_hotspot_19.0.1_10.tar.gz'; \
+         ;; \
+       ppc64el|powerpc:common64) \
+         ESUM='c5f3d67edfa0d9b5ec935f944c177c0ee4b2d7a2b5846feaf187b77e954f4242'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1%2B10/OpenJDK19U-jre_ppc64le_linux_hotspot_19.0.1_10.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='68cae46c973e48ca6777cd0026bbf25f3457bd3d6730c36bd79d4f3b398c8338'; \

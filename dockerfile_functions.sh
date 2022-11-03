@@ -236,7 +236,7 @@ EOI
 print_ubi_pkg() {
 	cat >> "$1" <<'EOI'
 RUN dnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && dnf update -y; dnf clean all
+    && dnf clean all
 EOI
 }
 
@@ -244,7 +244,7 @@ EOI
 print_ubi-minimal_pkg() {
 	cat >> "$1" <<'EOI'
 RUN microdnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && microdnf update -y; microdnf clean all
+    && microdnf clean all
 EOI
 }
 
@@ -981,6 +981,7 @@ generate_dockerfile() {
 		distro="${os}"
 		case $file in
 			*ubuntu*) distro="ubuntu"; ;;
+			*ubi*-minimal*) distro="ubi-minimal"; ;;
 			*ubi*) distro="ubi"; ;;
 		esac
 		print_"${distro}"_ver "${file}" "${bld}" "${btype}" "${os}";

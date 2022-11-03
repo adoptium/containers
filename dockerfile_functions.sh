@@ -86,7 +86,7 @@ print_ubi-minimal_ver() {
 	local os=$4
 
 	cat >> "$1" <<-EOI
-	FROM redhat/${os}-minimal
+	FROM redhat/${os}
 
 	EOI
 }

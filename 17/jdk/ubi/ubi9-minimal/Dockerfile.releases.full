@@ -25,13 +25,13 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN microdnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
     && microdnf clean all
 
 ENV JAVA_VERSION jdk-17.0.5+8
 
 RUN set -eux; \
-    ARCH="$(uname -m)"; \
+    ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='1c26c0e09f1641a666d6740d802beb81e12180abaea07b47c409d30c7f368109'; \

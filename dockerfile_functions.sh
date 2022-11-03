@@ -235,7 +235,7 @@ EOI
 # Select the ubi OS packages.
 print_ubi_pkg() {
 	cat >> "$1" <<'EOI'
-RUN dnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+RUN dnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
     && dnf clean all
 EOI
 }
@@ -243,7 +243,7 @@ EOI
 # Select the ubi OS packages.
 print_ubi-minimal_pkg() {
 	cat >> "$1" <<'EOI'
-RUN microdnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
     && microdnf clean all
 EOI
 }
@@ -687,7 +687,7 @@ print_ubi_java_install() {
 
 	cat >> "$1" <<-EOI
 RUN set -eux; \\
-    ARCH="\$(uname -m)"; \\
+    ARCH="\$(objdump="\$(command -v objdump)" && objdump --file-headers "\$objdump" | awk -F '[:,]+[[:space:]]+' '\$1 == "architecture" { print \$2 }')"; \\
     case "\${ARCH}" in \\
 EOI
 	print_java_install_pre "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}"

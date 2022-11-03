@@ -37,6 +37,10 @@ RUN set -eux; \
          ESUM='5e8d7b3189364afd78d936bad140dbe1e7025d4b96d530ed5536d035c21afb7c'; \
          BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1%2B10/OpenJDK19U-jdk_aarch64_linux_hotspot_19.0.1_10.tar.gz'; \
          ;; \
+       ppc64el|powerpc:common64) \
+         ESUM='79320712bbef13825a0aa308621006f32e54f503142737fb21ff085185a61a96'; \
+         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1%2B10/OpenJDK19U-jdk_ppc64le_linux_hotspot_19.0.1_10.tar.gz'; \
+         ;; \
        amd64|i386:x86-64) \
          ESUM='163da7ea140210bae97c6a4590c757858ab4520a78af0e3e33129863d4087552'; \
          BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.1%2B10/OpenJDK19U-jdk_x64_linux_hotspot_19.0.1_10.tar.gz'; \

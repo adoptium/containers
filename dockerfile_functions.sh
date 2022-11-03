@@ -74,19 +74,19 @@ print_debianslim_ver() {
 }
 
 print_ubi_ver() {
-	os_version="8.4"
+	local os=$4
 
 	cat >> "$1" <<-EOI
-	FROM registry.access.redhat.com/ubi8/ubi:${os_version}
+	FROM redhat/${os}
 
 	EOI
 }
 
 print_ubi-minimal_ver() {
-	os_version="8.4"
+	local os=$4
 
 	cat >> "$1" <<-EOI
-	FROM registry.access.redhat.com/ubi8/ubi-minimal:${os_version}
+	FROM redhat/${os}
 
 	EOI
 }
@@ -235,16 +235,16 @@ EOI
 # Select the ubi OS packages.
 print_ubi_pkg() {
 	cat >> "$1" <<'EOI'
-RUN dnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && dnf update -y; dnf clean all
+RUN dnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+    && dnf clean all
 EOI
 }
 
 # Select the ubi OS packages.
 print_ubi-minimal_pkg() {
 	cat >> "$1" <<'EOI'
-RUN microdnf install -y tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && microdnf update -y; microdnf clean all
+RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+    && microdnf clean all
 EOI
 }
 
@@ -687,7 +687,7 @@ print_ubi_java_install() {
 
 	cat >> "$1" <<-EOI
 RUN set -eux; \\
-    ARCH="\$(uname -m)"; \\
+    ARCH="\$(objdump="\$(command -v objdump)" && objdump --file-headers "\$objdump" | awk -F '[:,]+[[:space:]]+' '\$1 == "architecture" { print \$2 }')"; \\
     case "\${ARCH}" in \\
 EOI
 	print_java_install_pre "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}"
@@ -981,6 +981,8 @@ generate_dockerfile() {
 		distro="${os}"
 		case $file in
 			*ubuntu*) distro="ubuntu"; ;;
+			*ubi*-minimal*) distro="ubi-minimal"; ;;
+			*ubi*) distro="ubi"; ;;
 		esac
 		print_"${distro}"_ver "${file}" "${bld}" "${btype}" "${os}";
 		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";

@@ -102,22 +102,22 @@ function set_arch_os() {
 	case ${machine} in
 	armv7l|linux/arm/v7)
 		current_arch="armv7l"
-		oses="centos focal jammy"
+		oses="centos focal jammy ubi9-minimal"
 		os_family="linux"
 		;;
 	aarch64|arm64)
 		current_arch="aarch64"
-		oses="centos focal jammy"
+		oses="centos focal jammy ubi9-minimal"
 		os_family="linux"
 		;;
 	ppc64el|ppc64le)
 		current_arch="ppc64le"
-		oses="centos focal jammy"
+		oses="centos focal jammy ubi9-minimal"
 		os_family="linux"
 		;;
 	s390x)
 		current_arch="s390x"
-		oses="clefos focal jammy"
+		oses="clefos focal jammy ubi9-minimal"
 		os_family="linux"
 		;;
 	amd64|x86_64)
@@ -141,7 +141,7 @@ function set_arch_os() {
 			# shellcheck disable=SC2034 # used externally
 			current_arch="x86_64"
 			# shellcheck disable=SC2034 # used externally
-			oses="alpine centos focal jammy"
+			oses="alpine centos focal jammy ubi9-minimal"
 			# shellcheck disable=SC2034 # used externally
 			os_family="alpine-linux linux"
 			;;
@@ -260,7 +260,7 @@ function parse_vm_entry() {
 	local ver=$2;
 	local pkg=$3;
 	local os=$4;
-	entry=$( < config/"$vm".config grep -B 4 -E "[[:space:]]$ver\/$pkg\/$os$|[[:space:]]$ver\/$pkg\/windows\/$os$|[[:space:]]$ver\/$pkg\/ubuntu\/$os$" | grep "$5" | sed "s/$5 //")
+	entry=$( < config/"$vm".config grep -B 4 -E "[[:space:]]$ver\/$pkg\/$os$|[[:space:]]$ver\/$pkg\/windows\/$os$|[[:space:]]$ver\/$pkg\/ubuntu\/$os$|[[:space:]]$ver\/$pkg\/ubi\/$os$" | grep "$5" | sed "s/$5 //")
 	echo "${entry}"
 }
 

@@ -74,19 +74,19 @@ print_debianslim_ver() {
 }
 
 print_ubi_ver() {
-	os_version="8.4"
+	local os=$4
 
 	cat >> "$1" <<-EOI
-	FROM registry.access.redhat.com/ubi8/ubi:${os_version}
+	FROM redhat/${os}
 
 	EOI
 }
 
 print_ubi-minimal_ver() {
-	os_version="8.4"
+	local os=$4
 
 	cat >> "$1" <<-EOI
-	FROM registry.access.redhat.com/ubi8/ubi-minimal:${os_version}
+	FROM redhat/${os}-minimal
 
 	EOI
 }
@@ -981,6 +981,7 @@ generate_dockerfile() {
 		distro="${os}"
 		case $file in
 			*ubuntu*) distro="ubuntu"; ;;
+			*ubi*) distro="ubi"; ;;
 		esac
 		print_"${distro}"_ver "${file}" "${bld}" "${btype}" "${os}";
 		print_java_env "${file}" "${bld}" "${btype}" "${osfamily}";

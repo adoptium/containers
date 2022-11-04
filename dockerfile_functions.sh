@@ -770,17 +770,12 @@ EOI
 }
 
 # Turn on JVM specific optimization flags.
-# Hotspot@JDK9: https://bugs.openjdk.java.net/browse/JDK-8189497
 print_java_options() {
-	case ${vm} in
-	hotspot)
-		case ${version} in
-		9)
-			JOPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap";
-			;;
-		esac
-		;;
-	esac
+  case ${version} in
+  9) # Hotspot@JDK9: https://bugs.openjdk.java.net/browse/JDK-8189497
+    JOPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap";
+    ;;
+  esac
 
 	if [ -n "${JOPTS}" ]; then
 	cat >> "$1" <<-EOI

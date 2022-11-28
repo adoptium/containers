@@ -20,18 +20,15 @@ jobs:
       strategy: ${{ steps.generate-jobs.outputs.strategy }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - uses: docker-library/bashbrew@f95be1e3f9aca3109dc8768302c20cf9e01b497f # v0.1.6
       - id: generate-jobs
         name: Generate Jobs
         run: |
           export GENERATE_STACKBREW_LIBRARY='./dockerhub_doc_config_update.sh /dev/stdout'
           export GITHUB_REPOSITORY="eclipse-temurin"
-          git clone --depth 1 https://github.com/docker-library/bashbrew.git -b master ~/bashbrew
-          strategy="$(~/bashbrew/scripts/github-actions/generate.sh)"
+          strategy="$("$BASHBREW_SCRIPTS/github-actions/generate.sh")"
+          echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
           jq . <<<"$strategy" # sanity check / debugging aid
-          echo "::set-output name=strategy::$strategy"
-
   test:
     needs: generate-jobs
     strategy: ${{ fromJson(needs.generate-jobs.outputs.strategy) }}

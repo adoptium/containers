@@ -436,14 +436,14 @@ EOI
 
 print_java_install_post() {
 	cat >> "$1" <<-EOI
-    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/src.zip;
+    rm -f /tmp/openjdk.tar.gz \${JAVA_HOME}/src.zip;
 EOI
 }
 
 print_ubuntu_java_install_post() {
 	above_8="^(9|[1-9][0-9]+)$"
 	cat >> "$1" <<-EOI
-    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/src.zip; \\
+    rm -f /tmp/openjdk.tar.gz \${JAVA_HOME}/src.zip; \\
 # https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
     find "\$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \\
 EOI

@@ -59,7 +59,7 @@ RUN set -eux; \
 	      --strip-components 1 \
 	      --no-same-owner \
 	  ; \
-    rm -f /tmp/openjdk.tar.gz /usr/lib/jvm/temurin-11-jdk-amd64/src.zip;
+    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/src.zip;
 
 RUN echo Verifying install ... \
     && echo java -version && java -version \

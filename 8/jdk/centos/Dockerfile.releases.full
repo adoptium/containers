@@ -33,6 +33,14 @@ ENV JAVA_VERSION jdk8u362-b09
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
+       aarch64|arm64) \
+         ESUM='9290a8beefd7a94f0eb030f62d402411a852100482b9c5b63714bacc57002c2a'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_aarch64_linux_hotspot_8u362b09.tar.gz'; \
+         ;; \
+       ppc64el|powerpc:common64) \
+         ESUM='69658dd316c6a160915655971573179766e19c6610ea03880c1e578a0e518f74'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_ppc64le_linux_hotspot_8u362b09.tar.gz'; \
+         ;; \
        amd64|i386:x86-64) \
          ESUM='1486a792fb224611ce0cd0e83d4aacd3503b56698549f8e9a9f0a6ebb83bdba1'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz'; \

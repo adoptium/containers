@@ -31,22 +31,14 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION jdk8u362-b09
+ENV JAVA_VERSION 
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='9290a8beefd7a94f0eb030f62d402411a852100482b9c5b63714bacc57002c2a'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_aarch64_linux_hotspot_8u362b09.tar.gz'; \
-         ;; \
-       armhf|arm) \
-         ESUM='039843c200d0773fe927fa07c368f23d1d74ae58edd09138c97aa1f5e2007b28'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_arm_linux_hotspot_8u362b09.tar.gz'; \
-         # Fixes libatomic.so.1: cannot open shared object file
-         apt-get update \
-         && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \
-         && rm -rf /var/lib/apt/lists/* \
+         BINARY_URL=''; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='69658dd316c6a160915655971573179766e19c6610ea03880c1e578a0e518f74'; \
@@ -54,7 +46,7 @@ RUN set -eux; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='1486a792fb224611ce0cd0e83d4aacd3503b56698549f8e9a9f0a6ebb83bdba1'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

@@ -36,7 +36,7 @@ RUN set -eux; \
     case "${ARCH}" in \
        amd64|x86_64) \
          ESUM='6c0ce0ead2e7ce3e0f06b9578447499c8bd0509306c95fcd81dbecb634228933'; \
-         BINARY_URL='https://github.com/adoptium/temurin19-binaries/releases/download/jdk-19.0.2%2B7/OpenJDK19U-jre_x64_alpine-linux_hotspot_19.0.2_7.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

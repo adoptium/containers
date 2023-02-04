@@ -36,10 +36,6 @@ ENV JAVA_VERSION jdk8u362-b09
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
-         ESUM='cbe45788fa2d9d04d6b10f8aec7dbb15a018dbafe897ed75e31876d0367d56a5'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jre_aarch64_linux_hotspot_8u362b09.tar.gz'; \
-         ;; \
        armhf|arm) \
          ESUM='82d8524838b07ee438d42f4c33b6ecfe89ae83efac9af0605c76d75195bdcd99'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jre_arm_linux_hotspot_8u362b09.tar.gz'; \
@@ -48,13 +44,9 @@ RUN set -eux; \
          && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \
          && rm -rf /var/lib/apt/lists/* \
          ;; \
-       ppc64el|powerpc:common64) \
-         ESUM='5ec3e07126fedc23b58bb0f5b2dd05b5e9599ce1a3567fc2c7b27587f39faa3b'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jre_ppc64le_linux_hotspot_8u362b09.tar.gz'; \
-         ;; \
        amd64|i386:x86-64) \
-         ESUM='c8c4e180f915fc7c163240bf363dcdf2b481cd2723fabfc3d08ccf12e049611f'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u362-b09/OpenJDK8U-jre_x64_linux_hotspot_8u362b09.tar.gz'; \
+         ESUM=''; \
+         BINARY_URL=''; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

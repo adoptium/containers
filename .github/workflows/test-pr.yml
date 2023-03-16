@@ -18,7 +18,7 @@ jobs:
     outputs:
       strategy: ${{ steps.generate-jobs.outputs.strategy }}
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
       - uses: docker-library/bashbrew@7e160dca3123caecf32c33ba31821dd2aa3716cd # v0.1.8
       - id: generate-jobs
         name: Generate Jobs
@@ -34,7 +34,7 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
       - name: Prepare Environment
         run: ${{ matrix.runs.prepare }}
       - name: Pull Dependencies

@@ -62,7 +62,7 @@ export supported_builds="releases"
 function check_version() {
 	local version=$1
 	case ${version} in
-	8|11|17|19)
+	8|11|17|20)
 		;;
 	*)
 		echo "ERROR: Invalid version"

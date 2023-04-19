@@ -36,6 +36,10 @@ ENV JAVA_VERSION jdk-11.0.19+7
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
+       aarch64|arm64) \
+         ESUM='1fe4b20d808f393422610818711c728331992a4455eeeb061d3d05b45412771d'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.19%2B7/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.19_7.tar.gz'; \
+         ;; \
        amd64|i386:x86-64) \
          ESUM='32dcf760664f93531594b72ce9226e9216567de5705a23c9ff5a77c797948054'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.19%2B7/OpenJDK11U-jre_x64_linux_hotspot_11.0.19_7.tar.gz'; \

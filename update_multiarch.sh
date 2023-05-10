@@ -14,6 +14,7 @@
 #
 
 # Script for updating multiarch docker images for a specific openjdk version
+set -x
 set -o pipefail
 
 # Dockerfiles to be generated

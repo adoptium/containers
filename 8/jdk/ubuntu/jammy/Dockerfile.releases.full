@@ -26,7 +26,7 @@ ENV PATH $JAVA_HOME/bin:$PATH
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl wget ca-certificates fontconfig locales \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl wget ca-certificates fontconfig locales p11-kit \
     && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
@@ -79,3 +79,5 @@ RUN echo Verifying install ... \
     && echo javac -version && javac -version \
     && echo java -version && java -version \
     && echo Complete.
+COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]

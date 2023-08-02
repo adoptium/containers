@@ -175,7 +175,8 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 # Select the ubuntu OS packages
 print_ubuntu_pkg() {
-	packages="tzdata curl wget ca-certificates fontconfig locales"
+    # p11-kit provides the `trust` binary used in certificate extraction
+	packages="tzdata curl wget ca-certificates fontconfig locales p11-kit"
 	# binutils is needed on JDK13+ for jlink to work https://github.com/docker-library/openjdk/issues/351
 	if [[ $version -ge 13 ]]; then
 		packages+=" binutils"
@@ -227,7 +228,8 @@ print_alpine_pkg() {
 print_alpine_musl_pkg() {
 	cat >> "$1" <<'EOI'
 # fontconfig and ttf-dejavu added to support serverside image generation by Java programs
-RUN apk add --no-cache fontconfig libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
+# java-cacerts added to support adding CA certificates to the Java keystore
+RUN apk add --no-cache fontconfig java-cacerts libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
     && rm -rf /var/cache/apk/*
 EOI
 }
@@ -847,6 +849,17 @@ RUN Write-Host 'Verifying install ...'; \\
 	fi
 }
 
+print_entrypoint() {
+    dir=$(dirname "$1")
+
+    cat "scripts/entrypoint.$2.sh" > "$dir/entrypoint.sh"
+    chmod +x "$dir/entrypoint.sh"
+    cat >> "$1" <<EOI
+COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
+EOI
+}
+
 print_cmd() {
 	# for version > 8, set CMD["jshell"] in the Dockerfile
 	above_8="^(9|[1-9][0-9]+)$"
@@ -900,6 +913,7 @@ generate_dockerfile() {
 		print_"${distro}"_java_install "${file}" "${pkg}" "${bld}" "${btype}" "${osfamily}" "${os}";
 		print_java_options "${file}" "${bld}" "${btype}";
 		print_test "${file}";
+		print_entrypoint "${file}" "${os}"
 		print_cmd "${file}";
 	fi
 	echo "done"

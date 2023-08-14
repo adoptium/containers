@@ -17,9 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       strategy: ${{ steps.generate-jobs.outputs.strategy }}
+      length: ${{ steps.generate-jobs.outputs.length }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: docker-library/bashbrew@7e160dca3123caecf32c33ba31821dd2aa3716cd # v0.1.8
+        with:
+          fetch-depth: 0
+      - uses: ./.github/workflows/.bashbrew
       - id: generate-jobs
         name: Generate Jobs
         run: |
@@ -28,13 +31,26 @@ jobs:
           strategy="$("$BASHBREW_SCRIPTS/github-actions/generate.sh")"
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"
           jq . <<<"$strategy" # sanity check / debugging aid
+          length="$(jq <<<"$strategy" -r '.matrix.include | length')"
+          echo "length=$length" >> "$GITHUB_OUTPUT"
+
   test:
     needs: generate-jobs
     strategy: ${{ fromJson(needs.generate-jobs.outputs.strategy) }}
+    if: needs.generate-jobs.outputs.length > 0
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Prepare Git
+        run: |
+          # enable symlinks on Windows (https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresymlinks)
+          git config --global core.symlinks true
+          # also, make sure Windows symlinks are *real* symlinks (https://github.com/git-for-windows/git/pull/156)
+          echo 'MSYS=winsymlinks:nativestrict' >> "$GITHUB_ENV"
+          # https://github.com/docker-library/bashbrew/blob/a40a54d4d81b9fd2e39b4d7ba3fe203e8b022a67/scripts/github-actions/generate.sh#L146-L149
+        if: runner.os == 'Windows'
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: ./.github/workflows/.bashbrew
       - name: Prepare Environment
         run: ${{ matrix.runs.prepare }}
       - name: Pull Dependencies

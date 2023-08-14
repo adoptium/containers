@@ -855,8 +855,8 @@ print_entrypoint() {
     cat "scripts/entrypoint.$2.sh" > "$dir/entrypoint.sh"
     chmod +x "$dir/entrypoint.sh"
     cat >> "$1" <<EOI
-COPY entrypoint.sh /
-ENTRYPOINT ["/entrypoint.sh"]
+COPY entrypoint.sh /__temurin_entrypoint.sh
+ENTRYPOINT ["/__temurin_entrypoint.sh"]
 EOI
 }
 

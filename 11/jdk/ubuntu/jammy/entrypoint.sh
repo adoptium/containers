@@ -1,4 +1,5 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+# Sheband needs to be `bash`, see https://github.com/adoptium/containers/issues/415 for details
 
 set -e
 

@@ -229,7 +229,8 @@ print_alpine_musl_pkg() {
 	cat >> "$1" <<'EOI'
 # fontconfig and ttf-dejavu added to support serverside image generation by Java programs
 # java-cacerts added to support adding CA certificates to the Java keystore
-RUN apk add --no-cache fontconfig java-cacerts libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
+# bash is required for the entrypoint script (s. https://github.com/adoptium/containers/issues/415)
+RUN apk add --no-cache fontconfig java-cacerts bash libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
     && rm -rf /var/cache/apk/*
 EOI
 }
@@ -855,8 +856,8 @@ print_entrypoint() {
     cat "scripts/entrypoint.$2.sh" > "$dir/entrypoint.sh"
     chmod +x "$dir/entrypoint.sh"
     cat >> "$1" <<EOI
-COPY entrypoint.sh /
-ENTRYPOINT ["/entrypoint.sh"]
+COPY entrypoint.sh /__cacert_entrypoint.sh
+ENTRYPOINT ["/__cacert_entrypoint.sh"]
 EOI
 }
 

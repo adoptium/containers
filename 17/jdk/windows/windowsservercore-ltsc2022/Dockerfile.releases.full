@@ -22,12 +22,12 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2022
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV JAVA_VERSION jdk-17.0.8+7
+ENV JAVA_VERSION jdk-17.0.8.1+1
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8_7.msi ...'); \
-    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8_7.msi ; \
-    Write-Host ('Verifying sha256 (f045a19606c92d1fb64a3aec9d0f9dffbeaf08a794d9ec7e2c7a316bc016979e) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne 'f045a19606c92d1fb64a3aec9d0f9dffbeaf08a794d9ec7e2c7a316bc016979e') { \
+RUN Write-Host ('Downloading https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8.1%2B1/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8.1_1.msi ...'); \
+    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8.1%2B1/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8.1_1.msi ; \
+    Write-Host ('Verifying sha256 (430bc8e8f25d4d41b21ab9a8a0008db36b97f9f70863b300628a95e9692efcaa) ...'); \
+    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '430bc8e8f25d4d41b21ab9a8a0008db36b97f9f70863b300628a95e9692efcaa') { \
         Write-Host 'FAILED!'; \
         exit 1; \
     }; \

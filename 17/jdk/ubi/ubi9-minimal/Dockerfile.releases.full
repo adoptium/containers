@@ -43,7 +43,7 @@ RUN set -eux; \
          ;; \
        s390x|s390:64-bit) \
          ESUM='ffacba69c6843d7ca70d572489d6cc7ab7ae52c60f0852cedf4cf0d248b6fc37'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8.1%2B1/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.8.1_1.tar.gz'; \
+         BINARY_URL=''; \
          ;; \
        amd64|i386:x86-64) \
          ESUM='c25dfbc334068a48c19c44ce39ad4b8427e309ae1cfa83f23c102e78b8a6dcc0'; \

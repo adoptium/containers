@@ -36,10 +36,6 @@ ENV JAVA_VERSION jdk-21+35
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
-         ESUM=''; \
-         BINARY_URL=''; \
-         ;; \
        amd64|x86_64) \
          ESUM='9e7aa5ca9d8819e8fb3ae9f3c146905bee81808b70b875de0984ec55b1bd8559'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21%2B35/OpenJDK21U-jre_x64_alpine-linux_hotspot_21_35.tar.gz'; \

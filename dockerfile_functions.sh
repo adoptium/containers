@@ -782,7 +782,7 @@ print_java_options() {
 
 	if [ -n "${JOPTS}" ]; then
 	cat >> "$1" <<-EOI
-ENV JAVA_TOOL_OPTIONS="${JOPTS}"
+ENV JAVA_TOOL_OPTIONS="${JOPTS} -XX:InitialRAMPercentage=60.0 -XX:MaxRAMPercentage=80.0"
 EOI
 	fi
 }

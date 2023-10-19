@@ -1,5 +1,5 @@
 # Containers
-
+[![Docker Stars](https://img.shields.io/docker/stars/_/eclipse-temurin?style=flat-square)](https://hub.docker.com/r/_/eclipse-temurin)
 [![DockerPulls](https://img.shields.io/docker/pulls/_/eclipse-temurin?label=Docker%20Pulls)](https://hub.docker.com/_/eclipse-temurin)
 
 This repository contains the Dockerfiles for the official [Adoptium](https://adoptium.net) images of the Eclipse Temurin distribution (OpenJDK). These images are made available in Docker Hub.

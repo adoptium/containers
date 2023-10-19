@@ -223,7 +223,7 @@ do
 		do
 			for os in ${oses}
 			do
-				for file in $(find . -name "Dockerfile.*" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
+				for file in $(find . -name "Dockerfile" | grep "/${ver}" | grep "${pkg}" | grep "${os}" | sort -n)
 				do
 					# file will look like ./19/jdk/alpine/Dockerfile.releases.full
 					# dockerfile name
@@ -232,9 +232,11 @@ do
 					dfdir=$(dirname $file | cut -c 3-)
 					os=$(echo "${file}" | awk -F '/' '{ print $4 }')
 					# build = release or nightly
-					build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
+					# build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
+					build="release"
 					# btype = full or slim
-					btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
+					# btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
+					build="full"
 					generate_official_image_info
 				done
 			done

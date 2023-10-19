@@ -31,14 +31,14 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN apk add --no-cache fontconfig java-cacerts bash libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
     && rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION jdk-11.0.20.1+1
+ENV JAVA_VERSION jdk-11.0.21+9
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        amd64|x86_64) \
-         ESUM='d34ea3d1e3852548546c69d7d73addb873e7926e66147b8596b7c11fad9ee057'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.20.1%2B1/OpenJDK11U-jre_x64_alpine-linux_hotspot_11.0.20.1_1.tar.gz'; \
+         ESUM='6a3d1759bdf91433411d37ca2ad1505a7f214c1401797834e9884165c2457368'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_x64_alpine-linux_hotspot_11.0.21_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

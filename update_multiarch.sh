@@ -66,7 +66,9 @@ do
 				# Generate all the Dockerfiles for each of the builds and build types
 				for btype in ${btypes}
 				do
-					file="${dir}/Dockerfile.${build}.${btype}"
+					# file="${dir}/Dockerfile.${build}.${btype}"
+					# Reenable the line above if we ever start doing multi build types
+					file="${dir}/Dockerfile"
 					generate_dockerfile "${file}" "${package}" "${build}" "${btype}" "${osfamily}" "${os}"
 					# Copy the script to generate slim builds.
 					if [ "${btype}" = "slim" ]; then

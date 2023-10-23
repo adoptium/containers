@@ -28,22 +28,18 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
     && microdnf clean all
 
-ENV JAVA_VERSION jdk8u382-b05
+ENV JAVA_VERSION jdk8u392-b08
 
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
        aarch64|arm64) \
-         ESUM='8cf329aa76d5b6abe35dd94e5087d9d14993fa13b43bbaed3b26bda4c57162c4'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u382-b05/OpenJDK8U-jre_aarch64_linux_hotspot_8u382b05.tar.gz'; \
-         ;; \
-       ppc64el|powerpc:common64) \
-         ESUM='8f0706f16373078e46666a6035325792584cd565b4cc5a793a37312599f3af0b'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u382-b05/OpenJDK8U-jre_ppc64le_linux_hotspot_8u382b05.tar.gz'; \
+         ESUM='37b997f12cd572da979283fccafec9ba903041a209605b50fcb46cc34f1a9917'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_aarch64_linux_hotspot_8u392b08.tar.gz'; \
          ;; \
        amd64|i386:x86-64) \
-         ESUM='1fad165cc243e8db1b9cf226134acdfe3dc5919cd98c5fd9210de3cf9edeabd7'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u382-b05/OpenJDK8U-jre_x64_linux_hotspot_8u382b05.tar.gz'; \
+         ESUM='91d31027da0d985be3549714389593d9e0da3da5057d87e3831c7c538b9a2a0f'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_x64_linux_hotspot_8u392b08.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

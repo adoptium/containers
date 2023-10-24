@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "update_multiarch.sh"
+#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -36,28 +36,28 @@ ENV JAVA_VERSION jdk-21.0.1+12
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
-         ESUM='ff4102e2aa0b35f337d579f0d19aff1aa4a10bee9ab0951137affdb50dd8f3e2'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21%2B35/OpenJDK21U-jre_aarch64_alpine-linux_hotspot_21_35.tar.gz'; \
-         ;; \
        amd64|x86_64) \
          ESUM='a8fcc43927664ba191c9a77d1013f1f32fec1acc22fe6f0c29d687221f2cc95d'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.1%2B12/OpenJDK21U-jre_x64_alpine-linux_hotspot_21.0.1_12.tar.gz'; \
+         ;; \
+       aarch64|arm64) \
+         ESUM='2898ea1ddf6f70f09b09cf99d928f6d4c862f78f81104f5dce3e44a832b8444a'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.1%2B12/OpenJDK21U-jre_aarch64_alpine-linux_hotspot_21.0.1_12.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-	  mkdir -p "$JAVA_HOME"; \
-	  tar --extract \
-	      --file /tmp/openjdk.tar.gz \
-	      --directory "$JAVA_HOME" \
-	      --strip-components 1 \
-	      --no-same-owner \
-	  ; \
+    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+    mkdir -p "$JAVA_HOME"; \
+    tar --extract \
+        --file /tmp/openjdk.tar.gz \
+        --directory "$JAVA_HOME" \
+        --strip-components 1 \
+        --no-same-owner \
+    ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
 RUN echo Verifying install ... \

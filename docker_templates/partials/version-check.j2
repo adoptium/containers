@@ -1,0 +1,16 @@
+RUN echo Verifying install ... \
+    {% if version|int >= 11 -%}
+    {% if os_family != "windows" -%}
+    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
+    {% endif -%}
+    {% if image_type == "jdk" -%}
+    && echo javac --version && javac --version \
+    {% endif -%}
+    && echo java --version && java --version \
+    {% else -%}
+    {% if image_type == "jdk" -%}
+    && echo javac -version && javac -version \
+    {% endif -%}
+    && echo java -version && java -version \
+    {% endif -%}
+    && echo Complete.

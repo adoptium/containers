@@ -1,0 +1,19 @@
+{% include 'partials/license.j2' %}
+
+FROM {{ base_image }}
+
+{% include 'partials/header.j2' %}
+
+RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
+    && microdnf clean all
+
+ENV JAVA_VERSION {{ java_version }}
+
+RUN set -eux; \
+    ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
+{% include 'partials/multi-arch-install.j2' %}
+
+{% include 'partials/version-check.j2' %}
+COPY entrypoint.sh /__cacert_entrypoint.sh
+ENTRYPOINT ["/__cacert_entrypoint.sh"]
+{% include 'partials/jshell.j2' %}

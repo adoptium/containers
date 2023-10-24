@@ -22,14 +22,15 @@
 #
 set -o pipefail
 
-# shellcheck source=common_functions.sh
-source ./common_functions.sh
-
 if [[ -z "$1" ]]; then
 	official_docker_image_file="eclipse-temurin"
 else
 	official_docker_image_file="$1"
 fi
+
+supported_versions="8 11 17 21"
+all_jvms="hotspot"
+all_packages="jdk jre"
 
 # Fetch the latest manifest from the official repo
 wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
@@ -168,7 +169,6 @@ function print_official_image_file() {
 	  echo "Architectures: ${arches}"
 	  echo "GitCommit: ${commit}"
 	  echo "Directory: ${dfdir}"
-	  echo "File: ${dfname}"
 	  if [ $os == "windows" ]; then
 		echo "Constraints: ${constraints}"
 	  fi

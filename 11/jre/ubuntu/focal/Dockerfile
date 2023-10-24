@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "update_multiarch.sh"
+#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -40,34 +40,38 @@ RUN set -eux; \
          ESUM='8dc527e5c5da62f80ad3b6a2cd7b1789f745b1d90d5e83faba45f7a1d0b6cab8'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.21_9.tar.gz'; \
          ;; \
+       amd64|i386:x86-64) \
+         ESUM='156861bb901ef18759e05f6f008595220c7d1318a46758531b957b0c950ef2c3'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_x64_linux_hotspot_11.0.21_9.tar.gz'; \
+         ;; \
        ppc64el|powerpc:common64) \
          ESUM='286e37ce06316185377eea847d2aa9f1523b9f1428684e59e772f2f6055e89b9'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.21_9.tar.gz'; \
          ;; \
-       amd64|i386:x86-64) \
-         ESUM='156861bb901ef18759e05f6f008595220c7d1318a46758531b957b0c950ef2c3'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_x64_linux_hotspot_11.0.21_9.tar.gz'; \
+       s390x|s390:64-bit) \
+         ESUM='78f18503970715c03b8e6e70191d9001c883edab23d9f51ff434e4a03c6237bd'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_s390x_linux_hotspot_11.0.21_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-	  mkdir -p "$JAVA_HOME"; \
-	  tar --extract \
-	      --file /tmp/openjdk.tar.gz \
-	      --directory "$JAVA_HOME" \
-	      --strip-components 1 \
-	      --no-same-owner \
-	  ; \
+    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+    mkdir -p "$JAVA_HOME"; \
+    tar --extract \
+        --file /tmp/openjdk.tar.gz \
+        --directory "$JAVA_HOME" \
+        --strip-components 1 \
+        --no-same-owner \
+    ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip; \
-# https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
+    # https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
     find "$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \
     ldconfig; \
-# https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
-# https://openjdk.java.net/jeps/341
+    # https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
+    # https://openjdk.java.net/jeps/341
     java -Xshare:dump;
 
 RUN echo Verifying install ... \

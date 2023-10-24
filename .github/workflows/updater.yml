@@ -17,8 +17,15 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: "pip3 install -r requirements.txt"
+
       - name: Run updater
-        run: " bash update_all.sh"
+        run: "python3 generate_dockerfiles.py"
 
       - uses: gr2m/create-or-update-pull-request-action@dc1726cbf4dd3ce766af4ec29cfb660e0125e8ee # v1
         env:

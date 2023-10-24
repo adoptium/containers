@@ -1,0 +1,22 @@
+{% include 'partials/license.j2' %}
+
+FROM {{ base_image }}
+
+{% include 'partials/header.j2' %}
+
+# fontconfig and ttf-dejavu added to support serverside image generation by Java programs
+# java-cacerts added to support adding CA certificates to the Java keystore
+# bash is required for the entrypoint script (s. https://github.com/adoptium/containers/issues/415)
+RUN apk add --no-cache fontconfig java-cacerts bash libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
+    && rm -rf /var/cache/apk/*
+
+ENV JAVA_VERSION {{ java_version }}
+
+RUN set -eux; \
+    ARCH="$(apk --print-arch)"; \
+{% include 'partials/multi-arch-install.j2' %}
+
+{% include 'partials/version-check.j2' %}
+COPY entrypoint.sh /__cacert_entrypoint.sh
+ENTRYPOINT ["/__cacert_entrypoint.sh"]
+{% include 'partials/jshell.j2' %}

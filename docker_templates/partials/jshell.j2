@@ -1,0 +1,3 @@
+{% if image_type == "jdk" and version|int >= 11 %}
+CMD ["jshell"]
+{% endif -%}

@@ -41,6 +41,10 @@ RUN set -eux; \
          ESUM='286e37ce06316185377eea847d2aa9f1523b9f1428684e59e772f2f6055e89b9'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.21_9.tar.gz'; \
          ;; \
+       s390x|s390:64-bit) \
+         ESUM='78f18503970715c03b8e6e70191d9001c883edab23d9f51ff434e4a03c6237bd'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_s390x_linux_hotspot_11.0.21_9.tar.gz'; \
+         ;; \
        amd64|i386:x86-64) \
          ESUM='156861bb901ef18759e05f6f008595220c7d1318a46758531b957b0c950ef2c3'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.21%2B9/OpenJDK11U-jre_x64_linux_hotspot_11.0.21_9.tar.gz'; \

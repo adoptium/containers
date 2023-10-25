@@ -50,7 +50,7 @@ RUN set -eux; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \
@@ -61,8 +61,10 @@ RUN set -eux; \
     ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
-RUN && echo javac -version && javac -version \
-    && echo java -version && java -version \
-    && echo Complete.
+RUN set -eux; \
+    echo "Verifying install ..."; \
+    echo javac -version && javac -version; \
+    echo java -version && java -version; \
+    echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

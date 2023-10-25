@@ -25,8 +25,21 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN yum install -y tzdata openssl curl wget ca-certificates fontconfig gzip tar \
-    && yum clean all
+RUN set -eux; \
+    yum install -y \
+    gzip \
+    tar \
+    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+    curl \
+    wget \
+    tzdata \
+    openssl \
+    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
+    # https://github.com/adoptium/containers/issues/293
+    ca-certificates \
+    fontconfig \
+    ; \
+    rm -rf /var/cache/yum
 
 ENV JAVA_VERSION jdk8u392-b08
 
@@ -50,7 +63,7 @@ RUN set -eux; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \
@@ -61,8 +74,10 @@ RUN set -eux; \
     ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
-RUN && echo javac -version && javac -version \
-    && echo java -version && java -version \
-    && echo Complete.
+RUN set -eux; \
+    echo "Verifying install ..."; \
+    echo javac -version && javac -version; \
+    echo java -version && java -version; \
+    echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

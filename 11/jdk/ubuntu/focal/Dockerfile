@@ -25,11 +25,23 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl wget ca-certificates fontconfig locales p11-kit \
-    && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
-    && locale-gen en_US.UTF-8 \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+    curl \
+    wget \
+    fontconfig \
+    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
+    # https://github.com/adoptium/containers/issues/293
+    ca-certificates p11-kit \
+    tzdata \
+    # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
+    locales \
+    ; \
+    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; \
+    locale-gen en_US.UTF-8; \
+    rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_VERSION jdk-11.0.21+9
 
@@ -57,7 +69,7 @@ RUN set -eux; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \
@@ -75,11 +87,11 @@ RUN set -eux; \
     java -Xshare:dump;
 
 RUN set -eux; \
-    && echo Verifying install ... \
-    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
-    && echo javac --version && javac --version \
-    && echo java --version && java --version \
-    && echo Complete.
+    echo "Verifying install ..."; \
+    fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
+    echo javac --version && javac --version; \
+    echo java --version && java --version; \
+    echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]
 

@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "update_multiarch.sh"
+#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -33,6 +33,10 @@ ENV JAVA_VERSION jdk-17.0.9+9
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
+       amd64|i386:x86-64) \
+         ESUM='c37f729200b572884b8f8e157852c739be728d61d9a1da0f920104876d324733'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_x64_linux_hotspot_17.0.9_9.tar.gz'; \
+         ;; \
        aarch64|arm64) \
          ESUM='05b192f81ed478178ba953a2a779b67fc5a810acadb633ad69f8c4412399edb8'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_aarch64_linux_hotspot_17.0.9_9.tar.gz'; \
@@ -41,24 +45,24 @@ RUN set -eux; \
          ESUM='79c85ecf1320c67b828310167e1ced62e402bc86a5d47ca9cc7bfa3b708cb07a'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_ppc64le_linux_hotspot_17.0.9_9.tar.gz'; \
          ;; \
-       amd64|i386:x86-64) \
-         ESUM='c37f729200b572884b8f8e157852c739be728d61d9a1da0f920104876d324733'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_x64_linux_hotspot_17.0.9_9.tar.gz'; \
+       s390x|s390:64-bit) \
+         ESUM='c4f2249bee785aa8c754741aa24d035e02b4e6d844e35b2b20030374d8fbab75'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_s390x_linux_hotspot_17.0.9_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-	  mkdir -p "$JAVA_HOME"; \
-	  tar --extract \
-	      --file /tmp/openjdk.tar.gz \
-	      --directory "$JAVA_HOME" \
-	      --strip-components 1 \
-	      --no-same-owner \
-	  ; \
+    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+    mkdir -p "$JAVA_HOME"; \
+    tar --extract \
+        --file /tmp/openjdk.tar.gz \
+        --directory "$JAVA_HOME" \
+        --strip-components 1 \
+        --no-same-owner \
+    ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
 RUN echo Verifying install ... \

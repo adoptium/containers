@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "update_multiarch.sh"
+#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -36,6 +36,10 @@ ENV JAVA_VERSION jdk-17.0.9+9
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
+       amd64|i386:x86-64) \
+         ESUM='7b175dbe0d6e3c9c23b6ed96449b018308d8fc94a5ecd9c0df8b8bc376c3c18a'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_x64_linux_hotspot_17.0.9_9.tar.gz'; \
+         ;; \
        aarch64|arm64) \
          ESUM='e2c5e26f8572544b201bc22a9b28f2b1a3147ab69be111cea07c7f52af252e75'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_aarch64_linux_hotspot_17.0.9_9.tar.gz'; \
@@ -44,30 +48,30 @@ RUN set -eux; \
          ESUM='3ae4b254d5b720f94f986481e787fbd67f0667571140ba2e2ae5020ceddbc826'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_ppc64le_linux_hotspot_17.0.9_9.tar.gz'; \
          ;; \
-       amd64|i386:x86-64) \
-         ESUM='7b175dbe0d6e3c9c23b6ed96449b018308d8fc94a5ecd9c0df8b8bc376c3c18a'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_x64_linux_hotspot_17.0.9_9.tar.gz'; \
+       s390x|s390:64-bit) \
+         ESUM='45562179b9b623331f741a3a12b298a4d4b901555862148963c86ae7b10d320a'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.9_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-	  mkdir -p "$JAVA_HOME"; \
-	  tar --extract \
-	      --file /tmp/openjdk.tar.gz \
-	      --directory "$JAVA_HOME" \
-	      --strip-components 1 \
-	      --no-same-owner \
-	  ; \
+    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+    mkdir -p "$JAVA_HOME"; \
+    tar --extract \
+        --file /tmp/openjdk.tar.gz \
+        --directory "$JAVA_HOME" \
+        --strip-components 1 \
+        --no-same-owner \
+    ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip; \
-# https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
+    # https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
     find "$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \
     ldconfig; \
-# https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
-# https://openjdk.java.net/jeps/341
+    # https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
+    # https://openjdk.java.net/jeps/341
     java -Xshare:dump;
 
 RUN echo Verifying install ... \

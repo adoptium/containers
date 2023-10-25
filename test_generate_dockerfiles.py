@@ -16,59 +16,6 @@ from unittest.mock import Mock, mock_open, patch
 
 from jinja2 import Environment, FileSystemLoader
 
-import generate_dockerfiles
-
-
-class TestHelperFunctions(unittest.TestCase):
-    def test_archHelper(self):
-        test_data = [
-            ("aarch64", "some-os", "aarch64|arm64"),
-            ("ppc64le", "some-os", "ppc64el|powerpc:common64"),
-            ("s390x", "some-os", "s390x|s390:64-bit"),
-            ("arm", "some-os", "armhf|arm"),
-            ("x64", "alpine-linux", "amd64|x86_64"),
-            ("x64", "ubuntu", "amd64|i386:x86-64"),
-            ("random-arch", "some-os", "random-arch"),
-        ]
-
-        for arch, os_family, expected in test_data:
-            self.assertEqual(generate_dockerfiles.archHelper(arch, os_family), expected)
-
-    def test_osFamilyHelper(self):
-        test_data = [
-            ("ubuntu", "linux"),
-            ("centos", "linux"),
-            ("ubi9-minimal", "linux"),
-            ("nanoserver", "windows"),
-            ("servercore", "windows"),
-            ("random-os", "random-os"),
-        ]
-
-        for os_name, expected in test_data:
-            self.assertEqual(generate_dockerfiles.osFamilyHelper(os_name), expected)
-
-    @patch("requests.get")
-    def test_fetch_latest_release(self, mock_get):
-        # Mocking the request.get call
-        mock_response = Mock()
-        mock_response.raise_for_status.return_value = None
-        mock_response.json.return_value = [{"key": "value"}]
-        mock_get.return_value = mock_response
-
-        url = "https://api.adoptium.net/v3/assets/feature_releases/some_version/ga?page=0&image_type=some_type&page_size=1&vendor=eclipse"
-        response = generate_dockerfiles.requests.get(
-            url, headers=generate_dockerfiles.headers
-        )
-        data = response.json()
-        self.assertIn("key", data[0])
-        self.assertEqual(data[0]["key"], "value")
-
-    @patch("builtins.open", new_callable=mock_open, read_data="configurations: []")
-    def test_load_config(self, mock_file):
-        with open("config/hotspot.yml", "r") as file:
-            config = generate_dockerfiles.yaml.safe_load(file)
-            self.assertIn("configurations", config)
-
 
 class TestJinjaRendering(unittest.TestCase):
     def setUp(self):

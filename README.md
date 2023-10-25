@@ -1,6 +1,6 @@
 # Containers
-[![Docker Stars](https://img.shields.io/docker/stars/_/eclipse-temurin?style=flat-square)](https://hub.docker.com/r/_/eclipse-temurin)
 [![DockerPulls](https://img.shields.io/docker/pulls/_/eclipse-temurin?label=Docker%20Pulls)](https://hub.docker.com/_/eclipse-temurin)
+[![Docker Stars](https://img.shields.io/docker/stars/_/eclipse-temurin?label=Docker%20Stars)](https://hub.docker.com/r/_/eclipse-temurin)
 
 This repository contains the Dockerfiles for the official [Adoptium](https://adoptium.net) images of the Eclipse Temurin distribution (OpenJDK). These images are made available in Docker Hub.
 
@@ -28,7 +28,7 @@ A [Updater GitHub Action](.github/workflows/updater.yml) runs every 30 mins whic
 
 #### generate_dockerfiles.py
 
-[`./update_all.sh`](./update_all.sh) is a wrapper script to control what is passed into [`./update_multiarch.sh`](./update_multiarch.sh).
+[`./generate_dockerfiles.py`](./generate_dockerfiles.py) is a python script which uses the jinja templates defined in [docker_templates](./docker_templates/) to generate the docker updates. It uses the Adoptium API to fetch the lastest artefacts for each release.
 
 ### Manual Release
 

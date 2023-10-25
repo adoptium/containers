@@ -87,8 +87,7 @@ RUN set -eux; \
 
 RUN set -eux; \
     echo "Verifying install ..."; \
-    fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
-    echo java --version && java --version; \
+    echo "java --version"; java --version; \
     echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

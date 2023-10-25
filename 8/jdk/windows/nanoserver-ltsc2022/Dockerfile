@@ -34,6 +34,6 @@ USER ContainerUser
 COPY --from=eclipse-temurin:8u392-b08-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
 
 RUN echo "Verifying install ..."; \
-    echo javac -version && javac -version; \
-    echo java -version && java -version; \
+    echo "javac -version"; javac -version; \
+    echo "java -version"; java -version; \
     echo "Complete."

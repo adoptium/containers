@@ -34,5 +34,5 @@ USER ContainerUser
 COPY --from=eclipse-temurin:11.0.21_9-jre-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN echo "Verifying install ..."; \
-    echo java --version && java --version; \
+    echo "java --version"; java --version; \
     echo "Complete."

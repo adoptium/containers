@@ -81,7 +81,7 @@ RUN set -eux; \
 
 RUN set -eux; \
     echo "Verifying install ..."; \
-    echo java -version && java -version; \
+    echo "java -version"; java -version; \
     echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

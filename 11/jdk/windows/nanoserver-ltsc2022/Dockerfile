@@ -34,8 +34,8 @@ USER ContainerUser
 COPY --from=eclipse-temurin:11.0.21_9-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
 
 RUN echo "Verifying install ..."; \
-    echo javac --version && javac --version; \
-    echo java --version && java --version; \
+    echo "javac --version"; javac --version; \
+    echo "java --version"; java --version; \
     echo "Complete."
 
 CMD ["jshell"]

@@ -25,8 +25,9 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && microdnf clean all
+RUN set -eux; \
+    microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar; \
+    microdnf clean all
 
 ENV JAVA_VERSION jdk8u392-b08
 
@@ -63,8 +64,8 @@ RUN set -eux; \
 
 RUN set -eux; \
     echo "Verifying install ..."; \
-    echo javac -version && javac -version; \
-    echo java -version && java -version; \
+    echo "javac -version"; javac -version; \
+    echo "java -version"; java -version; \
     echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

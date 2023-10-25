@@ -10,14 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Script that generates the `eclipse-temurin` config file for the official docker
-# image github repo and the doc updates for the unofficial docker image repo.
-# Process to update the official docker image repo 
-# 1. Run ./update_all.sh to update all the dockerfiles in the current repo.
-# 2. Submit PR to push the newly generated dockerfiles to the current repo.
-# 3. After above PR is merged, git pull the latest changes.
-# 4. Run this command
-#
 
 import os
 

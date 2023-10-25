@@ -10,3 +10,4 @@ official-eclipse-temurin
 *hotspot.txt
 library/
 .vscode/
+ __pycache__/

@@ -6,31 +6,25 @@ FROM {{ base_image }}
 
 RUN set -eux; \
     yum install -y \
-    gzip \
-    tar \
-    {% if version|int < 22 -%}
-    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
-    curl \
-    {% endif -%}
-    wget \
-    tzdata \
-    openssl \
-    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
-    # https://github.com/adoptium/containers/issues/293
-    ca-certificates \
-    fontconfig \
-    {% if version|int >= 13 -%}
-    # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
-    # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-    binutils \
-    {% endif -%}
+        gzip \
+        tar \
+        {% if version|int < 22 -%}
+        # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+        curl \
+        {% endif -%}
+        wget \
+        tzdata \
+        openssl \
+        # utilities for keeping Centos and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates \
+{% include 'partials/binutils.j2' -%}
+        fontconfig \
     ; \
     rm -rf /var/cache/yum
 
 ENV JAVA_VERSION {{ java_version }}
 
-RUN set -eux; \
-    ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
 {% include 'partials/multi-arch-install.j2' %}
 
 {% include 'partials/version-check.j2' %}

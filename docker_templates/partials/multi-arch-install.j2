@@ -1,3 +1,5 @@
+RUN set -eux; \
+{%- include 'partials/arch-variable.j2' %}
     case "${ARCH}" in \
        {% for architecture, details in arch_data.items() -%}
         {{ architecture }}) \

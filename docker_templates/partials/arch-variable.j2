@@ -1,0 +1,7 @@
+{%- if os == "ubuntu" %}
+    ARCH="$(dpkg --print-architecture)"; \
+{%- elif os == "alpine-linux" %}
+    ARCH="$(apk --print-arch)"; \
+{%- elif os == "centos" or os == "ubi9-minimal" %}
+    ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
+{%- endif -%}

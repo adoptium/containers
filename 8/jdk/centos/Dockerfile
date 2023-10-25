@@ -27,17 +27,17 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
     yum install -y \
-    gzip \
-    tar \
-    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
-    curl \
-    wget \
-    tzdata \
-    openssl \
-    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
-    # https://github.com/adoptium/containers/issues/293
-    ca-certificates \
-    fontconfig \
+        gzip \
+        tar \
+        # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+        curl \
+        wget \
+        tzdata \
+        openssl \
+        # utilities for keeping Centos and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates \
+        fontconfig \
     ; \
     rm -rf /var/cache/yum
 

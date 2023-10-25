@@ -1,14 +1,7 @@
 RUN Write-Host 'Verifying install ...'; \
-    {% if version|int >= 11 -%}
     {% if image_type == "jdk" -%}
-    Write-Host 'javac --version'; javac --version; \
+    Write-Host 'javac {% if version|int >= 11 %}--{% else %}-{% endif %}version'; javac {% if version|int >= 11 %}--{% else %}-{% endif %}version; \
     {% endif -%}
-    Write-Host 'java --version'; java --version; \
-    {% else -%}
-    {% if image_type == "jdk" -%}
-    Write-Host 'javac -version'; javac -version; \
-    {% endif -%}
-    Write-Host 'java -version'; java -version; \
-    {% endif -%}
+    Write-Host 'java {% if version|int >= 11 %}--{% else %}-{% endif %}version'; java {% if version|int >= 11 %}--{% else %}-{% endif %}version; \
     \
     Write-Host 'Complete.'

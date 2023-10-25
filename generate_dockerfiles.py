@@ -74,7 +74,7 @@ for os_family, configurations in config["configurations"].items():
                 os.makedirs(output_directory, exist_ok=True)
 
                 # Fetch latest release for version from Adoptium API
-                url = f"https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?page=0&image_type={image_type}&page_size=1&vendor=eclipse"
+                url = f"https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?page=0&image_type={image_type}&os={os_family}&page_size=1&vendor=eclipse"
                 response = requests.get(url, headers=headers)
                 response.raise_for_status()
                 data = response.json()
@@ -83,6 +83,13 @@ for os_family, configurations in config["configurations"].items():
 
                 # Extract the version number from the release name
                 openjdk_version = release["release_name"]
+
+                # If version doesn't equal 8, get the more accurate version number
+                if version != 8:
+                    openjdk_version = "jdk-" + release["version_data"]["openjdk_version"]
+                    # if openjdk_version contains -LTS remove it
+                    if "-LTS" in openjdk_version:
+                        openjdk_version = openjdk_version.replace("-LTS", "")
 
                 # Generate the data for each architecture
                 arch_data = {}

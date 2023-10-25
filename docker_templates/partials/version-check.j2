@@ -1,6 +1,6 @@
-RUN {% if os_family != "windows" %}set -eux; \
-    {% else %}{% endif %}echo "Verifying install ..."; \
-    {% if os_family != "windows" and image_type == "jdk" and version|int >= 11 -%}
+RUN set -eux; \
+    echo "Verifying install ..."; \
+    {% if image_type == "jdk" and version|int >= 11 -%}
     fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
     {% endif -%}
     {% if image_type == "jdk" -%}

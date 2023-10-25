@@ -26,7 +26,20 @@ ENV PATH $JAVA_HOME/bin:$PATH
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
-    microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar; \
+    microdnf install -y \
+        gzip \
+        tar \
+        # Required for objdump and also jlink
+        binutils \
+        tzdata \
+        openssl \
+        wget \
+        # utilities for keeping UBI and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates \
+        fontconfig \
+        glibc-langpack-en \
+    ; \
     microdnf clean all
 
 ENV JAVA_VERSION jdk8u392-b08

@@ -2,7 +2,7 @@
 
 FROM {{ base_image }}
 
-{% include 'partials/header.j2' %}
+{% include 'partials/nix-env.j2' %}
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl wget ca-certificates fontconfig locales p11-kit {% if version|int >= 13 %}binutils {% endif %}\

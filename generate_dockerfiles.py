@@ -1,3 +1,24 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Script that generates the `eclipse-temurin` config file for the official docker
+# image github repo and the doc updates for the unofficial docker image repo.
+# Process to update the official docker image repo 
+# 1. Run ./update_all.sh to update all the dockerfiles in the current repo.
+# 2. Submit PR to push the newly generated dockerfiles to the current repo.
+# 3. After above PR is merged, git pull the latest changes.
+# 4. Run this command
+#
+
 import os
 
 import requests

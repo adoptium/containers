@@ -2,7 +2,7 @@
 
 FROM {{ base_image }}
 
-{% include 'partials/header.j2' %}
+{% include 'partials/nix-env.j2' %}
 
 RUN yum install -y tzdata openssl curl wget ca-certificates fontconfig gzip tar {% if version|int >= 13 %}binutils {% endif %}\
     && yum clean all

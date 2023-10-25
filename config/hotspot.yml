@@ -17,13 +17,14 @@ supported_distributions:
   Versions: [8, 11, 17, 21]
 
 configurations:
+  linux:
   - directory: ubuntu/jammy
     image: ubuntu:22.04
-    architectures: [aarch64, armv7l, ppc64le, s390x, x64]
+    architectures: [aarch64, arm, ppc64le, s390x, x64]
     os: ubuntu
 
   - directory: ubuntu/focal
-    architectures: [aarch64, armv7l, ppc64le, s390x, x64]
+    architectures: [aarch64, arm, ppc64le, s390x, x64]
     image: ubuntu:20.04
     deprecated: 20
     os: ubuntu
@@ -38,12 +39,14 @@ configurations:
     architectures: [aarch64, ppc64le, s390x, x64]
     image: redhat/ubi9-minimal
     os: ubi9-minimal
-
+    
+  alpine-linux:
   - directory: alpine
     architectures: [aarch64, x64]
     image: alpine:3.18
     os: alpine-linux
-
+  
+  windows:
   - directory: windows/windowsservercore-1809
     architectures: [x64]
     image: mcr.microsoft.com/windows/servercore:1809

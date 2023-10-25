@@ -35,7 +35,7 @@ configurations:
     os: centos
 
   - directory: ubi/ubi9-minimal
-    architectures: [aarch64, ppc64le, x64]
+    architectures: [aarch64, ppc64le, s390x, x64]
     image: redhat/ubi9-minimal
     os: ubi9-minimal
 

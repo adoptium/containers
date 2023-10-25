@@ -24,7 +24,6 @@ headers = {
     "User-Agent": "Adoptium Dockerfile Updater",
 }
 
-
 def archHelper(arch, os_family):
     if arch == "aarch64":
         return "aarch64|arm64"

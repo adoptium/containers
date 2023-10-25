@@ -61,8 +61,7 @@ RUN set -eux; \
     ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
-RUN echo Verifying install ... \
-    && echo javac -version && javac -version \
+RUN && echo javac -version && javac -version \
     && echo java -version && java -version \
     && echo Complete.
 COPY entrypoint.sh /__cacert_entrypoint.sh

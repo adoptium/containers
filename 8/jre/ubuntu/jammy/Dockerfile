@@ -67,8 +67,7 @@ RUN set -eux; \
     find "$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \
     ldconfig;
 
-RUN echo Verifying install ... \
-    && echo java -version && java -version \
+RUN && echo java -version && java -version \
     && echo Complete.
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

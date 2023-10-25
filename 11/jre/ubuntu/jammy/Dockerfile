@@ -74,7 +74,8 @@ RUN set -eux; \
     # https://openjdk.java.net/jeps/341
     java -Xshare:dump;
 
-RUN echo Verifying install ... \
+RUN set -eux; \
+    && echo Verifying install ... \
     && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
     && echo java --version && java --version \
     && echo Complete.

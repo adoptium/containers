@@ -1,1 +1,0 @@
-entrypoint.alpine.sh

@@ -1,0 +1,31 @@
+{% include 'partials/license.j2' %}
+
+FROM {{ base_image }}
+
+{% include 'partials/nix-env.j2' %}
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl wget ca-certificates fontconfig locales p11-kit {% if version|int >= 13 %}binutils {% endif %}\
+    && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
+    && locale-gen en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_VERSION {{ java_version }}
+
+RUN set -eux; \
+    ARCH="$(dpkg --print-architecture)"; \
+{% include 'partials/multi-arch-install.j2' %} \
+    # https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
+    find "$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \
+    {% if version|int >= 11 -%}
+    ldconfig; \
+    # https://github.com/docker-library/openjdk/issues/212#issuecomment-420979840
+    # https://openjdk.java.net/jeps/341
+    java -Xshare:dump;
+{% else -%}
+    ldconfig;
+{% endif %}
+{% include 'partials/version-check.j2' %}
+COPY entrypoint.sh /__cacert_entrypoint.sh
+ENTRYPOINT ["/__cacert_entrypoint.sh"]
+{% include 'partials/jshell.j2' %}

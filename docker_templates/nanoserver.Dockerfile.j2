@@ -1,0 +1,20 @@
+{% include 'partials/license.j2' %}
+
+FROM {{ base_image }}
+
+SHELL ["cmd", "/s", "/c"]
+
+ENV JAVA_VERSION {{ java_version }}
+
+ENV JAVA_HOME C:\\openjdk-{{ version }}
+# "ERROR: Access to the registry path is denied."
+USER ContainerAdministrator
+RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
+    && setx /M PATH %JAVA_HOME%\bin;%PATH% \
+    && echo Complete.
+USER ContainerUser
+
+COPY --from=eclipse-temurin:{{ arch_data.copy_from }} $JAVA_HOME $JAVA_HOME
+
+{% include 'partials/version-check.j2' %}
+{% include 'partials/jshell.j2' %}

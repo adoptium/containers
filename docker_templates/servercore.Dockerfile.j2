@@ -1,0 +1,34 @@
+{% include 'partials/license.j2' %}
+
+FROM {{ base_image }}
+
+# $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+ENV JAVA_VERSION {{ java_version }}
+
+RUN Write-Host ('Downloading {{ arch_data.download_url }} ...'); \
+    curl.exe -LfsSo openjdk.msi {{ arch_data.download_url }} ; \
+    Write-Host ('Verifying sha256 ({{ arch_data.checksum }}) ...'); \
+    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '{{ arch_data.checksum }}') { \
+        Write-Host 'FAILED!'; \
+        exit 1; \
+    }; \
+    \
+    New-Item -ItemType Directory -Path C:\temp | Out-Null; \
+    \
+    Write-Host 'Installing using MSI ...'; \
+    $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList '/i', 'openjdk.msi', '/L*V', 'C:\temp\OpenJDK.log', \
+    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-{{ version }}' -Wait -Passthru; \
+    $proc.WaitForExit() ; \
+    if ($proc.ExitCode -ne 0) { \
+        Write-Host 'FAILED installing MSI!' ; \
+        exit 1; \
+    }; \
+    \
+    Remove-Item -Path C:\temp -Recurse | Out-Null; \
+    Write-Host 'Removing openjdk.msi ...'; \
+    Remove-Item openjdk.msi -Force
+
+{% include 'partials/version-check-windows.j2' %}
+{% include 'partials/jshell.j2' %}

@@ -24,19 +24,15 @@ This section is for maintainers of the containers repository.
 ### Hourly automated Job
 
 A [Updater GitHub Action](.github/workflows/updater.yml) runs every 30 mins which triggers the
-[`./update_all.sh`](./update_all.sh) script to update the Dockerfiles by creating a Pull Request containing any changes.
+[`./generate_dockerfiles.py`](./generate_dockerfiles.py) script to update the Dockerfiles by creating a Pull Request containing any changes.
 
-#### update_all.sh
+#### generate_dockerfiles.py
 
 [`./update_all.sh`](./update_all.sh) is a wrapper script to control what is passed into [`./update_multiarch.sh`](./update_multiarch.sh).
 
-#### update_multiarch.sh
-
-[`./update_multiarch.sh`](./update_multiarch.sh) loops around the configuration for which versions and architectures are supported in [`./common_functions.sh`](./common_functions.sh) and uses a bunch of small functions in [`./dockerfile_functions.sh`](./dockerfile_functions.sh) to write the Dockerfiles.
-
 ### Manual Release
 
-During a release you can also run [`./update_all.sh`](./update_all.sh) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
+During a release you can also run [`./generate_dockerfiles.py`](./generate_dockerfiles.py) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
 
 ### Review and Merge PR
 

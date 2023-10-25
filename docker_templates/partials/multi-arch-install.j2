@@ -1,0 +1,28 @@
+    case "${ARCH}" in \
+       {% for architecture, details in arch_data.items() -%}
+        {{ architecture }}) \
+         ESUM='{{ details.checksum }}'; \
+         BINARY_URL='{{ details.download_url }}'; \
+         {% if architecture == "armhf|arm" and os == "ubuntu" and version|int == 8 -%}
+         # Fixes libatomic.so.1: cannot open shared object file
+         apt-get update \\
+         && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1 \\
+         && rm -rf /var/lib/apt/lists/* \\
+         {% endif -%}
+         ;; \
+       {% endfor -%}
+        *) \
+         echo "Unsupported arch: ${ARCH}"; \
+         exit 1; \
+         ;; \
+    esac; \
+    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+    mkdir -p "$JAVA_HOME"; \
+    tar --extract \
+        --file /tmp/openjdk.tar.gz \
+        --directory "$JAVA_HOME" \
+        --strip-components 1 \
+        --no-same-owner \
+    ; \
+    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;

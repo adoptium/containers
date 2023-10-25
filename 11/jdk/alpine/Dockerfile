@@ -25,11 +25,12 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-# fontconfig and ttf-dejavu added to support serverside image generation by Java programs
-# java-cacerts added to support adding CA certificates to the Java keystore
-# bash is required for the entrypoint script (s. https://github.com/adoptium/containers/issues/415)
-RUN apk add --no-cache fontconfig java-cacerts bash libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib \
-    && rm -rf /var/cache/apk/*
+RUN set -eux; \
+    # fontconfig and ttf-dejavu added to support serverside image generation by Java programs
+    # java-cacerts added to support adding CA certificates to the Java keystore
+    # bash is required for the entrypoint script (see https://github.com/adoptium/containers/issues/415)
+    apk add --no-cache fontconfig java-cacerts bash libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib; \
+    rm -rf /var/cache/apk/*
 
 ENV JAVA_VERSION jdk-11.0.21+9
 
@@ -56,11 +57,12 @@ RUN set -eux; \
     ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
-RUN echo Verifying install ... \
-    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
-    && echo javac --version && javac --version \
-    && echo java --version && java --version \
-    && echo Complete.
+RUN set -eux; \
+    echo "Verifying install ..."; \
+    fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
+    echo "javac --version"; javac --version; \
+    echo "java --version"; java --version; \
+    echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]
 

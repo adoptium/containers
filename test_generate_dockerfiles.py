@@ -56,8 +56,8 @@ class TestJinjaRendering(unittest.TestCase):
             rendered_template = template.render(**context)
 
             # Expected string/partial in the rendered output
-            expected_string = "&& echo javac --version && javac --version"
-            self.assertIn(expected_string, rendered_template)
+            self.assertIn("javac --version", rendered_template)
+            self.assertIn("java --version", rendered_template)
 
         with self.subTest():
             # The context/variables to render the template
@@ -65,8 +65,8 @@ class TestJinjaRendering(unittest.TestCase):
             rendered_template = template.render(**context)
 
             # Expected string/partial in the rendered output
-            expected_string = "&& echo javac -version && javac -version"
-            self.assertIn(expected_string, rendered_template)
+            self.assertIn("javac -version", rendered_template)
+            self.assertIn("java -version", rendered_template)
 
         with self.subTest():
             # The context/variables to render the template
@@ -74,8 +74,8 @@ class TestJinjaRendering(unittest.TestCase):
             rendered_template = template.render(**context)
 
             # Expected string/partial in the rendered output
-            expected_string = "&& echo javac --version && javac --version"
-            self.assertNotIn(expected_string, rendered_template)
+            self.assertNotIn("javac --version", rendered_template)
+            self.assertIn("java --version", rendered_template)
 
         with self.subTest():
             # The context/variables to render the template
@@ -83,8 +83,8 @@ class TestJinjaRendering(unittest.TestCase):
             rendered_template = template.render(**context)
 
             # Expected string/partial in the rendered output
-            expected_string = "&& echo javac -version && javac -version"
-            self.assertNotIn(expected_string, rendered_template)
+            self.assertNotIn("javac -version", rendered_template)
+            self.assertIn("java -version", rendered_template)
 
     def test_version_checker_windows(self):
         template_name = "partials/version-check-windows.j2"

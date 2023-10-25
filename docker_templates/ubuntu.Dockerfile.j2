@@ -4,11 +4,30 @@ FROM {{ base_image }}
 
 {% include 'partials/nix-env.j2' %}
 
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata curl wget ca-certificates fontconfig locales p11-kit {% if version|int >= 13 %}binutils {% endif %}\
-    && echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen \
-    && locale-gen en_US.UTF-8 \
-    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    {% if version|int < 22 -%}
+    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+    curl \
+    {% endif -%}
+    wget \
+    fontconfig \
+    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
+    # https://github.com/adoptium/containers/issues/293
+    ca-certificates p11-kit \
+    {% if version|int >= 13 -%}
+    # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
+    # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
+    binutils \
+    {% endif -%}
+    tzdata \
+    # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
+    locales \
+    ; \
+    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; \
+    locale-gen en_US.UTF-8; \
+    rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_VERSION {{ java_version }}
 

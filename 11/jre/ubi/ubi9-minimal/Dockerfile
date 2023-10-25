@@ -25,8 +25,9 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && microdnf clean all
+RUN set -eux; \
+    microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar; \
+    microdnf clean all
 
 ENV JAVA_VERSION jdk-11.0.21+9
 
@@ -54,7 +55,7 @@ RUN set -eux; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \
@@ -65,9 +66,9 @@ RUN set -eux; \
     ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
-RUN echo Verifying install ... \
-    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
-    && echo java --version && java --version \
-    && echo Complete.
+RUN set -eux; \
+    echo "Verifying install ..."; \
+    echo "java --version"; java --version; \
+    echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

@@ -4,8 +4,9 @@ FROM {{ base_image }}
 
 {% include 'partials/nix-env.j2' %}
 
-RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && microdnf clean all
+RUN set -eux; \
+    microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar; \
+    microdnf clean all
 
 ENV JAVA_VERSION {{ java_version }}
 

@@ -25,21 +25,22 @@ ENV PATH $JAVA_HOME/bin:$PATH
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
-RUN microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar \
-    && microdnf clean all
+RUN set -eux; \
+    microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar; \
+    microdnf clean all
 
 ENV JAVA_VERSION jdk-21.0.1+12
 
 RUN set -eux; \
     ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
     case "${ARCH}" in \
-       amd64|i386:x86-64) \
-         ESUM='277f4084bee875f127a978253cfbaad09c08df597feaf5ccc82d2206962279a3'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.1%2B12/OpenJDK21U-jre_x64_linux_hotspot_21.0.1_12.tar.gz'; \
-         ;; \
        aarch64|arm64) \
          ESUM='4582c4cc0c6d498ba7a23fdb0a5179c9d9c0d7a26f2ee8610468d5c2954fcf2f'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.1%2B12/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.1_12.tar.gz'; \
+         ;; \
+       amd64|i386:x86-64) \
+         ESUM='277f4084bee875f127a978253cfbaad09c08df597feaf5ccc82d2206962279a3'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.1%2B12/OpenJDK21U-jre_x64_linux_hotspot_21.0.1_12.tar.gz'; \
          ;; \
        ppc64el|powerpc:common64) \
          ESUM='05cc9b7bfbe246c27d307783b3d5095797be747184b168018ae3f7cc55608db2'; \
@@ -50,7 +51,7 @@ RUN set -eux; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \
@@ -61,9 +62,9 @@ RUN set -eux; \
     ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
-RUN echo Verifying install ... \
-    && fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java \
-    && echo java --version && java --version \
-    && echo Complete.
+RUN set -eux; \
+    echo "Verifying install ..."; \
+    echo "java --version"; java --version; \
+    echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

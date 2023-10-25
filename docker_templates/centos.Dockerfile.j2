@@ -4,8 +4,28 @@ FROM {{ base_image }}
 
 {% include 'partials/nix-env.j2' %}
 
-RUN yum install -y tzdata openssl curl wget ca-certificates fontconfig gzip tar {% if version|int >= 13 %}binutils {% endif %}\
-    && yum clean all
+RUN set -eux; \
+    yum install -y \
+    gzip \
+    tar \
+    {% if version|int < 22 -%}
+    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+    curl \
+    {% endif -%}
+    wget \
+    tzdata \
+    openssl \
+    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
+    # https://github.com/adoptium/containers/issues/293
+    ca-certificates \
+    fontconfig \
+    {% if version|int >= 13 -%}
+    # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
+    # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
+    binutils \
+    {% endif -%}
+    ; \
+    rm -rf /var/cache/yum
 
 ENV JAVA_VERSION {{ java_version }}
 

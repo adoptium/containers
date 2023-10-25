@@ -131,6 +131,16 @@ for configuration in config["configurations"]:
                     ) as out_file:
                         out_file.write(rendered_dockerfile)
 
+                    # Copy entrypoint.sh to output directory
+                    entrypoint_path = os.path.join(
+                        "docker_templates", "scripts", f"entrypoint.{os_name}.sh"
+                    )
+
+                    if os.path.exists(entrypoint_path):
+                        os.system(
+                            f"cp {entrypoint_path} {os.path.join(output_directory, 'entrypoint.sh')}"
+                        )
+
                 else:
                     continue
 

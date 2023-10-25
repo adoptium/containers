@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
+#               NOTE: THIS DOCKERFILE IS GENERATED VIA "update_multiarch.sh"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -40,30 +40,30 @@ RUN set -eux; \
          ESUM='37b997f12cd572da979283fccafec9ba903041a209605b50fcb46cc34f1a9917'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_aarch64_linux_hotspot_8u392b08.tar.gz'; \
          ;; \
-       amd64|i386:x86-64) \
-         ESUM='91d31027da0d985be3549714389593d9e0da3da5057d87e3831c7c538b9a2a0f'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_x64_linux_hotspot_8u392b08.tar.gz'; \
-         ;; \
        ppc64el|powerpc:common64) \
          ESUM='0ecb0aeb54fb9d3c9e1a7ea411490127e8e298d93219fafc4dd6051a5b74671f'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_ppc64le_linux_hotspot_8u392b08.tar.gz'; \
+         ;; \
+       amd64|i386:x86-64) \
+         ESUM='91d31027da0d985be3549714389593d9e0da3da5057d87e3831c7c538b9a2a0f'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_x64_linux_hotspot_8u392b08.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-    echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
-    mkdir -p "$JAVA_HOME"; \
-    tar --extract \
-        --file /tmp/openjdk.tar.gz \
-        --directory "$JAVA_HOME" \
-        --strip-components 1 \
-        --no-same-owner \
-    ; \
+	  wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+	  echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
+	  mkdir -p "$JAVA_HOME"; \
+	  tar --extract \
+	      --file /tmp/openjdk.tar.gz \
+	      --directory "$JAVA_HOME" \
+	      --strip-components 1 \
+	      --no-same-owner \
+	  ; \
     rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip; \
-    # https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
+# https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472
     find "$JAVA_HOME/lib" -name '*.so' -exec dirname '{}' ';' | sort -u > /etc/ld.so.conf.d/docker-openjdk.conf; \
     ldconfig;
 

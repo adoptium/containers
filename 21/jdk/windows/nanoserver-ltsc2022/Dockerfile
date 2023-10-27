@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "update_multiarch.sh"
+#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -21,7 +21,7 @@ FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION jdk-21+35
+ENV JAVA_VERSION jdk-21.0.1+12
 
 ENV JAVA_HOME C:\\openjdk-21
 # "ERROR: Access to the registry path is denied."
@@ -31,11 +31,11 @@ RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
     && echo Complete.
 USER ContainerUser
 
-COPY --from=eclipse-temurin:21_35-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
+COPY --from=eclipse-temurin:21.0.1_12-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
 
-RUN echo Verifying install ... \
-    && echo javac --version && javac --version \
-    && echo java --version && java --version \
-    && echo Complete.
+RUN echo "Verifying install ..."; \
+    echo "javac --version"; javac --version; \
+    echo "java --version"; java --version; \
+    echo "Complete."
 
 CMD ["jshell"]

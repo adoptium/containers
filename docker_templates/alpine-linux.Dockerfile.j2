@@ -6,9 +6,6 @@ FROM {{ base_image }}
 
 RUN set -eux; \
     apk add --no-cache \
-        # bash is required for the entrypoint script
-        # see https://github.com/adoptium/containers/issues/415
-        bash \
         # fontconfig and ttf-dejavu added to support serverside image generation by Java programs
         fontconfig ttf-dejavu \
         # java-cacerts added to support adding CA certificates to the Java keystore

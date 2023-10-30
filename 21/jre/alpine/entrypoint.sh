@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 # Converted to shell to avoid the need for bash in the image
 
 set -e
@@ -20,7 +20,8 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         CACERT="$JAVA_HOME/jre/lib/security/cacerts"
     fi
 
-    # Update CA certificates and extract the trust store
+    # OpenJDK images used to create a hook for `update-ca-certificates`. Since we are using an entrypoint anyway, we
+    # might as well just generate the truststore and skip the hooks.
     update-ca-certificates
 
     trust extract --overwrite --format=java-cacerts --filter=ca-anchors --purpose=server-auth "$CACERT"

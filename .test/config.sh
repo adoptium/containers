@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 imageTests[openjdk]+='
+	dotted-environment-variables
 	java-ca-certificates-update
 '
 

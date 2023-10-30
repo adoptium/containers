@@ -13,9 +13,6 @@ RUN set -eux; \
         fontconfig ttf-dejavu \
         # java-cacerts added to support adding CA certificates to the Java keystore
         java-cacerts \
-        # fixes issues with apk del apk-tools
-        # see https://github.com/adoptium/containers/issues/136
-        libretls zlib \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         musl-locales musl-locales-lang \
 {% include 'partials/binutils.j2' -%}

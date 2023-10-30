@@ -5,13 +5,24 @@ FROM {{ base_image }}
 {% include 'partials/nix-env.j2' %}
 
 RUN set -eux; \
-    microdnf install -y binutils tzdata openssl wget ca-certificates fontconfig glibc-langpack-en gzip tar; \
+    microdnf install -y \
+        gzip \
+        tar \
+        # Required for objdump and also jlink
+        binutils \
+        tzdata \
+        openssl \
+        wget \
+        # utilities for keeping UBI and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates \
+        fontconfig \
+        glibc-langpack-en \
+    ; \
     microdnf clean all
 
 ENV JAVA_VERSION {{ java_version }}
 
-RUN set -eux; \
-    ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
 {% include 'partials/multi-arch-install.j2' %}
 
 {% include 'partials/version-check.j2' %}

@@ -16,5 +16,10 @@ USER ContainerUser
 
 COPY --from=eclipse-temurin:{{ arch_data.copy_from }} $JAVA_HOME $JAVA_HOME
 
-{% include 'partials/version-check.j2' %}
+RUN echo Verifying install ... \
+    {% if image_type == "jdk" -%}
+    && echo javac {% if version|int >= 11 %}--{% else %}-{% endif %}version && javac {% if version|int >= 11 %}--{% else %}-{% endif %}version \
+    {% endif -%}
+    && echo java {% if version|int >= 11 %}--{% else %}-{% endif %}version && java {% if version|int >= 11 %}--{% else %}-{% endif %}version \
+    && echo Complete.
 {% include 'partials/jshell.j2' %}

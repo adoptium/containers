@@ -27,20 +27,20 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
     yum install -y \
-    gzip \
-    tar \
-    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
-    curl \
-    wget \
-    tzdata \
-    openssl \
-    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
-    # https://github.com/adoptium/containers/issues/293
-    ca-certificates \
-    fontconfig \
-    # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
-    # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-    binutils \
+        gzip \
+        tar \
+        # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+        curl \
+        wget \
+        tzdata \
+        openssl \
+        # utilities for keeping Centos and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates \
+        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
+        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
+        binutils \
+        fontconfig \
     ; \
     rm -rf /var/cache/yum
 

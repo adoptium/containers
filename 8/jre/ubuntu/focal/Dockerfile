@@ -28,16 +28,16 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
-    curl \
-    wget \
-    fontconfig \
-    # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
-    # https://github.com/adoptium/containers/issues/293
-    ca-certificates p11-kit \
-    tzdata \
-    # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
-    locales \
+        # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
+        curl \
+        wget \
+        fontconfig \
+        # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates p11-kit \
+        tzdata \
+        # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
+        locales \
     ; \
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; \
     locale-gen en_US.UTF-8; \

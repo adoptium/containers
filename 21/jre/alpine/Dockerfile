@@ -26,10 +26,24 @@ ENV PATH $JAVA_HOME/bin:$PATH
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
-    # fontconfig and ttf-dejavu added to support serverside image generation by Java programs
-    # java-cacerts added to support adding CA certificates to the Java keystore
-    # bash is required for the entrypoint script (see https://github.com/adoptium/containers/issues/415)
-    apk add --no-cache fontconfig java-cacerts bash libretls musl-locales musl-locales-lang ttf-dejavu tzdata zlib; \
+    apk add --no-cache \
+        # bash is required for the entrypoint script
+        # see https://github.com/adoptium/containers/issues/415
+        bash \
+        # fontconfig and ttf-dejavu added to support serverside image generation by Java programs
+        fontconfig ttf-dejavu \
+        # java-cacerts added to support adding CA certificates to the Java keystore
+        java-cacerts \
+        # fixes issues with apk del apk-tools
+        # see https://github.com/adoptium/containers/issues/136
+        libretls zlib \
+        # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
+        musl-locales musl-locales-lang \
+        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
+        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
+        binutils \
+        tzdata \
+    ; \
     rm -rf /var/cache/apk/*
 
 ENV JAVA_VERSION jdk-21.0.1+12

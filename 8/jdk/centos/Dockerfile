@@ -37,6 +37,9 @@ RUN set -eux; \
         # utilities for keeping Centos and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
         ca-certificates \
+        # java.lang.UnsatisfiedLinkError: libfontmanager.so: libfreetype.so.6: cannot open shared object file: No such file or directory
+        # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
+        # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
         fontconfig \
     ; \
     rm -rf /var/cache/yum

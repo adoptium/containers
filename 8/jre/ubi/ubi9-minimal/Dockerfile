@@ -39,6 +39,9 @@ RUN set -eux; \
         ca-certificates \
         fontconfig \
         glibc-langpack-en \
+        # Required for Gradle v7.5+ which requires the command xargs (included in findutils) \
+        # https://github.com/adoptium/containers/issues/462
+        findutils \
     ; \
     microdnf clean all
 

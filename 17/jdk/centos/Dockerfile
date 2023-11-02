@@ -36,7 +36,6 @@ RUN set -eux; \
         curl \
         wget \
         tzdata \
-        openssl \
         # utilities for keeping Centos and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
         ca-certificates \

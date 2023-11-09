@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Converted to shell to avoid the need for bash in the image
+# Converted to POSIX shell to avoid the need for bash in the image
 
 set -e
 

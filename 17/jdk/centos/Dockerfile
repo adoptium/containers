@@ -29,17 +29,19 @@ RUN set -eux; \
     yum install -y \
         gzip \
         tar \
+        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
+        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
+        binutils \
         # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
         curl \
         wget \
         tzdata \
-        openssl \
         # utilities for keeping Centos and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
         ca-certificates \
-        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
-        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-        binutils \
+        # java.lang.UnsatisfiedLinkError: libfontmanager.so: libfreetype.so.6: cannot open shared object file: No such file or directory
+        # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
+        # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
         fontconfig \
     ; \
     rm -rf /var/cache/yum

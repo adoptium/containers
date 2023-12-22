@@ -1,1 +1,1 @@
-entrypoint.alpine.sh
+entrypoint.alpine-linux.sh

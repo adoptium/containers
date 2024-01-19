@@ -18,11 +18,6 @@ supported_distributions:
 
 configurations:
   linux:
-  - directory: ubuntu/lunar
-    image: ubuntu:23.04
-    architectures: [aarch64, arm, ppc64le, s390x, x64]
-    os: ubuntu
-
   - directory: ubuntu/jammy
     image: ubuntu:22.04
     architectures: [aarch64, arm, ppc64le, s390x, x64]

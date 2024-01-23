@@ -28,7 +28,7 @@ A [Updater GitHub Action](.github/workflows/updater.yml) runs every 30 mins whic
 
 #### generate_dockerfiles.py
 
-[`./generate_dockerfiles.py`](./generate_dockerfiles.py) is a python script which uses the jinja templates defined in [docker_templates](./docker_templates/) to generate the docker updates. It uses the Adoptium API to fetch the lastest artefacts for each release.
+[`./generate_dockerfiles.py`](./generate_dockerfiles.py) is a python script which uses the jinja templates defined in [docker_templates](./docker_templates/) to generate the docker updates. It uses the Adoptium API to fetch the latest artefacts for each release.
 
 ### Manual Release
 

@@ -38,7 +38,7 @@ Contact the Eclipse Foundation Webdev team via webdev@eclipse-foundation.org.
 
 Please let us know via our [issue tracker](https://github.com/adoptium/temurin-build/issues) if you find a problem, even if you don't have a fix for it.  The ideal issue report should be descriptive, and where possible include the steps we can take to reproduce the problem for ourselves.
 
-If you have a proposed fix for an issue, or an enhancement you would like to make to the code please describe it in an issue, then send us the code as a [Github pull request](https://help.github.com/articles/about-pull-requests) as described below.
+If you have a proposed fix for an issue, or an enhancement you would like to make to the code please describe it in an issue, then send us the code as a [GitHub pull request](https://help.github.com/articles/about-pull-requests) as described below.
 
 ## Pull requests
 

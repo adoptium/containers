@@ -5,7 +5,7 @@ imageTests[openjdk]+='
 '
 
 globalExcludeTests+=(
-	# nanoservcer/windowsservercore: updating local store with additional certificates is not implemented
+	# nanoserver/windowsservercore: updating local store with additional certificates is not implemented
 	[openjdk:nanoserver_java-ca-certificates-update]=1
 	[openjdk:windowsservercore_java-ca-certificates-update]=1
 )

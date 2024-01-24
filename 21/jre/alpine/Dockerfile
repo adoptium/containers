@@ -48,9 +48,13 @@ ENV JAVA_VERSION jdk-21.0.2+13
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
+       aarch64|arm64) \
+         ESUM='e961c43fa418a74d5349d519d4f05b70f2017b13420812946be88349729c8ff3'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_aarch64_alpine-linux_hotspot_21.0.2_13.tar.gz'; \
+         ;; \
        amd64|x86_64) \
          ESUM='7077b9e42b40f1ed8d59a71ae59a57d5d55de2685cc5efd70a0405618da616d7'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/21.0.2%2B13/OpenJDK21U-jre_x64_alpine-linux_hotspot_21.0.2_13.tar.gz'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_alpine-linux_hotspot_21.0.2_13.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

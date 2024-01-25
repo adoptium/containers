@@ -1,1 +1,1 @@
-entrypoint.alpine-linux.sh
+entrypoint.ubi9-minimal.sh

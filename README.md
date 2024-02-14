@@ -10,12 +10,31 @@ If you are looking for the usage README then please head to the [Official Docker
 
 In general, we support Alpine, CentOS, UBI, Ubuntu and Windows containers.
 
-[List of Support Images By Tag](https://github.com/docker-library/docs/tree/master/eclipse-temurin#simple-tags)
+[List of Supported Images By Tag](https://github.com/docker-library/docs/tree/master/eclipse-temurin#simple-tags)
 
 ## Update Policy
 
-As these are official Docker Hub images, Docker Inc maintains the base image and so any CVEs in the base O/S layer gets updated by them in short order.
-For JDK version updates, we release on a quarterly cadence whenever a Patch Set Update (PSU) is available.
+As these are official Docker Hub images, Docker Inc maintains the base image
+and so any critical CVEs in the base O/S layer gets updated by them in short
+order.
+
+Note that the eclipse-temurin images include `openssl` as a prerequisite of
+the `wget` and `ca-certificates` packages but they are NOT included in the
+Ubuntu base image so updates to openssl will not necessarily trigger an
+rebuild to pick up fixes.  In general, low severity vulnerabilities can wait
+until the next rebuild.  See
+[this comment](https://github.com/docker-library/official-images/issues/16225#issuecomment-1942193224)
+for some details and also the
+[docker-library FAQ](https://github.com/docker-library/faq/tree/master?tab=readme-ov-file#image-building).
+
+The Debian and Ubuntu images are generally also built periodically (about
+once a month) and may also be triggered by dockerhub if another high
+security vulnerability is detected, such as in openssl.  Adoptium has no
+mechanism - other than putting an update to the Dockerfiles - to explicitly
+trigger a rebuild at dockerhub.
+
+For JDK version updates, we update the dockerfiles and release on a
+quarterly cadence Temurin releases a Patch Set Update (PSU).
 
 ## Maintenance of Dockerfiles
 

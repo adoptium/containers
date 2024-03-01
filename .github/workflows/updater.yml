@@ -5,11 +5,11 @@ on:
     # Runs every half hour
     - cron: "*/30 * * * *"
 
-permissions:
-  contents: read
-
 jobs:
   update_dockerfile:
+    permissions:
+      contents: write
+      pull-requests: write    
     if: startsWith(github.repository, 'adoptium/')
     runs-on: ubuntu-latest
     steps:

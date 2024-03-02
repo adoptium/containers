@@ -29,9 +29,6 @@ RUN set -eux; \
     yum install -y \
         gzip \
         tar \
-        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
-        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-        binutils \
         # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
         curl \
         wget \

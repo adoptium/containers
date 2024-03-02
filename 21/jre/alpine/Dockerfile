@@ -36,9 +36,6 @@ RUN set -eux; \
         ca-certificates p11-kit-trust \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         musl-locales musl-locales-lang \
-        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
-        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-        binutils \
         tzdata \
     ; \
     rm -rf /var/cache/apk/*

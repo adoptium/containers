@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [labeled]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   automerge:
     uses: adoptium/.github/.github/workflows/pr-auto-merge.yml@main

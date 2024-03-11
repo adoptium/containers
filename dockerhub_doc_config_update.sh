@@ -146,6 +146,10 @@ function print_official_image_file() {
 		# See if there are any changes between the two commit sha's
 		if git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" >/dev/null 2>&1; then
 			diff_count=$(git diff "$gitcommit:$dfdir/$dfname" "$official_gitcommit:$dfdir/$dfname" | wc -l)
+			# check for diff in the entrypoint.sh file
+			if [ -f "$dfdir/entrypoint.sh" ]; then
+				diff_count=$((diff_count + $(git diff "$gitcommit:$dfdir/entrypoint.sh" "$official_gitcommit:$dfdir/entrypoint.sh" | wc -l)))
+			fi
 		else
 			# Forcefully sets a diff if the file doesn't exist
 			diff_count=1

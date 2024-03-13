@@ -57,6 +57,7 @@ print_official_header() {
 	print_official_text "             Stewart Addison <sxa@redhat.com> (@sxa)"
 	print_official_text "GitRepo: https://github.com/adoptium/containers.git"
 	print_official_text "GitFetch: refs/heads/main"
+	print_official_text "Builder: buildkit"
 }
 
 function generate_official_image_tags() {
@@ -175,6 +176,7 @@ function print_official_image_file() {
 	  echo "GitCommit: ${commit}"
 	  echo "Directory: ${dfdir}"
 	  if [ $os == "windows" ]; then
+	  	echo "Builder: classic"
 		echo "Constraints: ${constraints}"
 	  fi
 	  echo ""

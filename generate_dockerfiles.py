@@ -55,6 +55,7 @@ for os_family, configurations in config["configurations"].items():
         os_name = configuration["os"]
         base_image = configuration["image"]
         deprecated = configuration.get("deprecated", None)
+        starts_from = configuration.get("starts_from", 0)
         versions = configuration.get(
             "versions", config["supported_distributions"]["Versions"]
         )
@@ -68,10 +69,12 @@ for os_family, configurations in config["configurations"].items():
             # if deprecated is set and version is greater than or equal to deprecated, skip
             if deprecated and version >= deprecated:
                 continue
+            # if starts_from is set and version is less than starts_from, skip
+            if version < starts_from:
+                continue
             print("Generating Dockerfiles for", base_image, "-", version)
             for image_type in ["jdk", "jre"]:
                 output_directory = os.path.join(str(version), image_type, directory)
-                os.makedirs(output_directory, exist_ok=True)
 
                 # Fetch latest release for version from Adoptium API
                 url = f"https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?page=0&image_type={image_type}&os={os_family}&page_size=1&vendor=eclipse"
@@ -126,6 +129,9 @@ for os_family, configurations in config["configurations"].items():
                 # If arch_data is empty, skip updating the dockerfile
                 if arch_data.__len__() == 0:
                     continue
+                else:
+                    # Create the directory if it doesn't exist
+                    os.makedirs(output_directory, exist_ok=True)
 
                 # Sort arch_data by key
                 arch_data = dict(sorted(arch_data.items()))

@@ -1,4 +1,4 @@
-{%- if os == "ubuntu" %}
+{%- if os == "ubuntu" or os == "debian" %}
     ARCH="$(dpkg --print-architecture)"; \
 {%- elif os == "alpine-linux" %}
     ARCH="$(apk --print-arch)"; \

@@ -29,6 +29,13 @@ configurations:
     deprecated: 20
     os: ubuntu
 
+  # sid -- Debian x.y Unstable
+  - directory: debian/sid-slim
+    architectures: [riscv64, x64]
+    image: debian:sid-slim
+    starts_from: 21
+    os: debian
+
   - directory: centos
     architectures: [aarch64, ppc64le, x64]
     image: centos:7

@@ -49,10 +49,6 @@ ENV JAVA_VERSION jdk-21.0.2+13
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
-       amd64|i386:x86-64) \
-         ESUM='51141204fe01a9f9dd74eab621d5eca7511eac67315c9975dbde5f2625bdca55'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz'; \
-         ;; \
        riscv64) \
          ESUM='efdeca282553229aa20d909ab9f5fb14eee52b56067a5598e6c649ef5f99a63d'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_riscv64_linux_hotspot_21.0.2_13.tar.gz'; \

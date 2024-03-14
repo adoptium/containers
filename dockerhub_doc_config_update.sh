@@ -55,6 +55,7 @@ print_official_header() {
 	print_official_text "             Stewart Addison <sxa@redhat.com> (@sxa)"
 	print_official_text "GitRepo: https://github.com/adoptium/containers.git"
 	print_official_text "GitFetch: refs/heads/main"
+	print_official_text "Builder: buildkit"
 }
 
 function generate_official_image_tags() {
@@ -133,10 +134,6 @@ function generate_official_image_arches() {
 		# arm is arm32v7 and aarch64 is arm64v8 for docker builds
 		# shellcheck disable=SC2046,SC2005,SC1003,SC2086,SC2063
 		arches=$(echo $(grep ') \\' ${file} | sed 's/\(powerpc:common64\)//;s/\(i386:x86-64\)//;s/\(x86_64\)//;s/\(arm64\)//;s/\(armhf\)//;s/\(s390:64-bit\)//;s/\(arm\)/arm32v7/;s/\(ppc64el\)/ppc64le/;s/\(aarch64\)/arm64v8/;' | grep -v "*" | sed 's/) \\//g; s/|//g' | sort) | sed 's/ /, /g')
-		# if distro contains debian only ship riscv64
-		if [[ "${distro}" == debian* ]]; then
-			arches="riscv64"
-		fi
 	fi
 }
 
@@ -178,6 +175,7 @@ function print_official_image_file() {
 	  echo "GitCommit: ${commit}"
 	  echo "Directory: ${dfdir}"
 	  if [ $os == "windows" ]; then
+	  	echo "Builder: classic"
 		echo "Constraints: ${constraints}"
 	  fi
 	  echo ""

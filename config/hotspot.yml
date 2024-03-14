@@ -31,9 +31,8 @@ configurations:
 
   # sid -- Debian x.y Unstable
   - directory: debian/sid-slim
-    architectures: [riscv64, x64]
+    architectures: [riscv64]
     image: debian:sid-slim
-    starts_from: 21
     os: debian
 
   - directory: centos

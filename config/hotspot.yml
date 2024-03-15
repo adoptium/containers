@@ -13,7 +13,7 @@
 #
 
 supported_distributions:
-  OS: [alpine, focal, jammy, centos, ubi9-minimal, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
+  OS: [alpine, focal, jammy, centos, ubi9-minimal, minideb, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
   Versions: [8, 11, 17, 21]
 
 configurations:
@@ -39,6 +39,11 @@ configurations:
     architectures: [aarch64, ppc64le, s390x, x64]
     image: redhat/ubi9-minimal
     os: ubi9-minimal
+
+  - directory: minideb/bullseye
+    architectures: [aarch64, x64]
+    image: bitnami/minideb:bullseye
+    os: minideb
     
   alpine-linux:
   - directory: alpine

@@ -74,6 +74,7 @@ function generate_official_image_tags() {
 		"ubi") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
         "centos") distro="centos7" ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
+		"minideb") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		*) distro=$os;;
 	esac
 

@@ -38,7 +38,7 @@ jobs:
       - name: Prepare Environment
         run: ${{ matrix.runs.prepare }}
       - name: Set up QEMU
-        if: ${{ matrix.meta.entries[0].platform != 'linux/amd64' }}
+        if: ${{ matrix.meta.entries[0].platform != 'linux/amd64' && matrix.meta.entries[0].platform != 'windows/amd64' }}
         uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
       - name: Pull Dependencies
         run: ${{ matrix.runs.pull }}

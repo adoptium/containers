@@ -28,8 +28,8 @@ else
 	official_docker_image_file="$1"
 fi
 
-supported_versions="8 11 17 21"
-latest_version="21"
+supported_versions="8 11 17 21 22"
+latest_version="22"
 all_jvms="hotspot"
 all_packages="jdk jre"
 

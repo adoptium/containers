@@ -29,7 +29,8 @@ else
 fi
 
 supported_versions="8 11 17 21 22"
-latest_version="22"
+# set this to the latest LTS version
+latest_version="21"
 all_jvms="hotspot"
 all_packages="jdk jre"
 

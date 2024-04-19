@@ -13,11 +13,16 @@
 #
 
 supported_distributions:
-  OS: [alpine, focal, jammy, centos, ubi9-minimal, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
+  OS: [alpine, focal, jammy, noble, centos, ubi9-minimal, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
   Versions: [8, 11, 17, 21, 22]
 
 configurations:
   linux:
+  - directory: ubuntu/noble
+    image: ubuntu:24.04
+    architectures: [aarch64, arm, ppc64le, s390x, x64]
+    os: ubuntu
+  
   - directory: ubuntu/jammy
     image: ubuntu:22.04
     architectures: [aarch64, arm, ppc64le, s390x, x64]

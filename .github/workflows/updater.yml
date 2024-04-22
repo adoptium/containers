@@ -21,6 +21,10 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Set DISABLE_CACHE if triggered by workflow_dispatch
+        run: echo "DISABLE_CACHE=true" >> $GITHUB_ENV
+        if: github.event_name == 'workflow_dispatch'
+
       - name: Install dependencies
         run: "pip3 install -r requirements.txt"
 

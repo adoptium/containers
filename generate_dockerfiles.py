@@ -13,12 +13,15 @@
 
 import os
 
-import requests_cache
 import requests
+import requests_cache
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
-requests_cache.install_cache("adoptium_cache", expire_after=3600)
+# Check if arg is set to disable cache
+if not os.environ.get("DISABLE_CACHE"):
+    # Cache requests for 1 hour
+    requests_cache.install_cache("adoptium_cache", expire_after=3600)
 
 # Setup the Jinja2 environment
 env = Environment(loader=FileSystemLoader("docker_templates"))

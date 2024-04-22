@@ -1,1 +1,1 @@
-This certificate/key pair has been generated with `openssl req -nodes -new -x509 -days 358000 -subj "/DC=Temurin/CN=DockerBuilder" -keyout certs/server.key -out certs/server.crt` and is only used for testing
+This certificate/key pair has been generated with `openssl req -nodes -new -x509 -days 358000 -subj "/DC=Temurin/CN=DockerBuilder" -keyout certs/dockerbuilder.key -out certs/dockerbuilder.crt` and is only used for testing

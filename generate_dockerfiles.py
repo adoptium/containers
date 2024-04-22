@@ -13,9 +13,12 @@
 
 import os
 
+import requests_cache
 import requests
 import yaml
 from jinja2 import Environment, FileSystemLoader
+
+requests_cache.install_cache("adoptium_cache", expire_after=3600)
 
 # Setup the Jinja2 environment
 env = Environment(loader=FileSystemLoader("docker_templates"))

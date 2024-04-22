@@ -21,7 +21,7 @@ FROM mcr.microsoft.com/windows/nanoserver:1809
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION jdk-17.0.10+7
+ENV JAVA_VERSION jdk-17.0.11+9
 
 ENV JAVA_HOME C:\\openjdk-17
 # "ERROR: Access to the registry path is denied."
@@ -31,7 +31,7 @@ RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
     && echo Complete.
 USER ContainerUser
 
-COPY --from=eclipse-temurin:17.0.10_7-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
+COPY --from=eclipse-temurin:17.0.11_9-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
     && echo javac --version && javac --version \

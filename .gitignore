@@ -11,3 +11,4 @@ official-eclipse-temurin
 library/
 .vscode/
 __pycache__/
+/adoptium_cache.sqlite

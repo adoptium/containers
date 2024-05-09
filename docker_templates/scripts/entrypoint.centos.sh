@@ -1,1 +1,0 @@
-entrypoint.ubi9-minimal.sh

@@ -151,14 +151,16 @@ for os_family, configurations in config["configurations"].items():
                 ) as out_file:
                     out_file.write(rendered_dockerfile)
 
-                # Copy entrypoint.sh to output directory
-                entrypoint_path = os.path.join(
-                    "docker_templates", "scripts", f"entrypoint.{os_name}.sh"
-                )
+                if os_family != "windows":
+                    # Entrypoint is currently only needed for CA certificate handling, which is not (yet)
+                    # available on Windows
 
-                if os.path.exists(entrypoint_path):
-                    os.system(
-                        f"cp {entrypoint_path} {os.path.join(output_directory, 'entrypoint.sh')}"
-                    )
+                    # Copy entrypoint.sh to output directory
+                    entrypoint_path = os.path.join("docker_templates", "entrypoint.sh")
+
+                    if os.path.exists(entrypoint_path):
+                        os.system(
+                            f"cp {entrypoint_path} {os.path.join(output_directory, 'entrypoint.sh')}"
+                        )
 
 print("Dockerfiles generated successfully!")

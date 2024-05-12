@@ -58,12 +58,12 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
 
             # UBI/CentOS
             if [ -d /usr/share/pki/ca-trust-source/anchors/ ]; then
-                cp -a /certificates/* /usr/share/pki/ca-trust-source/anchors/
+                cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
             fi
 
             # Ubuntu/Alpine
             if [ -d /usr/local/share/ca-certificates/ ]; then
-                cp -a /certificates/* /usr/local/share/ca-certificates/
+                cp -La /certificates/* /usr/local/share/ca-certificates/
             fi
         fi
 

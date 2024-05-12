@@ -61,7 +61,14 @@ echo -n $?
 docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
-# Test run 5: Certificates are mounted and the environment variable is set, but the entrypoint is overridden. We expect
+# Test run 5: Certificates are mounted and are symlinks (e.g. in Kubernetes as `Secret`s or `ConfigMap`s) and the
+# environment variable is set. We expect both CMD1 and CMD2 to succeed.
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" $CMD1 >&/dev/null
+echo -n $?
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" "${CMD2[@]}" >&/dev/null
+echo -n $?
+
+# Test run 6: Certificates are mounted and the environment variable is set, but the entrypoint is overridden. We expect
 # CMD1 to succeed and CMD2 to fail.
 docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" $CMD1 >&/dev/null
 echo -n $?
@@ -98,7 +105,14 @@ echo -n $?
 docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
-# Test run 5: Certificates are mounted and the environment variable is set, but the entrypoint is overridden. We expect
+# Test run 5: Certificates are mounted and are symlinks (e.g. in Kubernetes as `Secret`s or `ConfigMap`s) and the
+# environment variable is set. We expect both CMD1 and CMD2 to succeed.
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" $CMD1 >&/dev/null
+echo -n $?
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" "${CMD2[@]}" >&/dev/null
+echo -n $?
+
+# Test run 6: Certificates are mounted and the environment variable is set, but the entrypoint is overridden. We expect
 # CMD1 to succeed and CMD2 to fail.
 #
 docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" $CMD1 >&/dev/null

@@ -47,21 +47,21 @@ RUN set -eux; \
 ENV JAVA_VERSION jdk-21.0.3+9
 
 RUN set -eux; \
-    ARCH="$(objdump="$(command -v objdump)" && objdump --file-headers "$objdump" | awk -F '[:,]+[[:space:]]+' '$1 == "architecture" { print $2 }')"; \
+    ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
        aarch64|arm64) \
          ESUM='c7c31bc6f5ab4c4b6f4559e11c2fa9541ae6757ab8da6dd85c29163913bd9238'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.3_9.tar.gz'; \
          ;; \
-       amd64|i386:x86-64) \
+       amd64|x86_64) \
          ESUM='f1af100c4afca2035f446967323230150cfe5872b5a664d98c86963e5c066e0d'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_x64_linux_hotspot_21.0.3_9.tar.gz'; \
          ;; \
-       ppc64el|powerpc:common64) \
+       ppc64el|ppc64le) \
          ESUM='aa628c6accc9d075b7b0f2bff6487f8ca0b8f057af31842a85fc8b363e1e10f3'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_ppc64le_linux_hotspot_21.0.3_9.tar.gz'; \
          ;; \
-       s390x|s390:64-bit) \
+       s390x) \
          ESUM='a60dbad08a1977269dec7782f90225107479bfc8d10d2894f437778ae2e2b737'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.3%2B9/OpenJDK21U-jre_s390x_linux_hotspot_21.0.3_9.tar.gz'; \
          ;; \

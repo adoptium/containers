@@ -32,16 +32,11 @@ def archHelper(arch, os_family):
     if arch == "aarch64":
         return "aarch64|arm64"
     elif arch == "ppc64le":
-        return "ppc64el|powerpc:common64"
-    elif arch == "s390x":
-        return "s390x|s390:64-bit"
+        return "ppc64el|ppc64le"
     elif arch == "arm":
         return "armhf|arm"
     elif arch == "x64":
-        if os_family == "alpine-linux":
-            return "amd64|x86_64"
-        else:
-            return "amd64|i386:x86-64"
+        return "amd64|x86_64"
     else:
         return arch
 

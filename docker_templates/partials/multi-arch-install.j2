@@ -5,7 +5,7 @@ RUN set -eux; \
         {{ architecture }}) \
          ESUM='{{ details.checksum }}'; \
          BINARY_URL='{{ details.download_url }}'; \
-         {% if architecture == "armhf|arm" and os == "ubuntu" and version|int == 8 -%}
+         {% if architecture == "armhf" and os == "ubuntu" and version|int == 8 -%}
          # Fixes libatomic.so.1: cannot open shared object file
          apt-get update; \
          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1; \

@@ -28,14 +28,14 @@ class TestJinjaRendering(unittest.TestCase):
 
         arch_data = {}
 
-        arch_data["armhf|arm"] = {
+        arch_data["armhf"] = {
             "download_url": "http://fake-url.com",
             "checksum": "fake-checksum",
         }
 
         # The context/variables to render the template
         context = {
-            "architecture": "armhf|arm",
+            "architecture": "armhf",
             "os": "ubuntu",
             "version": "8",
             "arch_data": arch_data,

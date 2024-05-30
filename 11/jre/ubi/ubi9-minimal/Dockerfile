@@ -29,7 +29,7 @@ RUN set -eux; \
     microdnf install -y \
         gzip \
         tar \
-        # Required for objdump and also jlink
+        # Required for jlink
         binutils \
         tzdata \
         wget \
@@ -49,21 +49,21 @@ ENV JAVA_VERSION jdk-11.0.23+9
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
+       aarch64) \
          ESUM='7290ace47a030d89ea023c28e7aa555c9da72b4194f73b39ec9d058011bf06dd'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.23_9.tar.gz'; \
          ;; \
-       amd64|x86_64) \
-         ESUM='786a72296189ba8e43999532aa73730d87ec1fce558eb3c4e98b611b423375e3'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_x64_linux_hotspot_11.0.23_9.tar.gz'; \
-         ;; \
-       ppc64el|ppc64le) \
+       ppc64le) \
          ESUM='3b3fbd324620fd914bd8462e292124493fcf846fd69195c4b9a231131dc68d5f'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.23_9.tar.gz'; \
          ;; \
        s390x) \
          ESUM='25abb7f74f55847b0d509402111084bd7a244d904744f3bfffa89528bc3b8a69'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_s390x_linux_hotspot_11.0.23_9.tar.gz'; \
+         ;; \
+       x86_64) \
+         ESUM='786a72296189ba8e43999532aa73730d87ec1fce558eb3c4e98b611b423375e3'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.23%2B9/OpenJDK11U-jre_x64_linux_hotspot_11.0.23_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

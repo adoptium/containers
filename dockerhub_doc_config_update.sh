@@ -130,11 +130,13 @@ function generate_official_image_arches() {
 	if [ $os == "windows" ]; then
 		arches="windows-amd64"
 	else
-		# Remove ppc64el, x86_64, s390:64-bit, armhf and arm64
-		# Retain amd64 and arm64
-		# arm is arm32v7 and aarch64 is arm64v8 for docker builds
 		# shellcheck disable=SC2046,SC2005,SC1003,SC2086,SC2063
-		arches=$(echo $(grep ') \\' ${file} | sed 's/\(ppc64el\)//;s/\(x86_64\)//;s/\(arm64\)//;s/\(armhf\)//;s/\(arm\)/arm32v7/;s/\(aarch64\)/arm64v8/;' | grep -v "*" | sed 's/) \\//g; s/|//g' | sort) | sed 's/ /, /g')
+		arches=$(echo $(grep ') \\' ${file} | grep -v "*" | sed 's/) \\//g; s/|//g' | sort) | sed 's/ /, /g')
+		arches=$(echo ${arches} | sed 's/x86_64/amd64/g') # replace x86_64 with amd64
+		arches=$(echo ${arches} | sed 's/ppc64el/ppc64le/g') # replace ppc64el with ppc64le
+		arches=$(echo ${arches} | sed 's/arm64/arm64v8/g') # replace arm64 with arm64v8
+		arches=$(echo ${arches} | sed 's/aarch64/arm64v8/g') # replace aarch64 with arm64v8
+		arches=$(echo ${arches} | sed 's/armhf/arm32v7/g') # replace armhf with arm32v7
 	fi
 }
 

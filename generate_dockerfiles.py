@@ -28,15 +28,18 @@ headers = {
 }
 
 
-def archHelper(arch, os_family):
-    if arch == "aarch64":
-        return "aarch64|arm64"
-    elif arch == "ppc64le":
-        return "ppc64el|ppc64le"
+def archHelper(arch, os_name):
+    if arch == "aarch64" and os_name == "ubuntu":
+        return "arm64"
+    elif arch == "ppc64le" and os_name == "ubuntu":
+        return "ppc64el"
     elif arch == "arm":
-        return "armhf|arm"
+        return "armhf"
     elif arch == "x64":
-        return "amd64|x86_64"
+        if os_name == "ubuntu":
+            return "amd64"
+        else:
+            return "x86_64"
     else:
         return arch
 
@@ -113,7 +116,7 @@ for os_family, configurations in config["configurations"].items():
                                 "copy_from": copy_from,
                             }
                         else:
-                            arch_data[archHelper(binary["architecture"], os_family)] = {
+                            arch_data[archHelper(binary["architecture"], os_name)] = {
                                 "download_url": binary["package"]["link"],
                                 "checksum": binary["package"]["checksum"],
                             }

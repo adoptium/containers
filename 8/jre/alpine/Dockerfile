@@ -45,7 +45,7 @@ ENV JAVA_VERSION jdk8u412-b08
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
-       amd64|x86_64) \
+       x86_64) \
          ESUM='c82962d7378d1fd415db594fce6ec047939e9fab5301fa4407cd7faea9ea7e31'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u412-b08/OpenJDK8U-jre_x64_alpine-linux_hotspot_8u412b08.tar.gz'; \
          ;; \

@@ -48,11 +48,11 @@ ENV JAVA_VERSION jdk-22.0.1+8
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
-       aarch64|arm64) \
+       aarch64) \
          ESUM='86a7b47c9277f2fd063ec910616b3676d86553ab7d23aa3bd365e51a57be1dc5'; \
          BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.1%2B8/OpenJDK22U-jdk_aarch64_alpine-linux_hotspot_22.0.1_8.tar.gz'; \
          ;; \
-       amd64|x86_64) \
+       x86_64) \
          ESUM='d226e44b3513942db855df9a8737d848f64069848970d4cfd35ee3c38f2525c1'; \
          BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.1%2B8/OpenJDK22U-jdk_x64_alpine-linux_hotspot_22.0.1_8.tar.gz'; \
          ;; \

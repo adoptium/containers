@@ -28,20 +28,18 @@ headers = {
 }
 
 
-def archHelper(arch, os_family):
-    if arch == "aarch64":
-        return "aarch64|arm64"
-    elif arch == "ppc64le":
-        return "ppc64el|powerpc:common64"
-    elif arch == "s390x":
-        return "s390x|s390:64-bit"
+def archHelper(arch, os_name):
+    if arch == "aarch64" and os_name == "ubuntu":
+        return "arm64"
+    elif arch == "ppc64le" and os_name == "ubuntu":
+        return "ppc64el"
     elif arch == "arm":
-        return "armhf|arm"
+        return "armhf"
     elif arch == "x64":
-        if os_family == "alpine-linux":
-            return "amd64|x86_64"
+        if os_name == "ubuntu":
+            return "amd64"
         else:
-            return "amd64|i386:x86-64"
+            return "x86_64"
     else:
         return arch
 
@@ -118,7 +116,7 @@ for os_family, configurations in config["configurations"].items():
                                 "copy_from": copy_from,
                             }
                         else:
-                            arch_data[archHelper(binary["architecture"], os_family)] = {
+                            arch_data[archHelper(binary["architecture"], os_name)] = {
                                 "download_url": binary["package"]["link"],
                                 "checksum": binary["package"]["checksum"],
                             }
@@ -151,14 +149,16 @@ for os_family, configurations in config["configurations"].items():
                 ) as out_file:
                     out_file.write(rendered_dockerfile)
 
-                # Copy entrypoint.sh to output directory
-                entrypoint_path = os.path.join(
-                    "docker_templates", "scripts", f"entrypoint.{os_name}.sh"
-                )
+                if os_family != "windows":
+                    # Entrypoint is currently only needed for CA certificate handling, which is not (yet)
+                    # available on Windows
 
-                if os.path.exists(entrypoint_path):
-                    os.system(
-                        f"cp {entrypoint_path} {os.path.join(output_directory, 'entrypoint.sh')}"
-                    )
+                    # Copy entrypoint.sh to output directory
+                    entrypoint_path = os.path.join("docker_templates", "entrypoint.sh")
+
+                    if os.path.exists(entrypoint_path):
+                        os.system(
+                            f"cp {entrypoint_path} {os.path.join(output_directory, 'entrypoint.sh')}"
+                        )
 
 print("Dockerfiles generated successfully!")

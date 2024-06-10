@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-FROM alpine:3.19
+FROM alpine:3.20
 
 ENV JAVA_HOME /opt/java/openjdk
 ENV PATH $JAVA_HOME/bin:$PATH

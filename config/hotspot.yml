@@ -43,7 +43,7 @@ configurations:
   alpine-linux:
   - directory: alpine
     architectures: [aarch64, x64]
-    image: alpine:3.19
+    image: alpine:3.20
     os: alpine-linux
   
   windows:

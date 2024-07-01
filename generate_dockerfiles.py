@@ -54,6 +54,7 @@ for os_family, configurations in config["configurations"].items():
         directory = configuration["directory"]
         architectures = configuration["architectures"]
         os_name = configuration["os"]
+        shebang = configuration.get("shebang", "")
         base_image = configuration["image"]
         deprecated = configuration.get("deprecated", None)
         versions = configuration.get(
@@ -140,6 +141,7 @@ for os_family, configurations in config["configurations"].items():
                     arch_data=arch_data,
                     os_family=os_family,
                     os=os_name,
+                    shebang=shebang,
                 )
 
                 print("Writing Dockerfile to", output_directory)

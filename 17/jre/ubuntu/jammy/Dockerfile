@@ -98,4 +98,4 @@ RUN set -eux; \
     echo "java --version"; java --version; \
     echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
-ENTRYPOINT ["/__cacert_entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/__cacert_entrypoint.sh"]

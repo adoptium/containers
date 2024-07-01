@@ -37,11 +37,9 @@ all_packages="jdk jre"
 # Fetch the latest manifest from the official repo
 wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-library/official-images/master/library/eclipse-temurin
 
-oses="alpine ubuntu centos ubi windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
+oses="alpine ubuntu centos debian ubi windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="jammy"
-
-git_repo="https://github.com/adoptium/containers/blob/master"
 
 # Get the latest git commit of the current repo.
 # This is assumed to have all the latest dockerfiles already.
@@ -72,6 +70,7 @@ function generate_official_image_tags() {
 	
 	case $os in
 		"ubuntu") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
+		"debian") distro="debian-$(echo $dfdir | awk -F '/' '{ print $4 }' )" ;;
 		"ubi") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
         "centos") distro="centos7" ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
@@ -190,7 +189,7 @@ function print_official_image_file() {
 rm -f ${official_docker_image_file}
 print_official_header
 
-official_os_ignore_array=(clefos debian debianslim leap tumbleweed)
+official_os_ignore_array=(clefos leap tumbleweed)
 
 # Generate config and doc info only for "supported" official builds.
 function generate_official_image_info() {

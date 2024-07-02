@@ -12,3 +12,6 @@ library/
 .vscode/
 __pycache__/
 /adoptium_cache.sqlite
+lib/
+bin/
+pyvenv.cfg

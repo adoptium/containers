@@ -56,7 +56,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
 
-            # UBI/CentOS
+            # UBI
             if [ -d /usr/share/pki/ca-trust-source/anchors/ ]; then
                 cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
             fi
@@ -67,7 +67,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
             fi
         fi
 
-        # UBI/CentOS
+        # UBI
         if which update-ca-trust >/dev/null; then
             update-ca-trust
         fi

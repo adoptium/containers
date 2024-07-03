@@ -9,7 +9,7 @@ If you are looking for the usage README then please head to the [Official Docker
 
 ## Supported Images
 
-In general, we support Alpine, CentOS, UBI, Ubuntu and Windows containers.
+In general, we support Alpine, UBI, Ubuntu and Windows containers.
 
 [List of Supported Images By Tag](https://github.com/docker-library/docs/tree/master/eclipse-temurin#simple-tags)
 

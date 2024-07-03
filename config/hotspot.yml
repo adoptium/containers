@@ -13,7 +13,7 @@
 #
 
 supported_distributions:
-  OS: [alpine, focal, jammy, centos, ubi9-minimal, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
+  OS: [alpine, focal, jammy, ubi9-minimal, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
   Versions: [8, 11, 17, 21, 22]
 
 configurations:
@@ -28,12 +28,6 @@ configurations:
     image: ubuntu:20.04
     deprecated: 20
     os: ubuntu
-
-  - directory: centos
-    architectures: [aarch64, ppc64le, x64]
-    image: centos:7
-    deprecated: 20
-    os: centos
 
   - directory: ubi/ubi9-minimal
     architectures: [aarch64, ppc64le, s390x, x64]

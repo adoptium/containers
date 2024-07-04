@@ -13,6 +13,8 @@
 
 import os
 
+import argparse
+import shutil
 import requests_cache
 import requests
 import yaml
@@ -20,12 +22,21 @@ from jinja2 import Environment, FileSystemLoader
 
 requests_cache.install_cache("adoptium_cache", expire_after=3600)
 
+parser = argparse.ArgumentParser(
+    description="Generate Dockerfiles for Eclipse Temurin images"
+)
+
 # Setup the Jinja2 environment
 env = Environment(loader=FileSystemLoader("docker_templates"))
 
 headers = {
     "User-Agent": "Adoptium Dockerfile Updater",
 }
+
+# Flag for force removing old Dockerfiles
+parser.add_argument("--force", action="store_true", help="Force remove old Dockerfiles")
+
+args = parser.parse_args()
 
 
 def archHelper(arch, os_name):
@@ -42,6 +53,15 @@ def archHelper(arch, os_name):
             return "x86_64"
     else:
         return arch
+
+
+# Remove old Dockerfiles if --force is set
+if args.force:
+    # Remove all top level dirs that are numbers
+    for dir in os.listdir():
+        if dir.isdigit():
+            print(f"Removing {dir}")
+            shutil.rmtree(dir)
 
 
 # Load the YAML configuration
@@ -87,7 +107,9 @@ for os_family, configurations in config["configurations"].items():
 
                 # If version doesn't equal 8, get the more accurate version number
                 if version != 8:
-                    openjdk_version = "jdk-" + release["version_data"]["openjdk_version"]
+                    openjdk_version = (
+                        "jdk-" + release["version_data"]["openjdk_version"]
+                    )
                     # if openjdk_version contains -LTS remove it
                     if "-LTS" in openjdk_version:
                         openjdk_version = openjdk_version.replace("-LTS", "")

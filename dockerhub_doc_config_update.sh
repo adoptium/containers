@@ -39,7 +39,7 @@ wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-lib
 
 oses="alpine ubuntu ubi windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
-default_linux_image="jammy"
+default_linux_image="noble"
 
 git_repo="https://github.com/adoptium/containers/blob/master"
 

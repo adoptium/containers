@@ -20,7 +20,7 @@ configurations:
   linux:
   - directory: ubuntu/noble
     image: ubuntu:24.04
-    architectures: [aarch64, arm, ppc64le, s390x, x64]
+    architectures: [aarch64, arm, ppc64le, riscv64, s390x, x64]
     os: ubuntu
   
   - directory: ubuntu/jammy

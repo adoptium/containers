@@ -57,6 +57,10 @@ RUN set -eux; \
          ESUM='c208cd0fb90560644a90f928667d2f53bfe408c957a5e36206585ad874427761'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_ppc64le_linux_hotspot_21.0.4_7.tar.gz'; \
          ;; \
+       s390x) \
+         ESUM='c900c8d64fab1e53274974fa4a4c736a5a3754485a5c56f4947281480773658a'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.4_7.tar.gz'; \
+         ;; \
        x86_64) \
          ESUM='51fb4d03a4429c39d397d3a03a779077159317616550e4e71624c9843083e7b9'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.4_7.tar.gz'; \

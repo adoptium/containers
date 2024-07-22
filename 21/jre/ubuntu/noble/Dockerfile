@@ -59,6 +59,10 @@ RUN set -eux; \
          ESUM='58845ce4275f3ec74fba075597c8216bb201773da036c4703be8b7b7b457355d'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.4_7.tar.gz'; \
          ;; \
+       ppc64el) \
+         ESUM='46cf93653e2b553fb1c91760cfe2ff20999ba358d648d2df69e5948784768440'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jre_ppc64le_linux_hotspot_21.0.4_7.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

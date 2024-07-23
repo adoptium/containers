@@ -1,0 +1,44 @@
+name: New Distribution Proposal
+description: Template for proposing support for a new distribution.
+title: "Proposal: [Distribution Name] [Version] Support"
+labels: ["PMC-agenda"]
+body:
+  - type: markdown
+    attributes:
+      value: "## New Distribution Proposal\nThank you for proposing a new distribution for support in the Adoptium project! Please fill out the following details to help us evaluate the proposal."
+
+  - type: input
+    id: distribution-name
+    attributes:
+      label: "Distribution Name"
+      description: "What is the name of the distribution you are proposing?"
+      placeholder: "e.g., Ubuntu, Fedora, etc."
+    validations:
+      required: true
+
+  - type: input
+    id: distribution-version
+    attributes:
+      label: "Distribution Version"
+      description: "What is the version of the distribution you are proposing?"
+      placeholder: "e.g., 20.04, 34, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: justification
+    attributes:
+      label: "Justification for Inclusion"
+      description: "Please provide a detailed justification for why this distribution should be supported."
+      placeholder: "Explain the demand, usage statistics, community interest, etc."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: lts-confirmation
+    attributes:
+      label: "Long-Term Support Confirmation"
+      description: "Confirm that this distribution is a Long-Term Support (LTS) version."
+      options:
+        - label: "This distribution is an LTS version and will receive long-term support from its maintainers."
+          required: true

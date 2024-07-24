@@ -10,7 +10,7 @@ CMD1=date
 
 # CMD2 in each run is to check for the `dockerbuilder` certificate in the Java keystore. Entrypoint export $CACERT to
 # point to the Java keystore.
-CMD2=(sh -c "keytool -list -keystore \$CACERT -storepass changeit -alias dockerbuilder")
+CMD2=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\"  -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder2")
 
 # For a custom entrypoint test, we need to create a new image. This image will get cleaned up at the end of the script
 # by the `finish` trap function.

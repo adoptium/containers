@@ -17,6 +17,11 @@ RUN set -eux; \
         musl-locales musl-locales-lang \
 {% include 'partials/binutils.j2' -%}
         tzdata \
+        # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
+        # only import one at a time.
+        coreutils \
+        # Needed to extract CN and generate aliases for certificates
+        openssl \
     ; \
     rm -rf /var/cache/apk/*
 

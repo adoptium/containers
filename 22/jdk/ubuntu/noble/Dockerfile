@@ -68,6 +68,10 @@ RUN set -eux; \
          ESUM='46527cfc560552f05c0462520d69d438f144a3dc8206687952387c910cdd4c40'; \
          BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.2%2B9/OpenJDK22U-jdk_s390x_linux_hotspot_22.0.2_9.tar.gz'; \
          ;; \
+       riscv64) \
+         ESUM='767bbe2b9581272b6ac435b8c62bb1c079041d6ff2a1c39552d4403b4d7170f5'; \
+         BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.1%2B8/OpenJDK22U-jdk_riscv64_linux_hotspot_22.0.1_8.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

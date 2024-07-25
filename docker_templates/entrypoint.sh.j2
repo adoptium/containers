@@ -1,4 +1,8 @@
+{%- if os == "ubuntu" -%}
+#!/usr/bin/env bash
+{%- else -%}
 #!/usr/bin/env sh
+{%- endif %}
 {% include 'partials/license.j2' %}
 # This script defines `sh` as the interpreter, which is available in all POSIX environments. However, it might get
 # started with `bash` as the shell to support dotted.environment.variable.names which are not supported by POSIX, but

@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
+#             NOTE: THIS FILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -100,6 +100,6 @@ RUN set -eux; \
     echo "java --version"; java --version; \
     echo "Complete."
 COPY entrypoint.sh /__cacert_entrypoint.sh
-ENTRYPOINT ["/bin/bash", "/__cacert_entrypoint.sh"]
+ENTRYPOINT ["/__cacert_entrypoint.sh"]
 
 CMD ["jshell"]

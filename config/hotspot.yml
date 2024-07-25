@@ -23,7 +23,6 @@ configurations:
     architectures: [aarch64, arm, ppc64le, s390x, x64]
     # `bash` is required for Ubuntu-based images to correctly resolve
     # environment variables.with.dots.in.them.
-    shebang: /bin/bash
     os: ubuntu
   
   - directory: ubuntu/jammy
@@ -32,7 +31,6 @@ configurations:
     deprecated: 23
     # `bash` is required for Ubuntu-based images to correctly resolve
     # environment variables.with.dots.in.them.
-    shebang: /bin/bash
     os: ubuntu
 
   - directory: ubuntu/focal
@@ -41,7 +39,6 @@ configurations:
     deprecated: 20
     # `bash` is required for Ubuntu-based images to correctly resolve
     # environment variables.with.dots.in.them.
-    shebang: /bin/bash
     os: ubuntu
 
   - directory: ubi/ubi9-minimal

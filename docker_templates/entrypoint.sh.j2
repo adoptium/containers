@@ -1,4 +1,9 @@
+{%- if os == "ubuntu" -%}
+#!/usr/bin/env bash
+{%- else -%}
 #!/usr/bin/env sh
+{%- endif %}
+{% include 'partials/license.j2' %}
 # This script defines `sh` as the interpreter, which is available in all POSIX environments. However, it might get
 # started with `bash` as the shell to support dotted.environment.variable.names which are not supported by POSIX, but
 # are supported by `sh` in some Linux flavours.
@@ -75,27 +80,18 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # The reason why this is not part of the opt-in is because it leaves open the option to mount certificates at the
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
-
-            # UBI
-            if [ -d /usr/share/pki/ca-trust-source/anchors/ ]; then
-                cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
-            fi
-
-            # Ubuntu/Alpine
-            if [ -d /usr/local/share/ca-certificates/ ]; then
-                cp -La /certificates/* /usr/local/share/ca-certificates/
-            fi
+            {%- if os == "ubuntu" or os == "alpine-linux" %}
+            cp -La /certificates/* /usr/local/share/ca-certificates/
+            {%- elif os == "ubi9-minimal" %}
+            cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
+            {%- endif %}
         fi
 
-        # UBI
-        if command -v update-ca-trust >/dev/null; then
-            update-ca-trust
-        fi
-
-        # Ubuntu/Alpine
-        if command -v update-ca-certificates >/dev/null; then
-            update-ca-certificates
-        fi
+        {%- if os == "ubuntu" or os == "alpine-linux" %}
+        update-ca-certificates
+        {%- elif os == "ubi9-minimal" %}
+        update-ca-trust
+        {%- endif %}
     else
         # If we are not root, we cannot update the system truststore. That's bad news for tools like `curl` and `wget`,
         # but since the JVM is the primary focus here, we can live with that.
@@ -107,3 +103,4 @@ fi
 export JRE_CACERTS_PATH
 
 exec "$@"
+

@@ -5,6 +5,8 @@ on:
     # Runs every half hour
     - cron: "*/30 * * * *"
 
+permissions: read-all
+
 jobs:
   update_dockerfile:
     permissions:

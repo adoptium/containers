@@ -37,9 +37,6 @@ RUN set -eux; \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         musl-locales musl-locales-lang \
         tzdata \
-        # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
-        # only import one at a time.
-        coreutils \
         # Needed to extract CN and generate aliases for certificates
         openssl \
     ; \

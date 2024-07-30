@@ -65,23 +65,23 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
     rm -f "$tmp_store"
 
     # Import the additional certificate into JVM truststore
-    for i in /certificates/*crt; do
-        if [ ! -f "$i" ]; then
+    for cert_file in /certificates/*crt; do
+        if [ ! -f "$cert_file" ]; then
             continue
         fi
-        tmp_dir=$(mktemp -d)
-        BASENAME=$(basename "$i" .crt)
 
-        # We might have multiple certificates in the file. Split this file into single files. The reason is that
-        # `keytool` does not accept multi-certificate files
-        csplit -s -z -b %02d.crt -f "$tmp_dir/$BASENAME-" "$i" '/-----BEGIN CERTIFICATE-----/' '{*}'
+        # Extract each certificate from the file and process it
+        awk 'BEGIN {c=0; filename=""} /BEGIN CERTIFICATE/ {filename=sprintf("cert%02d.crt", c++); print > filename} /END CERTIFICATE/ {print >> filename}' "$cert_file"
 
-        for crt in "$tmp_dir/$BASENAME"-*; do
+        for extracted_cert in cert??.crt; do
             # Create an alias for the certificate
-            ALIAS=$(openssl x509 -in "$crt" -noout -subject -nameopt -space_eq | sed -n 's/^.*CN=\([^,]*\).*$/\1/p')
+            ALIAS=$(openssl x509 -in "$extracted_cert" -noout -subject -nameopt -space_eq | sed -n 's/^.*CN=\([^,]*\).*$/\1/p')
 
             # Add the certificate to the JVM truststore
-            keytool -import -noprompt -alias "$ALIAS" -file "$crt" -keystore "$JRE_CACERTS_PATH" -storepass changeit >/dev/null
+            keytool -import -noprompt -alias "$ALIAS" -file "$extracted_cert" -keystore "$JRE_CACERTS_PATH" -storepass changeit >/dev/null
+
+            # Clean up the extracted certificate
+            rm -f "$extracted_cert"
         done
     done
 

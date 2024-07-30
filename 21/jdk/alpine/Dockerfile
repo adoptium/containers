@@ -40,9 +40,6 @@ RUN set -eux; \
         # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
         binutils \
         tzdata \
-        # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
-        # only import one at a time.
-        coreutils \
         # Needed to extract CN and generate aliases for certificates
         openssl \
     ; \

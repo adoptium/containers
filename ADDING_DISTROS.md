@@ -1,8 +1,8 @@
-# Adding New Distributions to Adoptium
+# Adding New Operating System Distributions and Versions to Eclipse Temurin Support
 
 ## 1. Introduction
 
-This document aims to formalize the process and criteria for adding new operating system distributions to the Adoptium project. Adoptium currently supports a range of Long-Term Support (LTS) distributions and is committed to ensuring that new additions meet the community's needs and project's standards.
+This document aims to formalize the process and criteria for adding Eclipse Temurin support of new operating system distributions. Adoptium currently supports a range of Long-Term Support (LTS) distributions and is committed to ensuring that new additions meet the community's needs and project's standards.
 
 ## 2. Current Supported Distributions
 
@@ -18,7 +18,7 @@ Only distributions with a commitment to long-term support are considered to ensu
 
 ### 3.2 Community Demand
 
-The distribution must demonstrate significant demand from the Adoptium community or enterprise users.
+The distribution must demonstrate significant demand from the Adoptium community or enterprise users. Strong consideration will be given to proposals received from [Adoptium Working Group Members](https://adoptium.net/members/).
 
 ### 3.3 Technical Feasibility
 
@@ -26,11 +26,11 @@ The distribution should be capable of supporting the Eclipse Temurin versions wi
 
 ### 3.4 Compatibility Testing
 
-New distributions must pass a predefined set of compatibility tests to confirm that existing functionalities are not adversely affected.
+The Adoptium project must have access to sufficient quantity of testing resources matching the proposed distribution to enable. New distributions must pass a predefined set of compatibility tests to confirm that existing functionalities are not adversely affected.
 
 ### 3.5 Official Base Images
 
-Because Eclipse Temurin images are published as [official images](https://docs.docker.com/trusted-content/official-images/), there are restrictions as to which base images we can depend on.
+Because Eclipse Temurin images are published as [official images](https://docs.docker.com/trusted-content/official-images/) in collaboration with Docker, there are restrictions as to which base images can be supported.
 
 ### 3.5 Encouraging Flexible Deployment via Docker
 
@@ -60,15 +60,12 @@ Contributors may submit proposals for new distributions by filling out a specifi
 - Distribution name and version
 - Justification for inclusion
 - LTS evidence
-- Expected community interest
+- Evidence of community interest
 - Preliminary compatibility assessment
 
 ### 4.2 Review Process
 
-Proposals are reviewed quarterly by a designated committee, including:
-- Initial feasibility assessment
-- Community consultation (via surveys and forums)
-- Final decision-making
+Proposals are reviewed by the Project Management Committee, with decisions documented in the approved minutes of the meeting and shared in the issue proposing the addition.
 
 ### 4.3 Implementation
 
@@ -91,13 +88,13 @@ Adoptium is committed to providing robust and secure software environments. To m
 
 ### 5.1 Definition of End-of-Life
 
-A distribution reaches End-of-Life when it no longer receives updates and patches from its original maintainers. This includes security patches, performance improvements, and compatibility updates.
+A distribution reaches End-of-Life when it no longer receives updates and patches from its original maintainers. This includes security patches, performance improvements, and compatibility updates. Ultimately, the PMC will determine if a distribution is to be considered deprecated.
 
 ### 5.2 Deprecation Process
 
 Upon a distribution reaching its EOL, Adoptium will take the following steps:
 
-1. **Announcement**: We will announce the impending deprecation through our official channels at least six months prior to the final update. This announcement will include the final date of support and recommended migration paths for users.
+1. **Announcement**: We will aim to announce the impending deprecation through our official channels at least six months prior to the final update. This announcement will include the final date of support and recommended migration paths for users.
 
 2. **Final Update**: The last update provided will ensure that the distribution remains secure and stable until the EOL date.
 

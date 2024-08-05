@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2154
 imageTests[openjdk]+='
 	java-ca-certificates-update
 '

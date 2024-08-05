@@ -2,11 +2,13 @@
 
 set -o pipefail
 
+# shellcheck disable=SC2128
 testDir="$(readlink -f "$(dirname "$BASH_SOURCE")")"
+# shellcheck disable=SC2128
 runDir="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
 # CMD1 in each run is just a `date` to make sure nothing is broken with or without the entrypoint
-CMD1=date
+CMD1="date"
 
 # CMD2 in each run is to check for the `dockerbuilder` certificate in the Java keystore. Entrypoint export $CACERT to
 # point to the Java keystore.
@@ -36,43 +38,43 @@ EOF
 #
 
 # Test run 1: No added certificates and environment variable is not set. We expect CMD1 to succeed and CMD2 to fail.
-docker run --rm "$1" $CMD1 >&/dev/null
+docker run --rm "$1" "$CMD1" >&/dev/null
 echo -n $?
 docker run --rm "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 2: No added certificates, but the environment variable is set. Since there are no certificates, we still
 # expect CMD1 to succeed and CMD2 to fail.
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 "$1" $CMD1 >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 "$1" "$CMD1" >&/dev/null
 echo -n $?
 docker run --rm -e USE_SYSTEM_CA_CERTS=1 "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 3: Certificates are mounted, but the environment variable is not set, i.e. certificate importing should not
 # be activated. We expect CMD1 to succeed and CMD2 to fail.
-docker run --rm --volume=$testDir/certs:/certificates "$1" $CMD1 >&/dev/null
+docker run --rm --volume="$testDir/certs:/certificates" "$1" "$CMD1" >&/dev/null
 echo -n $?
-docker run --rm --volume=$testDir/certs:/certificates "$1" "${CMD2[@]}" >&/dev/null
+docker run --rm --volume="$testDir/certs:/certificates" "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 4: Certificates are mounted and the environment variable is set. We expect both CMD1 and CMD2 to succeed.
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$1" $CMD1 >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$1" "$CMD1" >&/dev/null
 echo -n $?
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$1" "${CMD2[@]}" >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 5: Certificates are mounted and are symlinks (e.g. in Kubernetes as `Secret`s or `ConfigMap`s) and the
 # environment variable is set. We expect both CMD1 and CMD2 to succeed.
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" $CMD1 >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_symlink:/certificates" "$1" "$CMD1" >&/dev/null
 echo -n $?
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" "${CMD2[@]}" >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_symlink:/certificates" "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 6: Certificates are mounted and the environment variable is set, but the entrypoint is overridden. We expect
 # CMD1 to succeed and CMD2 to fail.
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" $CMD1 >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$TESTIMAGE" "$CMD1" >&/dev/null
 echo -n $?
-docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" "${CMD2[@]}" >&/dev/null
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$TESTIMAGE" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 #
@@ -80,42 +82,42 @@ echo -n $?
 #
 
 # Test run 1: No added certificates and environment variable is not set. We expect CMD1 to succeed and CMD2 to fail.
-docker run --read-only --user 1000:1000 --rm "$1" $CMD1 >&/dev/null
+docker run --read-only --user 1000:1000 --rm "$1" "$CMD1" >&/dev/null
 echo -n $?
 docker run --read-only --user 1000:1000 --rm "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 2: No added certificates, but the environment variable is set. Since there are no certificates, we still
 # expect CMD1 to succeed and CMD2 to fail.
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 "$1" $CMD1 >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 "$1" "$CMD1" >&/dev/null
 echo -n $?
 docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 3: Certificates are mounted, but the environment variable is not set, i.e. certificate importing should not
 # be activated. We expect CMD1 to succeed and CMD2 to fail.
-docker run --read-only --user 1000:1000 --rm --volume=$testDir/certs:/certificates "$1" $CMD1 >&/dev/null
+docker run --read-only --user 1000:1000 --rm --volume="$testDir/certs:/certificates" "$1" "$CMD1" >&/dev/null
 echo -n $?
-docker run --read-only --user 1000:1000 --rm --volume=$testDir/certs:/certificates "$1" "${CMD2[@]}" >&/dev/null
+docker run --read-only --user 1000:1000 --rm --volume="$testDir/certs:/certificates" "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 4: Certificates are mounted and the environment variable is set. We expect both CMD1 and CMD2 to succeed.
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$1" $CMD1 >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$1" "$CMD1" >&/dev/null
 echo -n $?
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$1" "${CMD2[@]}" >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 5: Certificates are mounted and are symlinks (e.g. in Kubernetes as `Secret`s or `ConfigMap`s) and the
 # environment variable is set. We expect both CMD1 and CMD2 to succeed.
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" $CMD1 >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_symlink:/certificates" "$1" "$CMD1" >&/dev/null
 echo -n $?
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_symlink:/certificates "$1" "${CMD2[@]}" >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_symlink:/certificates" "$1" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
 # Test run 6: Certificates are mounted and the environment variable is set, but the entrypoint is overridden. We expect
 # CMD1 to succeed and CMD2 to fail.
 #
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" $CMD1 >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$TESTIMAGE" "$CMD1" >&/dev/null
 echo -n $?
-docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" "${CMD2[@]}" >&/dev/null
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:/certificates" "$TESTIMAGE" "${CMD2[@]}" >&/dev/null
 echo -n $?

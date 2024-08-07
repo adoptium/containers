@@ -181,6 +181,7 @@ for os_family, configurations in config["configurations"].items():
 
                     entrypoint = template_entrypoint.render(
                         os=os_name,
+                        version=version,
                     )
 
                     with open(

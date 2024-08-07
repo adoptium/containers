@@ -26,12 +26,8 @@ set -e
 TMPDIR=${TMPDIR:-/tmp}
 
 # JDK truststore location
-JRE_CACERTS_PATH=$JAVA_HOME/lib/security/cacerts
-
 # JDK8 puts its JRE in a subdirectory
-if [ -f "$JAVA_HOME/jre/lib/security/cacerts" ]; then
-    JRE_CACERTS_PATH=$JAVA_HOME/jre/lib/security/cacerts
-fi
+JRE_CACERTS_PATH=$JAVA_HOME/jre/lib/security/cacerts
 
 # Opt-in is only activated if the environment variable is set
 if [ -n "$USE_SYSTEM_CA_CERTS" ]; then

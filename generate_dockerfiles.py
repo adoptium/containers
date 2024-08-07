@@ -180,6 +180,7 @@ for os_family, configurations in config["configurations"].items():
                     template_entrypoint = env.get_template(template_entrypoint_file)
 
                     entrypoint = template_entrypoint.render(
+                        image_type=image_type,
                         os=os_name,
                         version=version,
                     )

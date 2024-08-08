@@ -21,7 +21,7 @@ FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION jdk-21.0.4+7
+ENV JAVA_VERSION=jdk-21.0.4+7
 
 ENV JAVA_HOME C:\\openjdk-21
 # "ERROR: Access to the registry path is denied."

@@ -21,7 +21,7 @@ FROM mcr.microsoft.com/windows/nanoserver:1809
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION jdk-17.0.12+7
+ENV JAVA_VERSION=jdk-17.0.12+7
 
 ENV JAVA_HOME C:\\openjdk-17
 # "ERROR: Access to the registry path is denied."

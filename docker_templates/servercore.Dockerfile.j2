@@ -5,7 +5,7 @@ FROM {{ base_image }}
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV JAVA_VERSION {{ java_version }}
+{% include 'partials/java-version.j2' %}
 
 RUN Write-Host ('Downloading {{ arch_data.download_url }} ...'); \
     curl.exe -LfsSo openjdk.msi {{ arch_data.download_url }} ; \

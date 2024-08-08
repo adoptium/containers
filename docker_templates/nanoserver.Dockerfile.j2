@@ -4,7 +4,7 @@ FROM {{ base_image }}
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION {{ java_version }}
+{% include 'partials/java-version.j2' %}
 
 ENV JAVA_HOME C:\\openjdk-{{ version }}
 # "ERROR: Access to the registry path is denied."

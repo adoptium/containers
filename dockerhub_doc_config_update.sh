@@ -63,7 +63,7 @@ print_official_header() {
 
 function generate_official_image_tags() {
 	# Generate the tags
-	full_version=$(grep "VERSION" "${file}" | awk '{ print $3 }')
+	full_version=$(grep "JAVA_VERSION=" "${file}" | awk '{ print $2 }' | awk -F '=' '{ print $2 }')
 
 	# Remove any `jdk` references in the version
 	ojdk_version=$(echo "${full_version}" | sed 's/\(jdk-\)//;s/\(jdk\)//' | awk -F '_' '{ print $1 }')

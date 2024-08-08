@@ -23,7 +23,7 @@ RUN set -eux; \
     ; \
     microdnf clean all
 
-ENV JAVA_VERSION {{ java_version }}
+{% include 'partials/java-version.j2' %}
 
 {% include 'partials/multi-arch-install.j2' %}
 

@@ -25,7 +25,7 @@ RUN set -eux; \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION {{ java_version }}
+{% include 'partials/java-version.j2' %}
 
 {% include 'partials/multi-arch-install.j2' %}
 

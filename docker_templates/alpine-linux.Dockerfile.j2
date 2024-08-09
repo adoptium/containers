@@ -15,7 +15,7 @@ RUN set -eux; \
         ca-certificates p11-kit-trust \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         musl-locales musl-locales-lang \
-{% include 'partials/binutils.j2' -%}
+        {%- include 'partials/binutils.j2' %}
         tzdata \
         # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
         # only import one at a time.

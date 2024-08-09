@@ -19,7 +19,7 @@ RUN set -eux; \
         # utilities for keeping Ubuntu and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
         ca-certificates p11-kit \
-{% include 'partials/binutils.j2' -%}
+        {%- include 'partials/binutils.j2' %}
         tzdata \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         locales \

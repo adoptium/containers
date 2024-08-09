@@ -157,6 +157,81 @@ class TestJinjaRendering(unittest.TestCase):
             expected_string = 'CMD ["jshell"]'
             self.assertNotIn(expected_string, rendered_template)
 
+    def test_binutils_inclusion(self):
+        template_name = "ubuntu.Dockerfile.j2"
+        template = self.env.get_template(template_name)
+
+        # Binutils should be included for jdk images with version >= 13
+        with self.subTest("jdk 13+ should include binutils"):
+            context = {
+                "version": 13,
+                "image_type": "jdk",
+                "os": "ubuntu",
+                "arch_data": {},
+            }
+            rendered_template = template.render(**context)
+            self.assertIn("binutils", rendered_template)
+
+        # Binutils should not be included for jre images regardless of version
+        with self.subTest("jre 13+ should not include binutils"):
+            context = {
+                "version": 13,
+                "image_type": "jre",
+                "os": "ubuntu",
+                "arch_data": {},
+            }
+            rendered_template = template.render(**context)
+            self.assertNotIn("binutils", rendered_template)
+
+        # Binutils should not be included for jdk images with version < 13
+        with self.subTest("jdk < 13 should not include binutils"):
+            context = {
+                "version": 12,
+                "image_type": "jdk",
+                "os": "ubuntu",
+                "arch_data": {},
+            }
+            rendered_template = template.render(**context)
+            self.assertNotIn("binutils", rendered_template)
+
+    def test_arch_data_population(self):
+        template_name = "ubuntu.Dockerfile.j2"
+        template = self.env.get_template(template_name)
+
+        # Simulate API response
+        arch_data = {
+            "amd64": {
+                "download_url": "http://fake-url.com",
+                "checksum": "fake-checksum",
+            }
+        }
+
+        context = {
+            "version": 11,
+            "image_type": "jdk",
+            "os": "ubuntu",
+            "arch_data": arch_data,
+        }
+        rendered_template = template.render(**context)
+
+        self.assertIn("http://fake-url.com", rendered_template)
+        self.assertIn("fake-checksum", rendered_template)
+
+    def test_entrypoint_rendering(self):
+        template_name = "entrypoint.sh.j2"
+        template = self.env.get_template(template_name)
+
+        context = {
+            "image_type": "jdk",
+            "os": "ubuntu",
+            "version": 11,
+        }
+        rendered_template = template.render(**context)
+
+        # Ensure that the entrypoint script contains expected commands
+        self.assertIn("update-ca-certificates", rendered_template)
+        self.assertIn("exec \"$@\"", rendered_template)
+
 
 if __name__ == "__main__":
     unittest.main()

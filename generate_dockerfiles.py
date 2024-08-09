@@ -189,6 +189,5 @@ for os_family, configurations in config["configurations"].items():
                         os.path.join(output_directory, "entrypoint.sh"), "w"
                     ) as out_file:
                         out_file.write(entrypoint)
-                    os.chmod(os.path.join(output_directory, "entrypoint.sh"), 0o755)
 
 print("Dockerfiles generated successfully!")

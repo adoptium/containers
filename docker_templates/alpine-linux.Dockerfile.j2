@@ -30,6 +30,5 @@ ENV JAVA_VERSION {{ java_version }}
 {% include 'partials/multi-arch-install.j2' %}
 
 {% include 'partials/version-check.j2' %}
-COPY --chmod=755 entrypoint.sh /__cacert_entrypoint.sh
-ENTRYPOINT ["/__cacert_entrypoint.sh"]
+{% include 'partials/entrypoint.j2' %}
 {% include 'partials/jshell.j2' %}

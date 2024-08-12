@@ -42,6 +42,5 @@ ENV JAVA_VERSION {{ java_version }}
     ldconfig;
 {% endif %}
 {% include 'partials/version-check.j2' %}
-COPY entrypoint.sh /__cacert_entrypoint.sh
-ENTRYPOINT ["/__cacert_entrypoint.sh"]
+{% include 'partials/entrypoint.j2' %}
 {% include 'partials/jshell.j2' %}

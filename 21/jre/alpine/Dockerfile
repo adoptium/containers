@@ -19,8 +19,8 @@
 
 FROM alpine:3.20
 
-ENV JAVA_HOME /opt/java/openjdk
-ENV PATH $JAVA_HOME/bin:$PATH
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
@@ -38,7 +38,7 @@ RUN set -eux; \
         musl-locales=0.1.0-r1 musl-locales-lang=0.1.0-r1 \
         # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
         # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-        binutils=2.37-r0 \
+        binutils=2.42-r0 \
         tzdata=2024a-r1 \
         # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
         # only import one at a time.
@@ -49,7 +49,7 @@ RUN set -eux; \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION jdk-21.0.4+7
+ENV JAVA_VERSION=jdk-21.0.4+7
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
@@ -82,5 +82,5 @@ RUN set -eux; \
     echo "Verifying install ..."; \
     echo "java --version"; java --version; \
     echo "Complete."
-COPY entrypoint.sh /__cacert_entrypoint.sh
+COPY --chmod=755 entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

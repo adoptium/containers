@@ -8,7 +8,7 @@ FROM {{ base_image }}
 RUN set -eux; \
     apk add --no-cache \
         {% for package_group, details in packages['apk'].items() -%}
-        {% if details['version'] is not defined or version|int >= details['version']|int -%}
+        {% if details['version'] is not defined or details['version']|compare_versions(details['version_operator'], version) -%}
         {% if details['description'] -%}
         # {{ details['description'].strip() | replace('\n', '\n        # ') }}
         {% endif -%}
@@ -21,11 +21,10 @@ RUN set -eux; \
     rm -rf /var/cache/apk/*
 {%- endif %}
 
-ENV JAVA_VERSION {{ java_version }}
+{% include 'partials/java-version.j2' %}
 
 {% include 'partials/multi-arch-install.j2' %}
 
 {% include 'partials/version-check.j2' %}
-COPY entrypoint.sh /__cacert_entrypoint.sh
-ENTRYPOINT ["/__cacert_entrypoint.sh"]
+{% include 'partials/entrypoint.j2' %}
 {% include 'partials/jshell.j2' %}

@@ -19,8 +19,8 @@
 
 FROM redhat/ubi9-minimal
 
-ENV JAVA_HOME /opt/java/openjdk
-ENV PATH $JAVA_HOME/bin:$PATH
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
@@ -44,7 +44,7 @@ RUN set -eux; \
     ; \
     microdnf clean all
 
-ENV JAVA_VERSION jdk8u422-b05
+ENV JAVA_VERSION=jdk8u422-b05
 
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
@@ -82,5 +82,5 @@ RUN set -eux; \
     echo "javac -version"; javac -version; \
     echo "java -version"; java -version; \
     echo "Complete."
-COPY entrypoint.sh /__cacert_entrypoint.sh
+COPY --chmod=755 entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

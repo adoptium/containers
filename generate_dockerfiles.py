@@ -55,6 +55,30 @@ def archHelper(arch, os_name):
         return arch
 
 
+def compare_versions(version_str, comparator, reference_version):
+    v1 = int(reference_version)
+    v2 = int(version_str)
+
+    print(f"Comparing {v1} {comparator} {v2}")
+
+    if comparator == ">":
+        return v1 > v2
+    elif comparator == ">=":
+        return v1 >= v2
+    elif comparator == "<":
+        return v1 < v2
+    elif comparator == "<=":
+        return v1 <= v2
+    elif comparator == "==":
+        return v1 == v2
+    elif comparator == "!=":
+        return v1 != v2
+    else:
+        raise ValueError(f"Unknown comparator: {comparator}")
+
+
+env.filters["compare_versions"] = compare_versions
+
 # Remove old Dockerfiles if --force is set
 if args.force:
     # Remove all top level dirs that are numbers
@@ -194,6 +218,5 @@ for os_family, configurations in config["configurations"].items():
                         os.path.join(output_directory, "entrypoint.sh"), "w"
                     ) as out_file:
                         out_file.write(entrypoint)
-                    os.chmod(os.path.join(output_directory, "entrypoint.sh"), 0o755)
 
 print("Dockerfiles generated successfully!")

@@ -28,7 +28,7 @@ RUN set -eux; \
     locale-gen en_US.UTF-8; \
     rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION {{ java_version }}
+{% include 'partials/java-version.j2' %}
 
 {% include 'partials/multi-arch-install.j2' %} \
     # https://github.com/docker-library/openjdk/issues/331#issuecomment-498834472

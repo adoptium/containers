@@ -19,8 +19,8 @@
 
 FROM ubuntu:20.04
 
-ENV JAVA_HOME /opt/java/openjdk
-ENV PATH $JAVA_HOME/bin:$PATH
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
@@ -49,7 +49,7 @@ RUN set -eux; \
     locale-gen en_US.UTF-8; \
     rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION jdk-17.0.12+7
+ENV JAVA_VERSION=jdk-17.0.12+7
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \

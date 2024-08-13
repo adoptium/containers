@@ -65,7 +65,7 @@ if args.force:
 
 
 # Load the YAML configuration
-with open("config/hotspot.yml", "r") as file:
+with open("config/temurin.yml", "r") as file:
     config = yaml.safe_load(file)
 
 # Iterate through OS families and then configurations
@@ -153,6 +153,10 @@ for os_family, configurations in config["configurations"].items():
                 # Sort arch_data by key
                 arch_data = dict(sorted(arch_data.items()))
 
+                # Load the YAML packages config file
+                with open("config/packages.yml", "r") as file:
+                    packages = yaml.safe_load(file)
+
                 # Generate Dockerfile for each architecture
                 rendered_dockerfile = template.render(
                     base_image=base_image,
@@ -162,6 +166,7 @@ for os_family, configurations in config["configurations"].items():
                     arch_data=arch_data,
                     os_family=os_family,
                     os=os_name,
+                    packages=packages,
                 )
 
                 print("Writing Dockerfile to", output_directory)

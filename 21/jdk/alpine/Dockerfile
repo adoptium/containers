@@ -30,21 +30,22 @@ RUN set -eux; \
         # java.lang.UnsatisfiedLinkError: libfontmanager.so: libfreetype.so.6: cannot open shared object file: No such file or directory
         # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
         # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
-        fontconfig ttf-dejavu \
+        fontconfig=2.15.0-r1 ttf-dejavu=2.37-r5 \
         # utilities for keeping Alpine and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
-        ca-certificates p11-kit-trust \
+        ca-certificates=20240705-r0 p11-kit-trust=0.25.3-r0 \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
-        musl-locales musl-locales-lang \
+        musl-locales=0.1.0-r1 musl-locales-lang=0.1.0-r1 \
         # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
         # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
-        binutils \
-        tzdata \
+        binutils=2.37-r0 \
+        tzdata=2024a-r1 \
         # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
         # only import one at a time.
-        coreutils \
+        coreutils=9.5-r1 \
         # Needed to extract CN and generate aliases for certificates
-        openssl \
+        openssl=3.3.1-r3 \
+        \
     ; \
     rm -rf /var/cache/apk/*
 

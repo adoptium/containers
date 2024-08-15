@@ -1,0 +1,77 @@
+name: Mirror Eclipse Temurin to GHCR
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:     # Allows for manual trigger of the action
+
+jobs:
+  mirror-temurin:
+    if: startsWith(github.repository, 'adoptium/')
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
+
+    - name: Log in to GitHub Container Registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Mirror Eclipse Temurin from DockerHub to GHCR
+      run: |
+        set -e
+
+        DOCKERHUB_REPO="eclipse-temurin"
+        PUSH_FLAG="--push"
+
+        function get_platforms() {
+          local images=${1}
+          platforms=""
+          for image in $images; do
+            _jq() {
+              echo "${image}" | base64 --decode | jq -r "${1}"
+            }
+            os=$(_jq '.os')
+            arch=$(_jq '.architecture')
+            variant=$(_jq '.variant')
+            platform="$os/$arch"
+            if [ -n "$variant" ] && [ "$variant" != "null" ]; then
+              platform="$platform/$variant"
+            fi
+            if [ -n "$platforms" ]; then
+              platforms="$platforms,"
+            fi
+            platforms="$platforms$platform"
+          done
+          echo "$platforms"
+        }
+
+        # Get DockerHub Token
+        TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d '{"username": "${{ secrets.DOCKERHUB_USERNAME }}", "password": "${{ secrets.DOCKERHUB_PASSWORD }}"}' https://hub.docker.com/v2/users/login/ | jq -r .token)
+        if [ -z "${TOKEN}" -o "${TOKEN}" == "null" ]; then
+          echo >&2 "error: cannot retrieve DockerHub token"
+          exit 1
+        fi
+
+        # Retrieve Tag List
+        TAG_LIST=$(curl -s -H "Authorization: Bearer ${TOKEN}" "https://registry.hub.docker.com/v2/repositories/library/eclipse-temurin/tags/?page_size=10000" | jq -rc '.results | reverse | .[] | @base64')
+        for TAG in $TAG_LIST; do
+          _jq() {
+            echo "${TAG}" | base64 --decode | jq -r ${1}
+          }
+          TAG_NAME=$(_jq '.name')
+          TAG_IMAGES=$(echo "$(_jq '.images')" | jq -r '.[] | @base64')
+          TAG_PLATFORMS=$(get_platforms "${TAG_IMAGES}")
+
+          echo "::group::Copying ${DOCKERHUB_REPO}:${TAG_NAME} to ghcr.io/${{ github.actor }}/${DOCKERHUB_REPO}:${TAG_NAME}"
+          echo "FROM --platform=\${TARGETPLATFORM:-linux/amd64} ${DOCKERHUB_REPO}:${TAG_NAME}" > Dockerfile.tmp
+
+          docker buildx build \
+            ${PUSH_FLAG} \
+            --platform "${TAG_PLATFORMS}" \
+            --tag "ghcr.io/${{ github.actor }}/${DOCKERHUB_REPO}:${TAG_NAME}" \
+            --file ./Dockerfile.tmp .
+          echo "::endgroup"
+        done

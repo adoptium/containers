@@ -56,22 +56,38 @@ jobs:
         fi
 
         # Retrieve Tag List
-        TAG_LIST=$(curl -s -H "Authorization: Bearer ${TOKEN}" "https://registry.hub.docker.com/v2/repositories/library/eclipse-temurin/tags/?page_size=10000" | jq -rc '.results | reverse | .[] | @base64')
-        for TAG in $TAG_LIST; do
-          _jq() {
-            echo "${TAG}" | base64 --decode | jq -r ${1}
-          }
-          TAG_NAME=$(_jq '.name')
-          TAG_IMAGES=$(echo "$(_jq '.images')" | jq -r '.[] | @base64')
-          TAG_PLATFORMS=$(get_platforms "${TAG_IMAGES}")
+        PAGE=1
+        while : ; do
+          TAG_LIST=$(curl -s -H "Authorization: Bearer ${TOKEN}" "https://registry.hub.docker.com/v2/repositories/library/eclipse-temurin/tags/?page=${PAGE}&page_size=100" | jq -rc '.results | .[] | @base64')
 
-          echo "::group::Copying ${DOCKERHUB_REPO}:${TAG_NAME} to ghcr.io/${{ github.actor }}/${DOCKERHUB_REPO}:${TAG_NAME}"
-          echo "FROM --platform=\${TARGETPLATFORM:-linux/amd64} ${DOCKERHUB_REPO}:${TAG_NAME}" > Dockerfile.tmp
+          if [ -z "$TAG_LIST" ]; then
+            break
+          fi
 
-          docker buildx build \
-            ${PUSH_FLAG} \
-            --platform "${TAG_PLATFORMS}" \
-            --tag "ghcr.io/${{ github.actor }}/${DOCKERHUB_REPO}:${TAG_NAME}" \
-            --file ./Dockerfile.tmp .
-          echo "::endgroup"
+          for TAG in $TAG_LIST; do
+            _jq() {
+              echo "${TAG}" | base64 --decode | jq -r ${1}
+            }
+            TAG_NAME=$(_jq '.name')
+            TAG_IMAGES=$(echo "$(_jq '.images')" | jq -r '.[] | @base64')
+            TAG_PLATFORMS=$(get_platforms "${TAG_IMAGES}")
+
+            echo "::group::Copying ${DOCKERHUB_REPO}:${TAG_NAME} to ghcr.io/${{ github.actor }}/${DOCKERHUB_REPO}:${TAG_NAME}"
+            echo "FROM --platform=\${TARGETPLATFORM:-linux/amd64} ${DOCKERHUB_REPO}:${TAG_NAME}" > Dockerfile.tmp
+
+            docker buildx build \
+              ${PUSH_FLAG} \
+              --platform "${TAG_PLATFORMS}" \
+              --tag "ghcr.io/${{ github.actor }}/${DOCKERHUB_REPO}:${TAG_NAME}" \
+              --file ./Dockerfile.tmp .
+            echo "::endgroup"
+          done
+
+          # Check if there is a next page
+          NEXT_PAGE=$(curl -s -H "Authorization: Bearer ${TOKEN}" "https://registry.hub.docker.com/v2/repositories/library/eclipse-temurin/tags/?page=${PAGE}&page_size=100" | jq -r '.next')
+          if [ "${NEXT_PAGE}" == "null" ]; then
+            break
+          fi
+
+          PAGE=$((PAGE+1))
         done

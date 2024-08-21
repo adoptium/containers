@@ -175,12 +175,19 @@ for os_family, configurations in config["configurations"].items():
                     # Entrypoint is currently only needed for CA certificate handling, which is not (yet)
                     # available on Windows
 
-                    # Copy entrypoint.sh to output directory
-                    entrypoint_path = os.path.join("docker_templates", "entrypoint.sh")
+                    # Generate entrypoint.sh
+                    template_entrypoint_file = "entrypoint.sh.j2"
+                    template_entrypoint = env.get_template(template_entrypoint_file)
 
-                    if os.path.exists(entrypoint_path):
-                        os.system(
-                            f"cp {entrypoint_path} {os.path.join(output_directory, 'entrypoint.sh')}"
-                        )
+                    entrypoint = template_entrypoint.render(
+                        image_type=image_type,
+                        os=os_name,
+                        version=version,
+                    )
+
+                    with open(
+                        os.path.join(output_directory, "entrypoint.sh"), "w"
+                    ) as out_file:
+                        out_file.write(entrypoint)
 
 print("Dockerfiles generated successfully!")

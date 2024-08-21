@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
+#             NOTE: THIS FILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -19,8 +19,8 @@
 
 FROM alpine:3.20
 
-ENV JAVA_HOME /opt/java/openjdk
-ENV PATH $JAVA_HOME/bin:$PATH
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Default to UTF-8 file.encoding
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
@@ -37,21 +37,26 @@ RUN set -eux; \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         musl-locales musl-locales-lang \
         tzdata \
+        # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
+        # only import one at a time.
+        coreutils \
+        # Needed to extract CN and generate aliases for certificates
+        openssl \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION jdk-22.0.1+8
+ENV JAVA_VERSION=jdk-22.0.2+9
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        aarch64) \
-         ESUM='6cac56dde6793d887deea101cfff283dc5f285e1118c21cbd1c4cb69f1072e55'; \
-         BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.1%2B8/OpenJDK22U-jre_aarch64_alpine-linux_hotspot_22.0.1_8.tar.gz'; \
+         ESUM='749e7372a7dba0de632592fe55a0e387d96922c84dcdc039e0efc1f7ecfcd70e'; \
+         BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.2%2B9/OpenJDK22U-jre_aarch64_alpine-linux_hotspot_22.0.2_9.tar.gz'; \
          ;; \
        x86_64) \
-         ESUM='e7c26ad00e3ded356b8c4b20b184ccf5bd63ccdccabde8d4a892389f178f1d5b'; \
-         BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.1%2B8/OpenJDK22U-jre_x64_alpine-linux_hotspot_22.0.1_8.tar.gz'; \
+         ESUM='459342f5210cfd185aeed05abdc052fcd61cf6ff066541919b786236d69c5737'; \
+         BINARY_URL='https://github.com/adoptium/temurin22-binaries/releases/download/jdk-22.0.2%2B9/OpenJDK22U-jre_x64_alpine-linux_hotspot_22.0.2_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
@@ -73,5 +78,5 @@ RUN set -eux; \
     echo "Verifying install ..."; \
     echo "java --version"; java --version; \
     echo "Complete."
-COPY entrypoint.sh /__cacert_entrypoint.sh
+COPY --chmod=755 entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]

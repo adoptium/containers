@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-#               NOTE: THIS DOCKERFILE IS GENERATED VIA "generate_dockerfiles.py"
+#             NOTE: THIS FILE IS GENERATED VIA "generate_dockerfiles.py"
 #
 #                       PLEASE DO NOT EDIT IT DIRECTLY.
 # ------------------------------------------------------------------------------
@@ -21,7 +21,7 @@ FROM mcr.microsoft.com/windows/nanoserver:1809
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION jdk-11.0.23+9
+ENV JAVA_VERSION=jdk-11.0.24+8
 
 ENV JAVA_HOME C:\\openjdk-11
 # "ERROR: Access to the registry path is denied."
@@ -31,7 +31,7 @@ RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
     && echo Complete.
 USER ContainerUser
 
-COPY --from=eclipse-temurin:11.0.23_9-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
+COPY --from=eclipse-temurin:11.0.24_8-jdk-windowsservercore-1809 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
     && echo javac --version && javac --version \

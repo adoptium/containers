@@ -19,19 +19,23 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: read-all
 
 jobs:
   # Check if the pull request target branch matches the required branch-regex?
   codefreeze_branch_check:
+    permissions:
+      contents: write
+      pull-requests: write
     uses: adoptium/.github/.github/workflows/code-freeze-regex-branch.yml@main
     with:
       branch-regex: "^main$"
 
   # Code freeze if branch-regex matches
   codefreeze_if_branch_match:
+    permissions:
+      contents: write
+      pull-requests: write
     needs: codefreeze_branch_check
     uses: adoptium/.github/.github/workflows/code-freeze.yml@main
     if: (github.event_name == 'pull_request_target' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)) && needs.codefreeze_branch_check.outputs.regex-matches == 'true'

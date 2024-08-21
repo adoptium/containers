@@ -20,25 +20,19 @@ configurations:
   linux:
   - directory: ubuntu/noble
     image: ubuntu:24.04
-    architectures: [aarch64, arm, ppc64le, s390x, x64]
-    # `bash` is required for Ubuntu-based images to correctly resolve
-    # environment variables.with.dots.in.them.
+    architectures: [aarch64, arm, ppc64le, riscv64, s390x, x64]
     os: ubuntu
   
   - directory: ubuntu/jammy
     image: ubuntu:22.04
     architectures: [aarch64, arm, ppc64le, s390x, x64]
     deprecated: 23
-    # `bash` is required for Ubuntu-based images to correctly resolve
-    # environment variables.with.dots.in.them.
     os: ubuntu
 
   - directory: ubuntu/focal
     architectures: [aarch64, arm, ppc64le, s390x, x64]
     image: ubuntu:20.04
     deprecated: 20
-    # `bash` is required for Ubuntu-based images to correctly resolve
-    # environment variables.with.dots.in.them.
     os: ubuntu
 
   - directory: ubi/ubi9-minimal

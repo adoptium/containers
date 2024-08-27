@@ -72,8 +72,18 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         csplit -s -z -b %02d.crt -f "$tmp_dir/$BASENAME-" "$i" '/-----BEGIN CERTIFICATE-----/' '{*}'
 
         for crt in "$tmp_dir/$BASENAME"-*; do
-            # Create an alias for the certificate
-            ALIAS=$(openssl x509 -in "$crt" -noout -subject -nameopt -space_eq | sed -n 's/^.*CN=\([^,]*\).*$/\1/p')
+            # Extract the Common Name (CN) and Serial Number from the certificate
+            CN=$(openssl x509 -in "$crt" -noout -subject -nameopt -space_eq | sed -n 's/^.*CN=\([^,]*\).*$/\1/p')
+            SERIAL=$(openssl x509 -in "$crt" -noout -serial | sed -n 's/^serial=\(.*\)$/\1/p')
+            
+            # Check if an alias with the CN already exists in the keystore
+            ALIAS=$CN
+            if keytool -list -keystore "$JRE_CACERTS_PATH" -storepass changeit -alias "$ALIAS" >/dev/null 2>&1; then
+                # If the CN already exists, append the serial number to the alias
+                ALIAS="${CN}_${SERIAL}"
+            fi
+
+            echo "Adding certificate with alias $ALIAS to the JVM truststore"
 
             # Add the certificate to the JVM truststore
             keytool -import -noprompt -alias "$ALIAS" -file "$crt" -keystore "$JRE_CACERTS_PATH" -storepass changeit >/dev/null

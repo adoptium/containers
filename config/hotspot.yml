@@ -14,7 +14,7 @@
 
 supported_distributions:
   OS: [alpine, focal, jammy, noble, ubi9-minimal, windowsservercore-1809, nanoserver-1809, windowsservercore-ltsc2022, nanoserver-ltsc2022]
-  Versions: [8, 11, 17, 21, 22]
+  Versions: [8, 11, 17, 21, 23]
 
 configurations:
   linux:

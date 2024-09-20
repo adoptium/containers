@@ -29,6 +29,10 @@ USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
     && setx /M PATH %JAVA_HOME%\bin;%PATH% \
     && echo Complete.
+# Copy kernel32.dll from C:\Windows\System32\forwarders to C:\Windows\System32
+RUN copy C:\Windows\System32\forwarders\kernel32.dll C:\Windows\System32\kernel32.dll
+RUN copy C:\Windows\System32\forwarders\shell32.dll C:\Windows\System32\shell32.dll
+RUN copy C:\Windows\System32\forwarders\advapi32.dll C:\Windows\System32\advapi32.dll
 USER ContainerUser
 
 COPY --from=eclipse-temurin:23_37-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME

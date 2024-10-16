@@ -44,26 +44,14 @@ RUN set -eux; \
     ; \
     microdnf clean all
 
-ENV JAVA_VERSION=jdk-21.0.4+7
+ENV JAVA_VERSION=jdk-21.0.5+11
 
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
        aarch64) \
-         ESUM='58845ce4275f3ec74fba075597c8216bb201773da036c4703be8b7b7b457355d'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.4_7.tar.gz'; \
-         ;; \
-       ppc64le) \
-         ESUM='46cf93653e2b553fb1c91760cfe2ff20999ba358d648d2df69e5948784768440'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jre_ppc64le_linux_hotspot_21.0.4_7.tar.gz'; \
-         ;; \
-       s390x) \
-         ESUM='7fb5b09987cb41de5118fecb5a81771b3a38a245cff411b39af33dbfbca3e760'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jre_s390x_linux_hotspot_21.0.4_7.tar.gz'; \
-         ;; \
-       x86_64) \
-         ESUM='d3affbb011ca6c722948f6345d15eba09bded33f9947d4d67e09723e2518c12a'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jre_x64_linux_hotspot_21.0.4_7.tar.gz'; \
+         ESUM='e4d02c33aeaf8e1148c1c505e129a709c5bc1889e855d4fb4f001b1780db42b4'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.5_11.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

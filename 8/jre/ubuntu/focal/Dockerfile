@@ -46,30 +46,14 @@ RUN set -eux; \
     locale-gen en_US.UTF-8; \
     rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION=jdk8u422-b05
+ENV JAVA_VERSION=jdk8u432-b06
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        amd64) \
-         ESUM='0ac516cc1eadffb4cd3cfc9736a33d58ea6a396bf85729036c973482f7c063d9'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_x64_linux_hotspot_8u422b05.tar.gz'; \
-         ;; \
-       arm64) \
-         ESUM='8fbefff2c578f73d95118d830347589ddc9aa84510200a5a5001901c2dea4810'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_aarch64_linux_hotspot_8u422b05.tar.gz'; \
-         ;; \
-       armhf) \
-         ESUM='13bdefdeae6f18bc9c87bba18c853b8b12c5442ce07ff0a3956ce28776d695ff'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_arm_linux_hotspot_8u422b05.tar.gz'; \
-         # Fixes libatomic.so.1: cannot open shared object file
-         apt-get update; \
-         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1; \
-         rm -rf /var/lib/apt/lists/*; \
-         ;; \
-       ppc64el) \
-         ESUM='2991edbedee448c0f1edf131beca84b415dac64ea97365b9bfd85bc2f39893bb'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_ppc64le_linux_hotspot_8u422b05.tar.gz'; \
+         ESUM='bb8c8cc575b69e68e12a213674ec2e3848baff4f1955d2973d98e67666ab94d7'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u432-b06/OpenJDK8U-jre_x64_linux_hotspot_8u432b06.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

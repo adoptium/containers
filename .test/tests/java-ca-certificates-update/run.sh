@@ -10,7 +10,7 @@ CMD1=date
 
 # CMD2 in each run is to check for the `dockerbuilder` certificate in the Java keystore. Entrypoint export $CACERT to
 # point to the Java keystore.
-CMD2=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\"  -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder2")
+CMD2=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder2")
 
 # For a custom entrypoint test, we need to create a new image. This image will get cleaned up at the end of the script
 # by the `finish` trap function.
@@ -75,6 +75,14 @@ echo -n $?
 docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" "${CMD2[@]}" >&/dev/null
 echo -n $?
 
+# Test run 7: Two certificates with the same CN are mounted and the environment variable is set. 
+# We expect both CMD1 to succeed and CMD2 to find both certificates.
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_duplicate_cn:/certificates "$1" $CMD1 >&/dev/null
+echo -n $?
+CMD3=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder_02")
+docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_duplicate_cn:/certificates "$1" "${CMD3[@]}" >&/dev/null
+echo -n $?
+
 #
 # PHASE 2: Non-root containers
 #
@@ -118,4 +126,12 @@ echo -n $?
 docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" $CMD1 >&/dev/null
 echo -n $?
 docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs:/certificates "$TESTIMAGE" "${CMD2[@]}" >&/dev/null
+echo -n $?
+
+# Test run 7: Two certificates with the same CN are mounted and the environment variable is set. 
+# We expect both CMD1 to succeed and CMD2 to find both certificates.
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_duplicate_cn:/certificates "$1" $CMD1 >&/dev/null
+echo -n $?
+CMD3=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder_02")
+docker run --read-only --user 1000:1000 -v /tmp --rm -e USE_SYSTEM_CA_CERTS=1 --volume=$testDir/certs_duplicate_cn:/certificates "$1" "${CMD3[@]}" >&/dev/null
 echo -n $?

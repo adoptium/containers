@@ -31,6 +31,8 @@ RUN set -eux; \
         # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
         # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
         fontconfig ttf-dejavu \
+        # gnupg required to verify the signature
+        gnupg \
         # utilities for keeping Alpine and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
         ca-certificates p11-kit-trust \
@@ -63,6 +65,12 @@ RUN set -eux; \
          ;; \
     esac; \
     wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
+    export GNUPGHOME="$(mktemp -d)"; \
+    # gpg: key 843C48A565F8F04B: "Adoptium GPG Key (DEB/RPM Signing Key) <temurin-dev@eclipse.org>" imported
+    gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 3B04D753C9050D9A5D343F39843C48A565F8F04B; \
+    gpg --batch --verify /tmp/openjdk.tar.gz.sig /tmp/openjdk.tar.gz; \
+    rm -r "$GNUPGHOME" /tmp/openjdk.tar.gz.sig; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \

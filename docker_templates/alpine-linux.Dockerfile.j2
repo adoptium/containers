@@ -10,6 +10,8 @@ RUN set -eux; \
         # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
         # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
         fontconfig ttf-dejavu \
+        # gnupg required to verify the signature
+        gnupg \
         # utilities for keeping Alpine and OpenJDK CA certificates in sync
         # https://github.com/adoptium/containers/issues/293
         ca-certificates p11-kit-trust \

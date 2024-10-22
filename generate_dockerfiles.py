@@ -65,7 +65,7 @@ if args.force:
 
 
 # Load the YAML configuration
-with open("config/hotspot.yml", "r") as file:
+with open("config/temurin.yml", "r") as file:
     config = yaml.safe_load(file)
 
 # Iterate through OS families and then configurations
@@ -82,10 +82,13 @@ for os_family, configurations in config["configurations"].items():
 
         # Define the path for the template based on OS
         template_name = f"{os_name}.Dockerfile.j2"
-        template = env.get_template(template_name)
 
         # Create output directories if they don't exist
         for version in versions:
+        # For JDK24+ use multistage build
+            if version >= 24 and os_family != "windows":
+                template_name = f"{os_name}.multistage.Dockerfile.j2"
+            template = env.get_template(template_name)
             # if deprecated is set and version is greater than or equal to deprecated, skip
             if deprecated and version >= deprecated:
                 continue

@@ -85,7 +85,7 @@ for os_family, configurations in config["configurations"].items():
 
         # Create output directories if they don't exist
         for version in versions:
-        # For JDK24+ use multistage build
+            # For JDK24+ use multistage build
             if version >= 24 and os_family != "windows":
                 template_name = f"{os_name}.multistage.Dockerfile.j2"
             template = env.get_template(template_name)

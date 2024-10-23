@@ -67,6 +67,10 @@ RUN set -eux; \
          ESUM='cf65a926c2d7cbdbaa63242a8d20ce747335e7260eaaabd7bb52d51c099fda9a'; \
          BINARY_URL='https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_riscv64_linux_hotspot_23.0.1_11.tar.gz'; \
          ;; \
+       s390x) \
+         ESUM='d1d46933716a0eb5a6385980fa98c858c90e72bdc6d14b88d25b20980c5bc7f9'; \
+         BINARY_URL='https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jre_s390x_linux_hotspot_23.0.1_11.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

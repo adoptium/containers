@@ -61,6 +61,14 @@ RUN set -eux; \
          ESUM='786522da4c761104dd8274c81edc90126a25acaafbbbc5da886b3fb51f33cba2'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u432-b06/OpenJDK8U-jre_aarch64_linux_hotspot_8u432b06.tar.gz'; \
          ;; \
+       armhf) \
+         ESUM='49894dbe2f915dfad026cf7b4013118c0284e88359172499b1b25a4dac195ff1'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u432-b06/OpenJDK8U-jre_arm_linux_hotspot_8u432b06.tar.gz'; \
+         # Fixes libatomic.so.1: cannot open shared object file
+         apt-get update; \
+         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1; \
+         rm -rf /var/lib/apt/lists/*; \
+         ;; \
        ppc64el) \
          ESUM='c573f33f9e5ba49a4838847d0d34efc9c1dc57a9ba71b926599530bbcda87f65'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u432-b06/OpenJDK8U-jre_ppc64le_linux_hotspot_8u432b06.tar.gz'; \

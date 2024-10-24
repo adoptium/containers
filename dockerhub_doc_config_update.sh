@@ -41,14 +41,12 @@ oses="alpine ubuntu ubi windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsse
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="noble"
 
-git_repo="https://github.com/adoptium/containers/blob/master"
-
 # Get the latest git commit of the current repo.
 # This is assumed to have all the latest dockerfiles already.
 gitcommit=$(git log | head -1 | awk '{ print $2 }')
 
 print_official_text() {
-	echo "$*" >> ${official_docker_image_file}
+	echo "$*" >> "${official_docker_image_file}"
 }
 
 print_official_header() {
@@ -71,9 +69,9 @@ function generate_official_image_tags() {
 	ojdk_version=${ojdk_version//+/_}
 	
 	case $os in
-		"ubuntu") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
-		"ubi") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
-		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
+		"ubuntu") distro=$(echo "$dfdir" | awk -F '/' '{ print $4 }' ) ;;
+		"ubi") distro=$(echo "$dfdir" | awk -F '/' '{ print $4 }' ) ;;
+		"windows") distro=$(echo "$dfdir" | awk -F '/' '{ print $4 }' ) ;;
 		*) distro=$os;;
 	esac
 
@@ -82,10 +80,8 @@ function generate_official_image_tags() {
 	# 8u212-jdk
 	full_ver_tag="${ojdk_version}-${pkg}"
 
-	unset extra_shared_tags extra_ver_tags
+	unset extra_shared_tags
 	full_ver_tag="${full_ver_tag}-${distro}"
-	# Commented out as this added the -hotspot tag which we don't need for temurin
-	# extra_ver_tags=", ${ver}-${pkg}"
 	
 	ver_tag="${ver}-${pkg}-${distro}"
 	all_tags="${full_ver_tag}, ${ver_tag}"
@@ -94,7 +90,6 @@ function generate_official_image_tags() {
 		jdk_tag="${ver}-${distro}"
 		all_tags="${all_tags}, ${jdk_tag}"
 		# make "eclipse-temurin:latest" point to newest supported JDK
-		# shellcheck disable=SC2154
 		if [ "${ver}" == "${latest_version}" ]; then
 			if [ "${vm}" == "hotspot" ]; then
 				extra_shared_tags=", latest"
@@ -103,11 +98,12 @@ function generate_official_image_tags() {
 	fi
 	
 	unset windows_shared_tags
-	shared_tags=$(echo ${all_tags} | sed "s/-$distro//g")
-	if [ $os == "windows" ]; then
-		windows_version=$(echo $distro | awk -F '-' '{ print $1 }' )
-		windows_version_number=$(echo $distro | awk -F '-' '{ print $2 }' )
-		windows_shared_tags=$(echo ${all_tags} | sed "s/$distro/$windows_version/g")
+	shared_tags="${all_tags//-$distro/}"
+
+	if [ "$os" == "windows" ]; then
+		windows_version=$(echo "$distro" | awk -F '-' '{ print $1 }' )
+		windows_version_number=$(echo "$distro" | awk -F '-' '{ print $2 }' )
+		windows_shared_tags="${all_tags//$distro/$windows_version}"
 		case $distro in
 			nanoserver*) 
 				constraints="${distro}, windowsservercore-${windows_version_number}"
@@ -115,31 +111,32 @@ function generate_official_image_tags() {
 				;;
 			*) 
 				constraints="${distro}"
-				all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_ver_tags}${extra_shared_tags}"
+				all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_shared_tags}"
 				;;
 		esac
 	else
-	all_shared_tags="${shared_tags}${extra_ver_tags}${extra_shared_tags}"
+	all_shared_tags="${shared_tags}${extra_shared_tags}"
 	fi
 }
 
 function generate_official_image_arches() {
 	# Generate the supported arches for the above tags.
-	# Official images supports amd64, arm64vX, s390x, ppc64le amd windows-amd64
-	if [ $os == "windows" ]; then
+	# Official images support amd64, arm64vX, s390x, ppc64le, and windows-amd64
+	if [ "$os" == "windows" ]; then
 		arches="windows-amd64"
 	else
 		# shellcheck disable=SC2046,SC2005,SC1003,SC2086,SC2063
 		arches=$(echo $(grep ') \\' ${file} | grep -v "*" | sed 's/) \\//g; s/|//g'))
-		arches=$(echo ${arches} | sed 's/x86_64/amd64/g') # replace x86_64 with amd64
-		arches=$(echo ${arches} | sed 's/ppc64el/ppc64le/g') # replace ppc64el with ppc64le
-		arches=$(echo ${arches} | sed 's/arm64/arm64v8/g') # replace arm64 with arm64v8
-		arches=$(echo ${arches} | sed 's/aarch64/arm64v8/g') # replace aarch64 with arm64v8
-		arches=$(echo ${arches} | sed 's/armhf/arm32v7/g') # replace armhf with arm32v7
+		arches="${arches//x86_64/amd64}" # replace x86_64 with amd64
+		arches="${arches//ppc64el/ppc64le}" # replace ppc64el with ppc64le
+		arches="${arches//arm64/arm64v8}" # replace arm64 with arm64v8
+		arches="${arches//aarch64/arm64v8}" # replace aarch64 with arm64v8
+		arches="${arches//armhf/arm32v7}" # replace armhf with arm32v7
 		# sort arches alphabetically
-		arches=$(echo ${arches} | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ /, /g' | sed 's/, $//')
+		arches=$(echo "${arches}" | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ /, /g' | sed 's/, $//')
 	fi
 }
+
 
 function print_official_image_file() {
 	# Retrieve the latest manifest block
@@ -178,15 +175,15 @@ function print_official_image_file() {
 	  echo "Architectures: ${arches}"
 	  echo "GitCommit: ${commit}"
 	  echo "Directory: ${dfdir}"
-	  if [ $os == "windows" ]; then
+	  if [ "$os" == "windows" ]; then
 	  	echo "Builder: classic"
 		echo "Constraints: ${constraints}"
 	  fi
 	  echo ""
-	} >> ${official_docker_image_file}
+	} >> "${official_docker_image_file}"
 }
 
-rm -f ${official_docker_image_file}
+rm -f "${official_docker_image_file}"
 print_official_header
 
 official_os_ignore_array=(clefos debian debianslim leap tumbleweed)
@@ -201,7 +198,7 @@ function generate_official_image_info() {
 		fi
 	done
 	if [ "${os}" == "windows" ]; then
-		distro=$(echo $dfdir | awk -F '/' '{ print $4 }' )
+		distro=$(echo "$dfdir" | awk -F '/' '{ print $4 }' )
 		# 20h2 and 1909 is not supported upstream
 		if [[ "${distro}" == "windowsservercore-20h2" ]] || [[ "${distro}" == "windowsservercore-1909" ]] || [[ "${distro}" == "windowsservercore-ltsc2019" ]] ; then
 			return;
@@ -209,10 +206,6 @@ function generate_official_image_info() {
 		if [[ "${distro}" == "nanoserver-20h2" ]] || [[ "${distro}" == "nanoserver-1909" ]]; then
 			return;
 		fi
-	fi
-	# We do not push our nightly and slim images either.
-	if [ "${build}" == "nightly" ] || [ "${btype}" == "slim" ]; then
-		return;
 	fi
 
 	generate_official_image_tags
@@ -239,14 +232,8 @@ do
 					# dockerfile name
 					dfname=$(basename "${file}")
 					# dockerfile dir
-					dfdir=$(dirname $file | cut -c 3-)
+					dfdir=$(dirname "${file}" | cut -c 3-)
 					os=$(echo "${file}" | awk -F '/' '{ print $4 }')
-					# build = release or nightly
-					# build=$(echo "${dfname}" | awk -F "." '{ print $3 }')
-					build="release"
-					# btype = full or slim
-					# btype=$(echo "${dfname}" | awk -F "." '{ print $4 }')
-					build="full"
 					generate_official_image_info
 				done
 			done

@@ -85,7 +85,7 @@ RUN set -eux; \
         --strip-components 1 \
         --no-same-owner \
     ; \
-    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
+    rm -f /tmp/openjdk.tar.gz;
 
 RUN set -eux; \
     echo "Verifying install ..."; \

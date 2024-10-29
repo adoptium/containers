@@ -33,4 +33,8 @@ RUN set -eux; \
         --strip-components 1 \
         --no-same-owner \
     ; \
-    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
+    {%- if version|int == 8 %}
+    rm -f /tmp/openjdk.tar.gz{% if image_type == "jdk" %} ${JAVA_HOME}/src.zip{% endif %};
+    {%- else %}
+    rm -f /tmp/openjdk.tar.gz{% if image_type == "jdk" %} ${JAVA_HOME}/lib/src.zip{% endif %};
+    {%- endif %}

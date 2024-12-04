@@ -1,0 +1,72 @@
+# ********************************************************************************
+# Copyright (c) 2020 Contributors to the Eclipse Foundation
+#
+# See the NOTICE file(s) with this work for additional
+# information regarding copyright ownership.
+#
+# This program and the accompanying materials are made
+# available under the terms of the Apache Software License 2.0
+# which is available at https://www.apache.org/licenses/LICENSE-2.0.
+#
+# SPDX-License-Identifier: Apache-2.0
+# ********************************************************************************
+
+---
+    ###########################
+    ###########################
+    ## Linter GitHub Actions ##
+    ###########################
+    ###########################
+    name: Linter
+    
+    #
+    # Documentation:
+    # https://help.github.com/en/articles/workflow-syntax-for-github-actions
+    #
+    
+    #############################
+    # Start the job on all push #
+    #############################
+    on:
+      pull_request:
+        branches: [ main ]
+    
+    ###############
+    # Set the Job #
+    ###############
+    permissions:
+      contents: read
+    
+    jobs:
+      linter:
+        permissions:
+          contents: read  # for actions/checkout to fetch code
+          statuses: write  # for github/super-linter to mark status of each linter run
+        # Name the Job
+        name: Lint Code Base
+        # Set the agent to run on
+        runs-on: ubuntu-latest
+    
+        ##################
+        # Load all steps #
+        ##################
+        steps:
+          ##########################
+          # Checkout the code base #
+          ##########################
+          - name: Checkout Code
+            uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+            with:
+              # Full git history is needed to get a proper list of changed files within `super-linter`
+              fetch-depth: 0
+    
+          ################################
+          # Run Linter against code base #
+          ################################
+          - name: Lint Code Base
+            uses: github/super-linter@45fc0d88288beee4701c62761281edfee85655d7 # v5.0.0
+            env:
+              VALIDATE_ALL_CODEBASE: true
+              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              # Markdown lint complains about the issue templates
+              FILTER_REGEX_EXCLUDE: .github/ISSUE_TEMPLATE/*

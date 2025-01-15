@@ -71,3 +71,13 @@ configurations:
     architectures: [x64]
     image: mcr.microsoft.com/windows/nanoserver:ltsc2022
     os: nanoserver
+
+  - directory: windows/windowsservercore-ltsc2025
+    architectures: [x64]
+    image: mcr.microsoft.com/windows/servercore:ltsc2025
+    os: servercore
+
+  - directory: windows/nanoserver-ltsc2025
+    architectures: [x64]
+    image: mcr.microsoft.com/windows/nanoserver:ltsc2025
+    os: nanoserver

@@ -38,6 +38,9 @@ RUN set -eux; \
         ca-certificates p11-kit-trust \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         musl-locales musl-locales-lang \
+        # jlink --strip-debug on 13+ needs objcopy: https://github.com/docker-library/openjdk/issues/351
+        # Error: java.io.IOException: Cannot run program "objcopy": error=2, No such file or directory
+        binutils \
         tzdata \
         # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
         # only import one at a time.
@@ -53,12 +56,12 @@ RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        aarch64) \
-         ESUM='12b988a3d934e3eb89c6a981a93f8e2adf0a62cc9030487dee76c0c29b93714d'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_aarch64_alpine-linux_hotspot_21.0.5_11.tar.gz'; \
+         ESUM='f22e32b869dd0e5e3f248646f62bffaa307b360299488ac8764e622923d7e747'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_aarch64_alpine-linux_hotspot_21.0.5_11.tar.gz'; \
          ;; \
        x86_64) \
-         ESUM='2dfa33fb8e9474e6967c6cf17964abb5ddce9c17fa6a9f8d7aa221a0ae295df9'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_alpine-linux_hotspot_21.0.5_11.tar.gz'; \
+         ESUM='8da7da49101d45f646272616f20e8b10d57472bbf5961d64ffb07d7ba93c6909'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_x64_alpine-linux_hotspot_21.0.5_11.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
@@ -71,7 +74,7 @@ RUN set -eux; \
     # gpg: key 843C48A565F8F04B: "Adoptium GPG Key (DEB/RPM Signing Key) <temurin-dev@eclipse.org>" imported
     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 3B04D753C9050D9A5D343F39843C48A565F8F04B; \
     gpg --batch --verify /tmp/openjdk.tar.gz.sig /tmp/openjdk.tar.gz; \
-    rm -r "${GNUPGHOME}" /tmp/openjdk.tar.gz.sig; \
+    rm -rf "${GNUPGHOME}" /tmp/openjdk.tar.gz.sig; \
     echo "${ESUM} */tmp/openjdk.tar.gz" | sha256sum -c -; \
     mkdir -p "$JAVA_HOME"; \
     tar --extract \
@@ -80,11 +83,15 @@ RUN set -eux; \
         --strip-components 1 \
         --no-same-owner \
     ; \
-    rm -f /tmp/openjdk.tar.gz;
+    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
 
 RUN set -eux; \
     echo "Verifying install ..."; \
+    fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
+    echo "javac --version"; javac --version; \
     echo "java --version"; java --version; \
     echo "Complete."
 COPY --chmod=755 entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]
+
+CMD ["jshell"]

@@ -41,7 +41,12 @@ configurations:
     os: ubi9-minimal
     
   alpine-linux:
-  - directory: alpine
+  - directory: alpine/3.21
+    architectures: [aarch64, x64]
+    image: alpine:3.21
+    os: alpine-linux
+
+  - directory: alpine/3.20
     architectures: [aarch64, x64]
     image: alpine:3.20
     os: alpine-linux

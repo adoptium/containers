@@ -40,8 +40,7 @@ wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-lib
 oses="alpine ubuntu ubi windowsservercore-ltsc2022 nanoserver-ltsc2022 windowsservercore-1809 nanoserver-1809"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="noble"
-
-git_repo="https://github.com/adoptium/containers/blob/master"
+default_alpine_image=alpine-3.21
 
 # Get the latest git commit of the current repo.
 # This is assumed to have all the latest dockerfiles already.
@@ -71,6 +70,7 @@ function generate_official_image_tags() {
 	ojdk_version=${ojdk_version//+/_}
 	
 	case $os in
+		"alpine") distro="alpine-"$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		"ubuntu") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		"ubi") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
 		"windows") distro=$(echo $dfdir | awk -F '/' '{ print $4 }' ) ;;
@@ -115,11 +115,11 @@ function generate_official_image_tags() {
 				;;
 			*) 
 				constraints="${distro}"
-				all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_ver_tags}${extra_shared_tags}"
+				all_shared_tags="${windows_shared_tags}, ${shared_tags}${extra_shared_tags}"
 				;;
 		esac
 	else
-	all_shared_tags="${shared_tags}${extra_ver_tags}${extra_shared_tags}"
+	all_shared_tags="${shared_tags}${extra_shared_tags}"
 	fi
 }
 
@@ -172,7 +172,11 @@ function print_official_image_file() {
 	# Print them all
 	{
 	  echo "Tags: ${all_tags}"
-	  if [[ "${os}" == "windows" ]] || [[ "${distro}" == "${default_linux_image}" ]]; then
+	  if [[ "${os}" == "windows" ]] || [[ "${distro}" == "${default_linux_image}" ]] || [[ "${distro}" == "${default_alpine_image}" ]]; then
+	  	if [[ ${os} == "alpine" ]]; then
+			# Append -alpine to each shared tag
+			all_shared_tags="${all_shared_tags//, /-alpine, }-alpine"
+		fi
 	  	echo "SharedTags: ${all_shared_tags}"
 	  fi
 	  echo "Architectures: ${arches}"

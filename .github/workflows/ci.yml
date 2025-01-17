@@ -4,6 +4,7 @@ on:
     paths:
       - generate_dockerfiles.py
       - test_generate_dockerfiles.py
+      - requirements.txt
     branches: [ main ]
 
 permissions:

@@ -1,0 +1,2 @@
+/*/**/Dockerfile linguist-generated
+docker_templates/*Dockerfile.j2 linguist-language=Dockerfile

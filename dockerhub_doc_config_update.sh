@@ -96,7 +96,7 @@ function generate_official_image_tags() {
 		# make "eclipse-temurin:latest" point to newest supported JDK
 		# shellcheck disable=SC2154
 		if [ "${ver}" == "${latest_version}" ]; then
-			if [ "${vm}" == "hotspot" ]; then
+			if [ "${vm}" == "hotspot" ] && [ "${os}" != "alpine" ]; then
 				extra_shared_tags=", latest"
 			fi
 		fi

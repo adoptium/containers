@@ -2,7 +2,10 @@ name: Jinja CI
 on:
   pull_request:
     paths:
+      - .github/workflows/ci.yml
+      - dockerhub_doc_config_update.py
       - generate_dockerfiles.py
+      - test_dockerhub_doc_config_update.py
       - test_generate_dockerfiles.py
       - requirements.txt
     branches: [ main ]
@@ -23,5 +26,8 @@ jobs:
       - name: Install dependencies
         run: "pip3 install -r requirements.txt"
 
-      - name: Run tests
+      - name: Run test_generate_dockerfiles
         run: "python3 test_generate_dockerfiles.py"
+
+      - name: Run test_dockerhub_doc_config_update
+        run: "python3 test_dockerhub_doc_config_update.py"

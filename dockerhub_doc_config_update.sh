@@ -171,12 +171,12 @@ function print_official_image_file() {
 
 	# Print them all
 	{
+	  if [[ "${distro}" == "${default_alpine_image}" ]]; then
+		# Append -alpine to each shared tag
+		all_tags="${all_tags}, ${all_shared_tags//, /-alpine, }-alpine"
+	  fi
 	  echo "Tags: ${all_tags}"
-	  if [[ "${os}" == "windows" ]] || [[ "${distro}" == "${default_linux_image}" ]] || [[ "${distro}" == "${default_alpine_image}" ]]; then
-	  	if [[ ${os} == "alpine" ]]; then
-			# Append -alpine to each shared tag
-			all_shared_tags="${all_shared_tags//, /-alpine, }-alpine"
-		fi
+	  if [[ "${os}" == "windows" ]] || [[ "${distro}" == "${default_linux_image}" ]]; then
 	  	echo "SharedTags: ${all_shared_tags}"
 	  fi
 	  echo "Architectures: ${arches}"

@@ -187,8 +187,21 @@ def generate_official_image_info(file, ver, pkg, os, dfdir):
     # Fetch the latest manifest block
     official_manifest = Path("official-eclipse-temurin").read_text()
     official_gitcommit = ""
-    if any(tag in official_manifest for tag in tags):
-        official_gitcommit = official_manifest.split("GitCommit: ")[1].split()[0]
+    # Retrieve the latest manifest block
+    all_tags = "|".join(tags)
+    for line in official_manifest.splitlines():
+        if re.search(all_tags, line):
+            # return block starting from the matching line until a blank line
+            official_manifest = "\n".join(
+                official_manifest.splitlines()[
+                    official_manifest.splitlines().index(line) :
+                ]
+            )
+            official_gitcommit = re.search(
+                r"GitCommit: ([a-f0-9]+)", official_manifest
+            ).group(1)
+
+    if official_gitcommit:
         if (
             subprocess.call(
                 [
@@ -222,13 +235,14 @@ def generate_official_image_info(file, ver, pkg, os, dfdir):
                         [
                             "git",
                             "diff",
+                            "--quiet",
                             f"{commit}:{dfdir}/entrypoint.sh",
                             f"{official_gitcommit}:{dfdir}/entrypoint.sh",
                         ]
                     )
                     .decode()
                     .strip()
-                    != ""
+                    == 0
                 ):
                     diff = (
                         subprocess.check_output(

@@ -231,7 +231,7 @@ def generate_official_image_info(file, ver, pkg, os, dfdir):
             if Path(f"{dfdir}/entrypoint.sh").exists():
                 # check if the entrypoint.sh file is different from the official one
                 if (
-                    subprocess.check_output(
+                    subprocess.call(
                         [
                             "git",
                             "diff",
@@ -240,8 +240,6 @@ def generate_official_image_info(file, ver, pkg, os, dfdir):
                             f"{official_gitcommit}:{dfdir}/entrypoint.sh",
                         ]
                     )
-                    .decode()
-                    .strip()
                     == 0
                 ):
                     diff = (
@@ -299,7 +297,6 @@ def main():
                 for os_family, configurations in config["configurations"].items():
                     for configuration in configurations:
                         directory = configuration["directory"]
-                        os_name = configuration["os"]
                         for dockerfile in Path(".").rglob(
                             f"{ver}/{pkg}/{directory}/Dockerfile"
                         ):

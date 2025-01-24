@@ -49,6 +49,10 @@ ENV JAVA_VERSION=jdk-21.0.6+7
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
+       aarch64) \
+         ESUM='f1b78f2bd6d505d5e0539261737740ad11ade3233376b4ca52e6c72fbefd2bf6'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jre_aarch64_linux_hotspot_21.0.6_7.tar.gz'; \
+         ;; \
        x86_64) \
          ESUM='7fc9d6837da5fa1f12e0f41901fd70a73154914b8c8ecbbcad2d44176a989937'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jre_x64_linux_hotspot_21.0.6_7.tar.gz'; \

@@ -67,7 +67,7 @@ Once you've merged the PR, you can update the official Docker Hub manifest. This
 git fetch --all
 # Checkout the main branch
 git checkout main
-./dockerhub_doc_config_update.sh
+./dockerhub_doc_config_update.py
 ```
 
 This script will create a file called _eclipse-temurin_ by default.

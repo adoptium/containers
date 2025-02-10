@@ -22,10 +22,15 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: docker-library/bashbrew@9eef708e6a0b1b5d8bbda769c766777fe45026eb # v0.1.13
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.x"
+      - name: Install dependencies
+        run: "pip3 install -r requirements.txt"
       - id: generate-jobs
         name: Generate Jobs
         run: |
-          export GENERATE_STACKBREW_LIBRARY='./dockerhub_doc_config_update.sh /dev/stdout'
+          export GENERATE_STACKBREW_LIBRARY='python3 dockerhub_doc_config_update.py -o /dev/stdout'
           export GITHUB_REPOSITORY="eclipse-temurin"
           strategy="$("$BASHBREW_SCRIPTS/github-actions/generate.sh")"
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"

@@ -65,7 +65,7 @@ if args.force:
 
 
 # Load the YAML configuration
-with open("config/hotspot.yml", "r") as file:
+with open("config/temurin.yml", "r") as file:
     config = yaml.safe_load(file)
 
 # Iterate through OS families and then configurations
@@ -79,6 +79,9 @@ for os_family, configurations in config["configurations"].items():
         versions = configuration.get(
             "versions", config["supported_distributions"]["Versions"]
         )
+        image_types = configuration.get(
+            "image_types", config["metadata"]["image_types"]
+        )
 
         # Define the path for the template based on OS
         template_name = f"{os_name}.Dockerfile.j2"
@@ -90,7 +93,7 @@ for os_family, configurations in config["configurations"].items():
             if deprecated and version >= deprecated:
                 continue
             print("Generating Dockerfiles for", base_image, "-", version)
-            for image_type in ["jdk", "jre"]:
+            for image_type in image_types:
                 output_directory = os.path.join(str(version), image_type, directory)
                 os.makedirs(output_directory, exist_ok=True)
 

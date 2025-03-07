@@ -72,7 +72,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # `keytool` does not accept multi-certificate files
         awk '
             BEGIN { file = "/dev/null" }
-            /^-----BEGIN CERTIFICATE-----$/ { file = sprintf("'"$tmp_dir/$BASENAME-"'%02.crt", idx) }
+            /^-----BEGIN CERTIFICATE-----$/ { file = sprintf("'"$tmp_dir/$BASENAME-"'%02d.crt", idx) }
             { print $0 >> file }
             /^-----END CERTIFICATE-----$/ { file = "/dev/null"; idx++ }
         ' < "$i"

@@ -28,7 +28,7 @@ else
 	official_docker_image_file="$1"
 fi
 
-supported_versions="8 11 17 21 23"
+supported_versions="8 11 17 21 24"
 # set this to the latest LTS version
 latest_version="21"
 all_jvms="hotspot"

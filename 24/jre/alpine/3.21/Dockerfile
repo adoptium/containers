@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-FROM redhat/ubi9-minimal
+FROM alpine:3.21
 
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
@@ -26,54 +26,47 @@ ENV PATH=$JAVA_HOME/bin:$PATH
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
-    microdnf install -y \
-        gzip \
-        tar \
-        # Required for jlink
-        binutils \
-        tzdata \
-        wget \
-        # utilities for keeping UBI and OpenJDK CA certificates in sync
-        # https://github.com/adoptium/containers/issues/293
-        ca-certificates \
-        # Needed to extract CN and generate aliases for certificates
-        openssl \
+    apk add --no-cache \
         # java.lang.UnsatisfiedLinkError: libfontmanager.so: libfreetype.so.6: cannot open shared object file: No such file or directory
         # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
         # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
-        fontconfig \
-        glibc-langpack-en \
+        fontconfig ttf-dejavu \
+        # gnupg required to verify the signature
+        gnupg \
+        # utilities for keeping Alpine and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates p11-kit-trust \
+        # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
+        musl-locales musl-locales-lang \
+        tzdata \
+        # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
+        # only import one at a time.
+        coreutils \
+        # Needed to extract CN and generate aliases for certificates
+        openssl \
     ; \
-    microdnf clean all
+    rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION=jdk-21.0.6+7
+ENV JAVA_VERSION=jdk-24+36
 
 RUN set -eux; \
-    ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
+    ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        aarch64) \
-         ESUM='04fe1273f624187d927f1b466e8cdb630d70786db07bee7599bfa5153060afd3'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.6_7.tar.gz'; \
-         ;; \
-       ppc64le) \
-         ESUM='163724b70b86d5a8461f85092165a9cc5a098ed900fee90d1b0c0be9607ae3d2'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_ppc64le_linux_hotspot_21.0.6_7.tar.gz'; \
-         ;; \
-       s390x) \
-         ESUM='5ba742c87d48fcf564def56812699f6499a1cfd3535ae43286e94e74b8165faf'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.6_7.tar.gz'; \
+         ESUM='0bc8181c7e85d55bba652503db62e60846439f279271d583b740ac70f9f5ae87'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24%2B36/OpenJDK24U-jre_aarch64_alpine-linux_hotspot_24_36.tar.gz'; \
          ;; \
        x86_64) \
-         ESUM='a2650fba422283fbed20d936ce5d2a52906a5414ec17b2f7676dddb87201dbae'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.6_7.tar.gz'; \
+         ESUM='0f738719d0483d6fe7f08a1371d1c696d68dcfe39f073b4241673f35ffc8d655'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24%2B36/OpenJDK24U-jre_x64_alpine-linux_hotspot_24_36.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-    wget --progress=dot:giga -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
+    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
     export GNUPGHOME="$(mktemp -d)"; \
     # gpg: key 843C48A565F8F04B: "Adoptium GPG Key (DEB/RPM Signing Key) <temurin-dev@eclipse.org>" imported
     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 3B04D753C9050D9A5D343F39843C48A565F8F04B; \
@@ -87,15 +80,11 @@ RUN set -eux; \
         --strip-components 1 \
         --no-same-owner \
     ; \
-    rm -f /tmp/openjdk.tar.gz ${JAVA_HOME}/lib/src.zip;
+    rm -f /tmp/openjdk.tar.gz;
 
 RUN set -eux; \
     echo "Verifying install ..."; \
-    fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
-    echo "javac --version"; javac --version; \
     echo "java --version"; java --version; \
     echo "Complete."
 COPY --chmod=755 entrypoint.sh /__cacert_entrypoint.sh
 ENTRYPOINT ["/__cacert_entrypoint.sh"]
-
-CMD ["jshell"]

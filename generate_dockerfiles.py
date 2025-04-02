@@ -11,12 +11,12 @@
 # limitations under the License.
 #
 
-import os
-
 import argparse
+import os
 import shutil
-import requests_cache
+
 import requests
+import requests_cache
 import yaml
 from jinja2 import Environment, FileSystemLoader
 
@@ -27,7 +27,9 @@ parser = argparse.ArgumentParser(
 )
 
 # Setup the Jinja2 environment
-env = Environment(loader=FileSystemLoader("docker_templates"))
+env = Environment(
+    loader=FileSystemLoader("docker_templates"), trim_blocks=False, lstrip_blocks=False
+)
 
 headers = {
     "User-Agent": "Adoptium Dockerfile Updater",

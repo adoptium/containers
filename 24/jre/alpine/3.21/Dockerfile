@@ -56,6 +56,10 @@ RUN set -eux; \
          ESUM='1e8b49129ce3208299c93a73455b090909a65478313ed411b4574d09c8ae9670'; \
          BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.1%2B9/OpenJDK24U-jre_aarch64_alpine-linux_hotspot_24.0.1_9.tar.gz'; \
          ;; \
+       x86_64) \
+         ESUM='409eaa7cf973e5d47b285cd86082b620422e6bbbcf0314c10346250f1e6c66d9'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.1%2B9/OpenJDK24U-jre_x64_alpine-linux_hotspot_24.0.1_9.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

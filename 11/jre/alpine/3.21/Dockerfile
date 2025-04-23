@@ -47,14 +47,14 @@ RUN set -eux; \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION=jdk-11.0.26+4
+ENV JAVA_VERSION=jdk-11.0.27+6
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        x86_64) \
-         ESUM='69031fc68d41189691dbeca73447ca543040d26995f61cef83fd7aed8fb4dbd2'; \
-         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.26%2B4/OpenJDK11U-jre_x64_alpine-linux_hotspot_11.0.26_4.tar.gz'; \
+         ESUM='5de5d17c737554ad3ba3b896679bb9af4d6c5dfe3b707931cc8b78f538a3f886'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.27%2B6/OpenJDK11U-jre_x64_alpine-linux_hotspot_11.0.27_6.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

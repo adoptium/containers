@@ -47,18 +47,14 @@ RUN set -eux; \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION=jdk-24+36
+ENV JAVA_VERSION=jdk-24.0.1+9
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        aarch64) \
-         ESUM='0bc8181c7e85d55bba652503db62e60846439f279271d583b740ac70f9f5ae87'; \
-         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24%2B36/OpenJDK24U-jre_aarch64_alpine-linux_hotspot_24_36.tar.gz'; \
-         ;; \
-       x86_64) \
-         ESUM='0f738719d0483d6fe7f08a1371d1c696d68dcfe39f073b4241673f35ffc8d655'; \
-         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24%2B36/OpenJDK24U-jre_x64_alpine-linux_hotspot_24_36.tar.gz'; \
+         ESUM='1e8b49129ce3208299c93a73455b090909a65478313ed411b4574d09c8ae9670'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.1%2B9/OpenJDK24U-jre_aarch64_alpine-linux_hotspot_24.0.1_9.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

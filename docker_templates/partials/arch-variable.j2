@@ -1,7 +1,7 @@
 {%- if os == "ubuntu" %}
-    ARCH="$(dpkg --print-architecture)"; \
+    ARCH="$(dpkg --print-architecture)";
 {%- elif os == "alpine-linux" %}
-    ARCH="$(apk --print-arch)"; \
+    ARCH="$(apk --print-arch)";
 {%- elif os == "ubi9-minimal" %}
-    ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
+    ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)";
 {%- endif -%}

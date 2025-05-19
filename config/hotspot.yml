@@ -39,6 +39,11 @@ configurations:
     image: redhat/ubi9-minimal
     os: ubi9-minimal
     
+  - directory: ubi/ubi10-minimal
+    architectures: [aarch64, ppc64le, s390x, x64]
+    image: redhat/ubi10-minimal
+    os: ubi10-minimal
+
   alpine-linux:
   - directory: alpine/3.21
     architectures: [aarch64, x64]

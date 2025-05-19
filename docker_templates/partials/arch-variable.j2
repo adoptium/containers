@@ -2,6 +2,6 @@
     ARCH="$(dpkg --print-architecture)";
 {%- elif os == "alpine-linux" %}
     ARCH="$(apk --print-arch)";
-{%- elif os == "ubi9-minimal" %}
+{%- elif os == "ubi9-minimal" or os == "ubi10-minimal" %}
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)";
 {%- endif -%}

@@ -36,6 +36,7 @@ configurations:
   - directory: ubi/ubi9-minimal
     architectures: [aarch64, ppc64le, s390x, x64]
     image: redhat/ubi9-minimal
+    deprecated: 25
     os: ubi9-minimal
 
   alpine-linux:

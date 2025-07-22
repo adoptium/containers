@@ -47,18 +47,18 @@ RUN set -eux; \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION=jdk-24.0.1+9
+ENV JAVA_VERSION=jdk-24.0.2+12
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        aarch64) \
-         ESUM='1e8b49129ce3208299c93a73455b090909a65478313ed411b4574d09c8ae9670'; \
-         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.1%2B9/OpenJDK24U-jre_aarch64_alpine-linux_hotspot_24.0.1_9.tar.gz'; \
+         ESUM='389100187cf328c7b6b6b390fc0f5071ab38e93e8a6c06beb11e59363d2fd0d0'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jre_aarch64_alpine-linux_hotspot_24.0.2_12.tar.gz'; \
          ;; \
        x86_64) \
-         ESUM='409eaa7cf973e5d47b285cd86082b620422e6bbbcf0314c10346250f1e6c66d9'; \
-         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.1%2B9/OpenJDK24U-jre_x64_alpine-linux_hotspot_24.0.1_9.tar.gz'; \
+         ESUM='b63b888d2415828168c4d35a62d88f385a5532a20b7391e30a5d5d0a9a73b892'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jre_x64_alpine-linux_hotspot_24.0.2_12.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

@@ -40,7 +40,7 @@ wget -q -O official-eclipse-temurin https://raw.githubusercontent.com/docker-lib
 oses="alpine ubuntu ubi windowsservercore-ltsc2025 nanoserver-ltsc2025 windowsservercore-ltsc2022 nanoserver-ltsc2022"
 # The image which is used by default when pulling shared tags on linux e.g 8-jdk
 default_linux_image="noble"
-default_alpine_image=alpine-3.21
+default_alpine_image=alpine-3.22
 
 # Get the latest git commit of the current repo.
 # This is assumed to have all the latest dockerfiles already.

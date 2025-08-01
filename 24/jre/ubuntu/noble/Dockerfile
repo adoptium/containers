@@ -67,6 +67,10 @@ RUN set -eux; \
          ESUM='4a1177077bc5937ec93cfaaff60fd212a8591af241827869c73f87949a1268e9'; \
          BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jre_riscv64_linux_hotspot_24.0.2_12.tar.gz'; \
          ;; \
+       s390x) \
+         ESUM='b25ab757f131f965195fd2cb63853299ed6bef268c845283a5a9fff562840fe2'; \
+         BINARY_URL='https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jre_s390x_linux_hotspot_24.0.2_12.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

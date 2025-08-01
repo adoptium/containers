@@ -17,13 +17,13 @@
 # limitations under the License.
 #
 
-FROM mcr.microsoft.com/windows/nanoserver:ltsc2025
+FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION=jdk-24.0.2+12
+ENV JAVA_VERSION=jdk8u462-b08
 
-ENV JAVA_HOME C:\\openjdk-24
+ENV JAVA_HOME C:\\openjdk-8
 # "ERROR: Access to the registry path is denied."
 USER ContainerAdministrator
 RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
@@ -31,11 +31,9 @@ RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
     && echo Complete.
 USER ContainerUser
 
-COPY --from=eclipse-temurin:24.0.2_12-jdk-windowsservercore-ltsc2025 $JAVA_HOME $JAVA_HOME
+COPY --from=eclipse-temurin:8u462-b08-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
-    && echo javac --version && javac --version \
-    && echo java --version && java --version \
+    && echo javac -version && javac -version \
+    && echo java -version && java -version \
     && echo Complete.
-
-CMD ["jshell"]

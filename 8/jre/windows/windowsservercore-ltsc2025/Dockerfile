@@ -22,12 +22,12 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2025
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV JAVA_VERSION=jdk-24.0.2+12
+ENV JAVA_VERSION=jdk8u462-b08
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jre_x64_windows_hotspot_24.0.2_12.msi ...'); \
-    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jre_x64_windows_hotspot_24.0.2_12.msi ; \
-    Write-Host ('Verifying sha256 (701c4d93bec1fd007985518d4e9ca6ba334cb99b0db7c8773c1c8dd1faa24628) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '701c4d93bec1fd007985518d4e9ca6ba334cb99b0db7c8773c1c8dd1faa24628') { \
+RUN Write-Host ('Downloading https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u462-b08/OpenJDK8U-jre_x64_windows_hotspot_8u462b08.msi ...'); \
+    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u462-b08/OpenJDK8U-jre_x64_windows_hotspot_8u462b08.msi ; \
+    Write-Host ('Verifying sha256 (22a64b7531443577dd70eb244c943111121180dbf20a6a867452ed6da99b556d) ...'); \
+    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '22a64b7531443577dd70eb244c943111121180dbf20a6a867452ed6da99b556d') { \
         Write-Host 'FAILED!'; \
         exit 1; \
     }; \
@@ -36,7 +36,7 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin24-binaries/rele
     \
     Write-Host 'Installing using MSI ...'; \
     $proc = Start-Process -FilePath "msiexec.exe" -ArgumentList '/i', 'openjdk.msi', '/L*V', 'C:\temp\OpenJDK.log', \
-    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-24' -Wait -Passthru; \
+    '/quiet', 'ADDLOCAL=FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome', 'INSTALLDIR=C:\openjdk-8' -Wait -Passthru; \
     $proc.WaitForExit() ; \
     if ($proc.ExitCode -ne 0) { \
         Write-Host 'FAILED installing MSI!' ; \
@@ -48,6 +48,6 @@ RUN Write-Host ('Downloading https://github.com/adoptium/temurin24-binaries/rele
     Remove-Item openjdk.msi -Force
 
 RUN Write-Host 'Verifying install ...'; \
-    Write-Host 'java --version'; java --version; \
+    Write-Host 'java -version'; java -version; \
     \
     Write-Host 'Complete.'

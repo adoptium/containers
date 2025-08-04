@@ -44,19 +44,15 @@ This section is for maintainers of the containers repository.
 ### Hourly automated Job
 
 A [Updater GitHub Action](.github/workflows/updater.yml) runs every 30 mins which triggers the
-[`./generate_dockerfiles.py`](./generate_dockerfiles.py) script to update the Dockerfiles by creating a Pull Request containing any changes.
+[`./generate_dockerfiles.py`](./generate_dockerfiles.py) script to update the Dockerfiles by creating a Pull Request containing any changes. It uses the jinja templates defined in [docker_templates](./docker_templates/) to generate the docker updates. It uses the Adoptium API to fetch the latest artefacts for each release.
 
-#### generate_dockerfiles.py
+#### Manual Release
 
-[`./generate_dockerfiles.py`](./generate_dockerfiles.py) is a python script which uses the jinja templates defined in [docker_templates](./docker_templates/) to generate the docker updates. It uses the Adoptium API to fetch the latest artefacts for each release.
-
-### Manual Release
-
-During a release you can also run [`./generate_dockerfiles.py`](./generate_dockerfiles.py) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
+Generally this is not necessary but during a release you can also trigger the above process by running [`./generate_dockerfiles.py`](./generate_dockerfiles.py) manually by heading to The [GitHub Action definition](https://github.com/adoptium/containers/actions/workflows/updater.yml) and clicking the **Run Workflow** button and making sure the `main` (default) branch is selected, then click the next **Run Workflow** button.
 
 ### Review and Merge PR
 
-Once the PR is created you can review that PR (which itself tests all of the Docker Images that we have generate configuration for).
+Once the PR from the hourly automated job is created you should review it (which itself tests all of the Docker Images that we have generate configuration for).
 
 ## Update Official Docker Hub Manifest
 
@@ -72,7 +68,7 @@ git checkout main
 
 This script will create a file called _eclipse-temurin_ by default.
 
-Create a new PR to replace the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with the new contents of _eclipse-temurin_ 
+Create a new PR to replace the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with the new contents of _eclipse-temurin_ - this can be done using a fork of the code or do it via the github UI as follows:
 
 - Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 
 - Click **edit(pencil button)** 

@@ -13,7 +13,7 @@
 #
 
 supported_distributions:
-  Versions: [8, 11, 17, 21, 24]
+  Versions: [8, 11, 17, 21, 25]
 
 configurations:
   linux:

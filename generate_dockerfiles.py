@@ -99,6 +99,12 @@ for os_family, configurations in config["configurations"].items():
                 # Fetch latest release for version from Adoptium API
                 url = f"https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?page=0&image_type={image_type}&os={os_family}&page_size=1&vendor=eclipse"
                 response = requests.get(url, headers=headers)
+
+                # Handle 404 errors gracefully - skip this version if not available
+                if response.status_code == 404:
+                    print(f"Version {version} not available for {image_type} on {os_family}, skipping...")
+                    continue
+
                 response.raise_for_status()
                 data = response.json()
 

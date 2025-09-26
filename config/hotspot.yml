@@ -17,15 +17,16 @@ supported_distributions:
 
 configurations:
   linux:
+  # EOL April 2029
   - directory: ubuntu/noble
     image: ubuntu:24.04
     architectures: [aarch64, arm, ppc64le, riscv64, s390x, x64]
     os: ubuntu
   
+  # EOL April 2027
   - directory: ubuntu/jammy
     image: ubuntu:22.04
     architectures: [aarch64, arm, ppc64le, s390x, x64]
-    deprecated: 23
     os: ubuntu
 
   - directory: ubi/ubi10-minimal
@@ -40,16 +41,19 @@ configurations:
     os: ubi9-minimal
 
   alpine-linux:
+  # EOL 01 May 2027
   - directory: alpine/3.22
     architectures: [aarch64, x64]
     image: alpine:3.22
     os: alpine-linux
 
+  # EOL 01 Nov 2026
   - directory: alpine/3.21
     architectures: [aarch64, x64]
     image: alpine:3.21
     os: alpine-linux
 
+  # EOL 01 Apr 2026
   - directory: alpine/3.20
     architectures: [aarch64, x64]
     image: alpine:3.20

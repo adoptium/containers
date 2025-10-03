@@ -7,10 +7,8 @@ FROM {{ base_image }}
 RUN set -eux; \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        {% if version|int < 22 -%}
         # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
         curl \
-        {% endif -%}
         {% if version|int < 25 -%}
         wget \
         # gnupg required to verify the signature

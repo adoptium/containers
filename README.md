@@ -91,8 +91,8 @@ but as a sanity check to make sure you see the platforms/architectures that you 
 
 ## Release time process
 
-During a release linux and windows binaries are published to github, there is an "hourly" automated container CI PR labeled "Update Dockerfiles", that is
-generated with any updates required for these new linux and windows binaries, to the containers Dockerfiles. The containers Dockerfiles are located within this
+During a release when linux and windows binaries are published to github, there is an "hourly" automated containers CI PR labeled "Update Dockerfiles", that is
+generated with any updates required to the Dockerfiles for these new linux and windows binaries. The containers Dockerfiles are located within this
 repository under the folders \<version\>/\<jdk|jre\>/\<alpine|ubi|ubuntu|windows\>/\<os_container_version\>/Dockerfile.
 
 The "Release" process for updating dockerhub cannot start until all linux and windows binaries for all versions have been published, due to the Manifest setup.

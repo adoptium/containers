@@ -88,3 +88,16 @@ Once that PR has been created it will be automatically tested and reviewed by Do
 It can be useful to look at the "Diff for XXX:" output created by one of the Docker Hub GitHub Actions on the Pull Request. This output
 should not be read as a traditional PR (since Docker Hub bots do move things around, so you may see what looks like odd deletions)
 but as a sanity check to make sure you see the platforms/architectures that you expect.
+
+## Release time process
+
+During a release linux and windows binaries are published to github, there is an "hourly" automated container CI PR labeled "Update Dockerfiles", that is
+generated with any updates required for these new linux and windows binaries, to the containers Dockerfiles. The containers Dockerfiles are located within this
+repository under the folders \<version\>/\<jdk|jre\>/\<alpine|ubi|ubuntu|windows\>/\<os_container_version\>/Dockerfile.
+
+The "Release" process for updating dockerhub cannot start until all linux and windows binaries for all versions have been published, due to the Manifest setup.
+
+### Release process:
+1. Have all linux and windows binaries been published for all versions?
+1. Verify that all the \<version\>/\<jdk|jre\>/\<alpine|ubi|ubuntu|windows\>/\<os_container_version\>/Dockerfile's have been updated by the auto-generated "Update Dockerfiles" PRs. Check there are not any left requiring "approval" to merge?
+1. Create and publish the dockerhub Manifest update PR following the instructions: [Update Official Docker Hub Manifest](#update-official-docker-hub-nanifest)

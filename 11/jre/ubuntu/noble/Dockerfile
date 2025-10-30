@@ -57,6 +57,10 @@ RUN set -eux; \
          ESUM='97a4c089411868e24bf74a9789a819ae4164818316f8a3146460a102e8db6149'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.29%2B7/OpenJDK11U-jre_x64_linux_hotspot_11.0.29_7.tar.gz'; \
          ;; \
+       arm64) \
+         ESUM='8e4c0bb2488f8abd0379b660963ed981b1e136b975f3faf562e07cce81977700'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.29%2B7/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.29_7.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

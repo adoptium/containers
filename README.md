@@ -95,6 +95,10 @@ During a release, when linux and windows binaries are published to github, there
 generate any updates required to the Dockerfiles for these new linux and windows binaries. The containers Dockerfiles are located within this
 repository under the folders \<version\>/\<jdk|jre\>/\<alpine|ubi|ubuntu|windows\>/\<os_container_version\>/Dockerfile.
 
+It should be understood that no actual "pushing" of any information to dockerhub is done, the way it works is once all the necessary Dockerfiles have been updated for the new
+releases, the remote dockerhub Manifest is updated with the information. Then dockerhub "pulls" the new container Dockerfiles and builds the new images for the updated Manifest, once
+completed those new images are then available in dockerhub.
+
 The "Release" process for updating dockerhub cannot start until all linux and windows binaries for all versions have been published, due to the Manifest setup.
 
 ### Release process:

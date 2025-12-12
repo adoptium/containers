@@ -41,6 +41,12 @@ configurations:
     os: ubi9-minimal
 
   alpine-linux:
+  # EOL 01 Nov 2027
+  - directory: alpine/3.23
+    architectures: [aarch64, x64]
+    image: alpine:3.23
+    os: alpine-linux
+
   # EOL 01 May 2027
   - directory: alpine/3.22
     architectures: [aarch64, x64]

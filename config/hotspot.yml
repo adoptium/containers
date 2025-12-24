@@ -51,12 +51,14 @@ configurations:
   - directory: alpine/3.22
     architectures: [aarch64, x64]
     image: alpine:3.22
+    deprecated: 26
     os: alpine-linux
 
   # EOL 01 Nov 2026
   - directory: alpine/3.21
     architectures: [aarch64, x64]
     image: alpine:3.21
+    deprecated: 26
     os: alpine-linux
 
   # EOL 01 Apr 2026

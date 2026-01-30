@@ -51,6 +51,10 @@ ENV JAVA_VERSION=jdk-17.0.18+8
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
+       aarch64) \
+         ESUM='592a6702b3a07a0e0b82cb38aaab149bfce1b0c24d6b57ddb410bd9009333095'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.18%2B8/OpenJDK17U-jdk_aarch64_linux_hotspot_17.0.18_8.tar.gz'; \
+         ;; \
        ppc64le) \
          ESUM='5ab89fbde560e1a09386f389dd7881715b896f49c6e9aa974f72d551337dba5e'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.18%2B8/OpenJDK17U-jdk_ppc64le_linux_hotspot_17.0.18_8.tar.gz'; \

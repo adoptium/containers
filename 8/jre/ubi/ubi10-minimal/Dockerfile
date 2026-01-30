@@ -48,22 +48,14 @@ RUN set -eux; \
     ; \
     microdnf clean all
 
-ENV JAVA_VERSION=jdk8u472-b08
+ENV JAVA_VERSION=jdk8u482-b08
 
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
-       aarch64) \
-         ESUM='c043807ad995fb3987bc1c42b16ebf0f1b5010868c3e9d20a941236d5bbb22b7'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jre_aarch64_linux_hotspot_8u472b08.tar.gz'; \
-         ;; \
        ppc64le) \
-         ESUM='a76eb0f46cd5134b0b8b52ef4dd54ac7fd7e5960fc7dce8772bfc455a5e83e40'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jre_ppc64le_linux_hotspot_8u472b08.tar.gz'; \
-         ;; \
-       x86_64) \
-         ESUM='6f7fb5fd640a0fd00837344b0920cbc4b9b9284b50e66f33789e3b250446a16e'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jre_x64_linux_hotspot_8u472b08.tar.gz'; \
+         ESUM='b563c5c90dcff0c1cf5a1bdc3110e560c979254a17e696902e922631264cf342'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u482-b08/OpenJDK8U-jre_ppc64le_linux_hotspot_8u482b08.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

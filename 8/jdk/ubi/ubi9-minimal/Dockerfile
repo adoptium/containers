@@ -51,6 +51,10 @@ ENV JAVA_VERSION=jdk8u482-b08
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
+       aarch64) \
+         ESUM='ada72fbf191fb287b4c1e54be372b64c40c27c2ffbfa01f880c92af11f4e7c94'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u482-b08/OpenJDK8U-jdk_aarch64_linux_hotspot_8u482b08.tar.gz'; \
+         ;; \
        ppc64le) \
          ESUM='e77ba337c3ebb37fbef4961299f13fc4db87996ffd5470bdfb460cfc2ddb6053'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u482-b08/OpenJDK8U-jdk_ppc64le_linux_hotspot_8u482b08.tar.gz'; \

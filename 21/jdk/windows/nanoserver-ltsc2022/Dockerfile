@@ -21,7 +21,7 @@ FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
 SHELL ["cmd", "/s", "/c"]
 
-ENV JAVA_VERSION=jdk-21.0.9+10
+ENV JAVA_VERSION=jdk-21.0.10+7
 
 ENV JAVA_HOME C:\\openjdk-21
 # "ERROR: Access to the registry path is denied."
@@ -31,7 +31,7 @@ RUN echo Updating PATH: %JAVA_HOME%\bin;%PATH% \
     && echo Complete.
 USER ContainerUser
 
-COPY --from=eclipse-temurin:21.0.9_10-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
+COPY --from=eclipse-temurin:21.0.10_7-jdk-windowsservercore-ltsc2022 $JAVA_HOME $JAVA_HOME
 
 RUN echo Verifying install ... \
     && echo javac --version && javac --version \

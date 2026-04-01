@@ -28,7 +28,7 @@ else
 	official_docker_image_file="$1"
 fi
 
-supported_versions="8 11 17 21 25"
+supported_versions=$(grep 'Versions:' config/temurin.yml | sed 's/.*\[//;s/\].*//;s/,//g')
 # set this to the latest LTS version
 latest_version="25"
 all_jvms="hotspot"

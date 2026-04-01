@@ -67,7 +67,7 @@ if args.force:
 
 
 # Load the YAML configuration
-with open("config/hotspot.yml", "r") as file:
+with open("config/temurin.yml", "r") as file:
     config = yaml.safe_load(file)
 
 # Iterate through OS families and then configurations

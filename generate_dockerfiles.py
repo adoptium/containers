@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,6 +21,8 @@ import requests
 import requests_cache
 import yaml
 from jinja2 import Environment, FileSystemLoader
+
+from adoptium_api import get_supported_versions
 
 requests_cache.install_cache("adoptium_cache", expire_after=3600)
 
@@ -70,6 +74,9 @@ if args.force:
 with open("config/temurin.yml", "r") as file:
     config = yaml.safe_load(file)
 
+# Fetch supported versions from the Adoptium API
+supported_versions = get_supported_versions()
+
 # Iterate through OS families and then configurations
 for os_family, configurations in config["configurations"].items():
     for configuration in configurations:
@@ -78,9 +85,7 @@ for os_family, configurations in config["configurations"].items():
         os_name = configuration["os"]
         base_image = configuration["image"]
         deprecated = configuration.get("deprecated", None)
-        versions = configuration.get(
-            "versions", config["supported_distributions"]["Versions"]
-        )
+        versions = configuration.get("versions", supported_versions)
 
         # Define the path for the template based on OS
         template_name = f"{os_name}.Dockerfile.j2"

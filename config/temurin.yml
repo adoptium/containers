@@ -12,9 +12,6 @@
 # limitations under the License.
 #
 
-supported_distributions:
-  Versions: [8, 11, 17, 21, 25, 26]
-
 configurations:
   linux:
   # EOL April 2029

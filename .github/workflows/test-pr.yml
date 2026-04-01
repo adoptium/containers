@@ -21,11 +21,12 @@ jobs:
       strategy: ${{ steps.generate-jobs.outputs.strategy }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: pip install pyyaml
       - uses: docker-library/bashbrew@a519e31d2ed9cb229ff38ab4488e78bfa09d7a2a # v0.1.14
       - id: generate-jobs
         name: Generate Jobs
         run: |
-          export GENERATE_STACKBREW_LIBRARY='./dockerhub_doc_config_update.sh /dev/stdout'
+          export GENERATE_STACKBREW_LIBRARY='python3 dockerhub_doc_config_update.py /dev/stdout'
           export GITHUB_REPOSITORY="eclipse-temurin"
           strategy="$("$BASHBREW_SCRIPTS/github-actions/generate.sh")"
           echo "strategy=$strategy" >> "$GITHUB_OUTPUT"

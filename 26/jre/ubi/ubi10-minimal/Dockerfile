@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-FROM alpine:3.20
+FROM redhat/ubi10-minimal
 
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=$JAVA_HOME/bin:$PATH
@@ -26,43 +26,52 @@ ENV PATH=$JAVA_HOME/bin:$PATH
 ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
-    apk add --no-cache \
+    microdnf install -y \
+        gzip \
+        tar \
+        # Required for jlink
+        binutils \
+        tzdata \
+        wget \
+        # utilities for keeping UBI and OpenJDK CA certificates in sync
+        # https://github.com/adoptium/containers/issues/293
+        ca-certificates \
+        # Needed to extract CN and generate aliases for certificates
+        openssl \
         # java.lang.UnsatisfiedLinkError: libfontmanager.so: libfreetype.so.6: cannot open shared object file: No such file or directory
         # java.lang.NoClassDefFoundError: Could not initialize class sun.awt.X11FontManager
         # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
-        fontconfig ttf-dejavu \
-        # gnupg required to verify the signature
-        gnupg \
-        # utilities for keeping Alpine and OpenJDK CA certificates in sync
-        # https://github.com/adoptium/containers/issues/293
-        ca-certificates p11-kit-trust \
-        # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
-        musl-locales musl-locales-lang \
-        tzdata \
-        # Contains `csplit` used for splitting multiple certificates in one file to multiple files, since keytool can
-        # only import one at a time.
-        coreutils \
-        # Needed to extract CN and generate aliases for certificates
-        openssl \
+        fontconfig \
+        glibc-langpack-en \
+        # Required for gpg in multi-arch-install
+        gnupg2 \
     ; \
-    rm -rf /var/cache/apk/*
+    microdnf clean all
 
-ENV JAVA_VERSION=jdk-17.0.18+8
+ENV JAVA_VERSION=jdk-26+35
 
 RUN set -eux; \
-    ARCH="$(apk --print-arch)"; \
+    ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
+       aarch64) \
+         ESUM='460dff59e58d77980d8f3aa3172f53d09c17beca1a16b5762f388aee8c91656c'; \
+         BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26%2B35/OpenJDK26U-jre_aarch64_linux_hotspot_26_35.tar.gz'; \
+         ;; \
+       ppc64le) \
+         ESUM='f6d3b8e1f76c1dac5c9955ba77571e8e77aa02724f7423737627244174f41d5e'; \
+         BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26%2B35/OpenJDK26U-jre_ppc64le_linux_hotspot_26_35.tar.gz'; \
+         ;; \
        x86_64) \
-         ESUM='3226a10cf4f7ef8f835148ce8737490f0cf63e38a1e3ba26cf1e05d9e28adf5c'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.18%2B8/OpenJDK17U-jre_x64_alpine-linux_hotspot_17.0.18_8.tar.gz'; \
+         ESUM='3a65331f4c4b671a5e5bb3ae4e4a65fd0eb5bf8672c0c2fba6ba36972c4042a4'; \
+         BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26%2B35/OpenJDK26U-jre_x64_linux_hotspot_26_35.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \
          ;; \
     esac; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-    wget -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget --progress=dot:giga -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
     export GNUPGHOME="$(mktemp -d)"; \
     # gpg: key 843C48A565F8F04B: "Adoptium GPG Key (DEB/RPM Signing Key) <temurin-dev@eclipse.org>" imported
     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 3B04D753C9050D9A5D343F39843C48A565F8F04B; \

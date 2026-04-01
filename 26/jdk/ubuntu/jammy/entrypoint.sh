@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
 #             NOTE: THIS FILE IS GENERATED VIA "generate_dockerfiles.py"
 #
@@ -26,8 +26,7 @@ set -e
 TMPDIR=${TMPDIR:-/tmp}
 
 # JDK truststore location
-# JDK8 puts its JRE in a subdirectory
-JRE_CACERTS_PATH=$JAVA_HOME/jre/lib/security/cacerts
+JRE_CACERTS_PATH=$JAVA_HOME/lib/security/cacerts
 
 # Opt-in is only activated if the environment variable is set
 if [ -n "$USE_SYSTEM_CA_CERTS" ]; then

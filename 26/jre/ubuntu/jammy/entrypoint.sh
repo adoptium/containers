@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
 #             NOTE: THIS FILE IS GENERATED VIA "generate_dockerfiles.py"
 #

@@ -13,7 +13,7 @@
 #
 
 supported_distributions:
-  Versions: [8, 11, 17, 21, 25]
+  Versions: [8, 11, 17, 21, 25, 26]
 
 configurations:
   linux:
@@ -59,13 +59,6 @@ configurations:
     architectures: [aarch64, x64]
     image: alpine:3.21
     deprecated: 26
-    os: alpine-linux
-
-  # EOL 01 Apr 2026
-  - directory: alpine/3.20
-    architectures: [aarch64, x64]
-    image: alpine:3.20
-    deprecated: 25
     os: alpine-linux
   
   windows:

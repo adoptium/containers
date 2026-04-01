@@ -98,9 +98,9 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # The reason why this is not part of the opt-in is because it leaves open the option to mount certificates at the
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
-            cp -La /certificates/* /usr/local/share/ca-certificates/
+            cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
         fi
-        update-ca-certificates
+        update-ca-trust
     else
         # If we are not root, we cannot update the system truststore. That's bad news for tools like `curl` and `wget`,
         # but since the JVM is the primary focus here, we can live with that.

@@ -59,10 +59,6 @@ RUN set -eux; \
          ESUM='c8d63598d1dc0a656033515ed258bd6db37506a05407d9f65cd23b95c21027b5'; \
          BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/OpenJDK21U-jdk_aarch64_alpine-linux_hotspot_21.0.11_10.tar.gz'; \
          ;; \
-       x86_64) \
-         ESUM='de768b7b4ece7be82e45495f943d4322264caab0f8a67bcfb3d93b609f28e0bf'; \
-         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/OpenJDK21U-jdk_x64_alpine-linux_hotspot_21.0.11_10.tar.gz'; \
-         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

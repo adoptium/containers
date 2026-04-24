@@ -125,8 +125,9 @@ version so reviewers can confirm the omissions are deliberate.
 
 ### Step 3: Compare local vs upstream per version
 
-For each Java version (8, 11, 17, 21, 25, 26, etc.) and each package type
-(jdk, jre), compare the local manifest against the upstream manifest:
+JDK and JRE are always published together as a pair, so treat them as a single
+unit per distro. For each Java version (8, 11, 17, 21, 25, 26, etc.), compare
+the local manifest against the upstream manifest:
 
 1. **Matching entries** (same Directory in both): Have architectures been added
    or removed? Has the Java version (from tags) changed? Has the GitCommit
@@ -176,7 +177,7 @@ A version is **Ready to Ship** only if ALL of the following are true:
   that major version — including all Linux AND all Windows entries. If Linux
   entries show `17.0.19_10` but Windows entries still show `17.0.18_8`, the
   version is NOT consistent and CANNOT be marked Ready to Ship.
-- Both jdk and jre entries exist for all distros that had them upstream
+- Both jdk and jre entries exist for all distros that had them upstream (they are always published as a pair)
 - All windows variants (servercore + nanoserver for each LTSC version) present upstream are also present locally
 
 A version is **Partially Ready** if:
@@ -220,12 +221,12 @@ identical to upstream. This version was not updated in this PR.
 
 **Java Version:** `17.0.19_10` (upstream: `17.0.18_8` — version bump)
 
-| Distro | JDK Arches | JRE Arches | Entry Version | Status |
-|--------|-----------|-----------|--------------|--------|
-| alpine/3.23 | amd64 | amd64 | 17.0.19_10 | ✅ Complete |
-| ubuntu/noble | amd64, ppc64le | amd64, ppc64le | 17.0.19_10 | ⚠️ Missing arm32v7, arm64v8, riscv64, s390x |
-| windows/nanoserver-ltsc2022 | windows-amd64 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
-| windows/windowsservercore-ltsc2022 | windows-amd64 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
+| Distro | Arches | Entry Version | Status |
+|--------|--------|--------------|--------|
+| alpine/3.23 | amd64 | 17.0.19_10 | ✅ Complete |
+| ubuntu/noble | amd64, ppc64le | 17.0.19_10 | ⚠️ Missing arm32v7, arm64v8, riscv64, s390x |
+| windows/nanoserver-ltsc2022 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
+| windows/windowsservercore-ltsc2022 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
 
 **Changes from upstream:**
 - Version bumped from 17.0.18_8 to 17.0.19_10 (Linux only — Windows not yet updated)
@@ -235,11 +236,11 @@ identical to upstream. This version was not updated in this PR.
 
 **Java Version:** `21.0.7_6` (upstream: `21.0.6_7` — version bump)
 
-| Distro | JDK Arches | JRE Arches | Entry Version | Status |
-|--------|-----------|-----------|--------------|--------|
-| alpine/3.23 | amd64 | amd64 | 21.0.7_6 | ✅ Complete |
-| ubuntu/noble | amd64, arm32v7, arm64v8, ppc64le | amd64, arm32v7, arm64v8, ppc64le | 21.0.7_6 | ✅ Complete |
-| ... | ... | ... | ... | ... |
+| Distro | Arches | Entry Version | Status |
+|--------|--------|--------------|--------|
+| alpine/3.23 | amd64 | 21.0.7_6 | ✅ Complete |
+| ubuntu/noble | amd64, arm32v7, arm64v8, ppc64le | 21.0.7_6 | ✅ Complete |
+| ... | ... | ... | ... |
 
 **Changes from upstream:**
 - Version bumped from 21.0.6_7 to 21.0.7_6
@@ -257,7 +258,8 @@ identical to upstream. This version was not updated in this PR.
 ### Important rules
 
 - Always group by Java version number (8, 11, 17, 21, 25, 26).
-- Within each version, show both JDK and JRE status.
+- JDK and JRE are always published together. Show one row per distro (not
+  separate rows for jdk/jre). Only flag an issue if one of the pair is missing.
 - Clearly highlight any architecture that is in the config but missing from the
   manifest — these are **unpublished architectures** that haven't been built yet.
 - Clearly highlight any architecture in the manifest that is NOT in the config —

@@ -49,9 +49,11 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
     fi
 
     # Use `trust extract` to build the Java truststore directly from the system CA certificates.
-    # This replaces the JDK's built-in cacerts with the system CA bundle, which is the intended
-    # behavior of USE_SYSTEM_CA_CERTS. Both the JDK and the system CA bundle source their
-    # certificates from the Mozilla NSS root program, so the system store is expected to be a
+    # This replaces the active truststore at $JRE_CACERTS_PATH with the system CA bundle, which
+    # is the intended behavior of USE_SYSTEM_CA_CERTS. Note that $JRE_CACERTS_PATH may be a
+    # temporary file if the original JDK cacerts is not writable. Both the JDK and the system
+    # CA bundle source their certificates from the Mozilla NSS root program, so the system store
+    # is expected to be a
     # superset of the JDK store. This approach is significantly faster than the previous method
     # of importing certs one-by-one via `keytool -importkeystore`.
     trust extract --overwrite --format=java-cacerts --filter=ca-anchors --purpose=server-auth "$JRE_CACERTS_PATH" > /dev/null

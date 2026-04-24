@@ -141,6 +141,20 @@ For each Java version (8, 11, 17, 21, 25, 26, etc.) and each package type
 4. **Architecture changes**: For each entry that exists in both, list any
    architectures added or removed compared to upstream.
 
+5. **Per-entry version consistency**: Extract the specific Java version string
+   from the Tags of **each individual entry** (not just the first one you see).
+   Within a Java major version, if some entries show a new Java version while
+   others still show the old version, the entries at the old version are
+   **stale** — they have not been updated yet. This commonly happens with
+   Windows entries, which are built and published on a separate schedule from
+   Linux entries.
+
+   **Critical rule**: An entry that is stale (still at the old Java version)
+   must NOT be marked "✅ Complete", even if its architectures match upstream
+   exactly. Matching upstream means it has not been modified in this PR, not
+   that it is ready. Mark such entries as:
+   `⏳ Not yet updated (still at <old_version>)`
+
 ### Step 4: Determine readiness per version
 
 First, check whether the version has **any changes at all** compared to upstream.
@@ -158,7 +172,10 @@ A version is **Ready to Ship** only if ALL of the following are true:
 - There is at least one change from upstream (version bump, GitCommit change, new entry, or architecture change)
 - Every distro/arch entry that exists upstream also exists locally (nothing dropped unintentionally)
 - For every entry in both manifests, the local architectures include all architectures listed upstream (no regressions)
-- The Java version in tags is consistent across all entries for that version
+- The Java version in the tags is **identical across every single entry** for
+  that major version — including all Linux AND all Windows entries. If Linux
+  entries show `17.0.19_10` but Windows entries still show `17.0.18_8`, the
+  version is NOT consistent and CANNOT be marked Ready to Ship.
 - Both jdk and jre entries exist for all distros that had them upstream
 - All windows variants (servercore + nanoserver for each LTSC version) present upstream are also present locally
 
@@ -166,6 +183,9 @@ A version is **Partially Ready** if:
 - Some entries match upstream but others have missing architectures
 - The jdk is present but jre is missing for some distros (or vice versa)
 - New distros/arches have been added but some local entries are missing architectures that upstream has
+- Some entries have been bumped to the new Java version but others are still at
+  the old version (e.g. Linux updated but Windows stale). In this case the
+  summary must explicitly list which entries are stale and at which version.
 
 A version is **Not Ready** if:
 - Most upstream entries are missing from the local manifest
@@ -186,6 +206,7 @@ Output a clear markdown report. Use this structure:
 | 8       | ⏭️ No Updates | 8u482-b08 | — | — | Unchanged from upstream |
 | 11      | ⚠️ Partial | 11.0.30_7 | — | noble: riscv64 | New arch not yet built |
 | 21      | ✅ Ready | 21.0.7_6 | — | — | Version bumped from 21.0.6_7 |
+| 17      | ⚠️ Partial | 17.0.19_10 | — | noble: arm64v8, s390x | Linux bumped; Windows stale at 17.0.18_8 |
 | 25      | ❌ Not Ready | 25.0.2_10 | alpine/3.23 (jre) | noble: s390x | First release, ubi9-minimal skipped (deprecated) |
 
 ### Version Details
@@ -195,15 +216,30 @@ Output a clear markdown report. Use this structure:
 No changes detected — Java version, architectures, and GitCommit are all
 identical to upstream. This version was not updated in this PR.
 
+#### JDK 17 — ⚠️ Partially Ready
+
+**Java Version:** `17.0.19_10` (upstream: `17.0.18_8` — version bump)
+
+| Distro | JDK Arches | JRE Arches | Entry Version | Status |
+|--------|-----------|-----------|--------------|--------|
+| alpine/3.23 | amd64 | amd64 | 17.0.19_10 | ✅ Complete |
+| ubuntu/noble | amd64, ppc64le | amd64, ppc64le | 17.0.19_10 | ⚠️ Missing arm32v7, arm64v8, riscv64, s390x |
+| windows/nanoserver-ltsc2022 | windows-amd64 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
+| windows/windowsservercore-ltsc2022 | windows-amd64 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
+
+**Changes from upstream:**
+- Version bumped from 17.0.18_8 to 17.0.19_10 (Linux only — Windows not yet updated)
+- GitCommit changed (Dockerfiles updated)
+
 #### JDK 21 — ✅ Ready to Ship
 
 **Java Version:** `21.0.7_6` (upstream: `21.0.6_7` — version bump)
 
-| Distro | JDK Arches | JRE Arches | Status |
-|--------|-----------|-----------|--------|
-| alpine/3.23 | amd64 | amd64 | ✅ Complete |
-| ubuntu/noble | amd64, arm32v7, arm64v8, ppc64le | amd64, arm32v7, arm64v8, ppc64le | ✅ Complete |
-| ... | ... | ... | ... |
+| Distro | JDK Arches | JRE Arches | Entry Version | Status |
+|--------|-----------|-----------|--------------|--------|
+| alpine/3.23 | amd64 | amd64 | 21.0.7_6 | ✅ Complete |
+| ubuntu/noble | amd64, arm32v7, arm64v8, ppc64le | amd64, arm32v7, arm64v8, ppc64le | 21.0.7_6 | ✅ Complete |
+| ... | ... | ... | ... | ... |
 
 **Changes from upstream:**
 - Version bumped from 21.0.6_7 to 21.0.7_6
@@ -230,6 +266,13 @@ identical to upstream. This version was not updated in this PR.
 - If the Java version string changed between upstream and local, call it out as a
   **version bump**.
 - Be precise about which specific distro + arch combinations are missing.
+- **Stale entry detection**: When a version bump has occurred, check EVERY entry's
+  Tags to extract its individual Java version. If an entry's Java version matches
+  the OLD upstream version (not the new bumped version), it is **stale** — it has
+  not been updated in this PR. This is critical for Windows entries, which are
+  often built separately. Stale entries must be marked `⏳ Not yet updated` in
+  the detail table and called out in the summary. Never mark a stale entry as
+  "✅ Complete".
 - For new versions not yet upstream, read `config/temurin.yml` and list which
   distros are intentionally skipped due to `deprecated` rules. This helps
   reviewers distinguish deliberate omissions from missing builds.

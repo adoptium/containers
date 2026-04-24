@@ -14,8 +14,29 @@ concurrency:
 permissions: read-all
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_test: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**/*.py'
+              - '.github/workflows/test-pr.yml'
+              - 'docker_templates/**'
+              - 'config/**'
+              - '**/Dockerfile'
+              - 'requirements.txt'
+
   generate-jobs:
     name: Generate Jobs
+    needs: changes
+    if: needs.changes.outputs.should_test == 'true'
     runs-on: ubuntu-latest
     outputs:
       strategy: ${{ steps.generate-jobs.outputs.strategy }}
@@ -33,6 +54,7 @@ jobs:
           jq . <<<"$strategy" # sanity check / debugging aid
   test:
     needs: generate-jobs
+    if: needs.generate-jobs.result == 'success'
     strategy: ${{ fromJson(needs.generate-jobs.outputs.strategy) }}
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -51,9 +73,14 @@ jobs:
 
   conclusion:
     name: conclusion
-    needs: test
+    needs: [changes, test]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Result
-        run: ${{ needs.test.result == 'success' }}
+        run: |
+          if [[ "${{ needs.changes.outputs.should_test }}" != "true" ]]; then
+            echo "No relevant changes detected, skipping tests"
+            exit 0
+          fi
+          ${{ needs.test.result == 'success' }}

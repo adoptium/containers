@@ -18,6 +18,10 @@ permissions:
 features:
   copilot-requests: true
 
+safe-outputs:
+  add-comment:
+    hide-older-comments: true
+
 checkout:
   fetch-depth: 0
 

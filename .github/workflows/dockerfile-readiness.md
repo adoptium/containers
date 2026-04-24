@@ -233,4 +233,9 @@ identical to upstream. This version was not updated in this PR.
 - For new versions not yet upstream, read `config/temurin.yml` and list which
   distros are intentionally skipped due to `deprecated` rules. This helps
   reviewers distinguish deliberate omissions from missing builds.
+- Do NOT recommend blocking the merge or waiting for missing architectures.
+  This repository uses automated PRs that are auto-merged when CI passes.
+  Missing architectures will be added in subsequent automated PRs — the order
+  in which architectures appear does not matter. The report is purely
+  informational to help reviewers understand the current state.
 - Post the report as a PR comment.

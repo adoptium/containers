@@ -143,7 +143,19 @@ For each Java version (8, 11, 17, 21, 25, 26, etc.) and each package type
 
 ### Step 4: Determine readiness per version
 
+First, check whether the version has **any changes at all** compared to upstream.
+A version has **no updates** if ALL of the following are true for every entry:
+- The Java version string in the tags is identical to upstream
+- The set of architectures is identical to upstream
+- No entries were added or removed
+
+A version with no updates must be marked **⏭️ No Updates** — do NOT mark it as
+"Ready to Ship". This is critical: "Ready to Ship" implies the version was updated
+and the update is complete, which is misleading when nothing changed. Use this
+status to signal to reviewers that this version was not touched by the PR.
+
 A version is **Ready to Ship** only if ALL of the following are true:
+- There is at least one change from upstream (version bump, GitCommit change, new entry, or architecture change)
 - Every distro/arch entry that exists upstream also exists locally (nothing dropped unintentionally)
 - For every entry in both manifests, the local architectures include all architectures listed upstream (no regressions)
 - The Java version in tags is consistent across all entries for that version
@@ -171,16 +183,21 @@ Output a clear markdown report. Use this structure:
 
 | Version | Status | Java Version | Missing Distros | Missing Arches | Notes |
 |---------|--------|-------------|-----------------|----------------|-------|
-| 8       | ✅ Ready | 8u492-b08 | — | — | Version bumped from 8u482-b08 |
+| 8       | ⏭️ No Updates | 8u482-b08 | — | — | Unchanged from upstream |
 | 11      | ⚠️ Partial | 11.0.30_7 | — | noble: riscv64 | New arch not yet built |
-| 21      | ✅ Ready | 21.0.7_6 | — | — | — |
+| 21      | ✅ Ready | 21.0.7_6 | — | — | Version bumped from 21.0.6_7 |
 | 25      | ❌ Not Ready | 25.0.2_10 | alpine/3.23 (jre) | noble: s390x | First release, ubi9-minimal skipped (deprecated) |
 
 ### Version Details
 
-#### JDK 8 — ✅ Ready to Ship
+#### JDK 8 — ⏭️ No Updates
 
-**Java Version:** `8u492-b08` (upstream: `8u482-b08` — version bump)
+No changes detected — Java version, architectures, and GitCommit are all
+identical to upstream. This version was not updated in this PR.
+
+#### JDK 21 — ✅ Ready to Ship
+
+**Java Version:** `21.0.7_6` (upstream: `21.0.6_7` — version bump)
 
 | Distro | JDK Arches | JRE Arches | Status |
 |--------|-----------|-----------|--------|
@@ -189,7 +206,7 @@ Output a clear markdown report. Use this structure:
 | ... | ... | ... | ... |
 
 **Changes from upstream:**
-- Version bumped from 8u482-b08 to 8u492-b08
+- Version bumped from 21.0.6_7 to 21.0.7_6
 - GitCommit changed (Dockerfiles updated)
 
 #### JDK 25 — ❌ Not Ready (new version)

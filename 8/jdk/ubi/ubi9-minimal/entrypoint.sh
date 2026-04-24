@@ -49,16 +49,16 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -Djavax.net.ssl.trustStore=${JRE_CACERTS_PATH} -Djavax.net.ssl.trustStorePassword=changeit"
     fi
 
-    tmp_store=$(mktemp)
-
-    # Copy full system CA store to a temporary location
-    trust extract --overwrite --format=java-cacerts --filter=ca-anchors --purpose=server-auth "$tmp_store" > /dev/null
-
-    # Add the system CA certificates to the JVM truststore.
-    keytool -importkeystore -destkeystore "$JRE_CACERTS_PATH" -srckeystore "$tmp_store" -srcstorepass changeit -deststorepass changeit -noprompt > /dev/null
-
-    # Clean up the temporary truststore
-    rm -f "$tmp_store"
+    # Use `trust extract` to build the Java truststore directly from the system CA certificates.
+    # This replaces the JDK's built-in cacerts with the system CA bundle, which is the intended
+    # behavior of USE_SYSTEM_CA_CERTS. Both the JDK and the system CA bundle source their
+    # certificates from the Mozilla NSS root program, so the system store is expected to be a
+    # superset of the JDK store. This approach is significantly faster than the previous method
+    # of importing certs one-by-one via `keytool -importkeystore`.
+    trust extract --overwrite --format=java-cacerts --filter=ca-anchors --purpose=server-auth "$JRE_CACERTS_PATH" > /dev/null
+    # trust extract sets the file to read-only (444). We may need to write to it later (e.g.
+    # importing custom certificates), so ensure it is user-writable.
+    chmod u+w "$JRE_CACERTS_PATH"
 
     # Import the additional certificate into JVM truststore
     for i in /certificates/*crt; do

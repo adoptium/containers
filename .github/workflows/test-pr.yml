@@ -72,7 +72,7 @@ jobs:
         run: ${{ matrix.runs.images }}
 
   conclusion:
-    name: conclusion
+    name: Test PR Conclusion
     needs: [changes, test]
     runs-on: ubuntu-latest
     if: always()

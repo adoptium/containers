@@ -21,6 +21,8 @@ features:
 safe-outputs:
   add-comment:
     hide-older-comments: true
+  noop:
+    report-as-issue: false
 
 checkout:
   fetch-depth: 0

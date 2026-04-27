@@ -92,14 +92,14 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
             {%- if os == "ubuntu" or os == "alpine-linux" %}
             cp -La /certificates/* /usr/local/share/ca-certificates/
-            {%- elif os == "ubi9-minimal" or os == "ubi10-minimal" %}
+            {%- elif os == "ubi-minimal" %}
             cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
             {%- endif %}
         fi
 
         {%- if os == "ubuntu" or os == "alpine-linux" %}
         update-ca-certificates
-        {%- elif os == "ubi9-minimal" or os == "ubi10-minimal" %}
+        {%- elif os == "ubi-minimal" %}
         update-ca-trust
         {%- endif %}
     else

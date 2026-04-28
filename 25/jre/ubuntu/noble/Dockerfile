@@ -56,6 +56,10 @@ RUN set -eux; \
          ESUM='82daf66b73505d3974d831bd244acbb1123a340b7752ced449dcdca69ff3a780'; \
          BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_ppc64le_linux_hotspot_25.0.3_9.tar.gz'; \
          ;; \
+       riscv64) \
+         ESUM='8325460857162b85050622962cee64cbc441ca9baf07f93a7535fd3f9962ca33'; \
+         BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_riscv64_linux_hotspot_25.0.3_9.tar.gz'; \
+         ;; \
        s390x) \
          ESUM='ee513969bef35f10afb7d06840d9a421138a3d30c062cde3dda8fe780dc451a2'; \
          BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jre_s390x_linux_hotspot_25.0.3_9.tar.gz'; \

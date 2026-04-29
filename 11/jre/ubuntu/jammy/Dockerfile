@@ -57,6 +57,14 @@ RUN set -eux; \
          ESUM='a6af3d61851f57eb79ef0189837522329717458bf230ee284da2d26634f1ea3a'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.31%2B11/OpenJDK11U-jre_x64_linux_hotspot_11.0.31_11.tar.gz'; \
          ;; \
+       arm64) \
+         ESUM='eabe05fb80626ad24db17cf1df137855e77fbacbc83c11aaf243cedd224467de'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.31%2B11/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.31_11.tar.gz'; \
+         ;; \
+       armhf) \
+         ESUM='5d3e988cdc8291779068c957c01d339f26178ff65d13af4671107b169e80a69f'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.31%2B11/OpenJDK11U-jre_arm_linux_hotspot_11.0.31_11.tar.gz'; \
+         ;; \
        ppc64el) \
          ESUM='11e58bf1eeae10f0dc1a98cc43bf97af270a0b516f6ff9fb3189024c5e22550a'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.31%2B11/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.31_11.tar.gz'; \

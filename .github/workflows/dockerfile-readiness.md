@@ -111,6 +111,30 @@ From the Directory field, derive:
 - **Package type** (`jdk` or `jre`)
 - **Distro** (e.g., `ubuntu/noble`, `alpine/3.23`, `ubi/ubi10-minimal`, `windows/nanoserver-ltsc2022`)
 
+### Distro family grouping
+
+Several distro variants within the same OS family ship **identical binaries** and
+differ only in the base image. Group these into a single row in the report to
+reduce noise:
+
+| Family | Variants (examples) | Group label |
+|--------|---------------------|-------------|
+| **Alpine** | `alpine/3.21`, `alpine/3.22`, `alpine/3.23` | `alpine` |
+| **UBI** | `ubi/ubi9-minimal`, `ubi/ubi10-minimal` | `ubi` |
+| **Windows** | `windows/nanoserver-ltsc2022`, `windows/nanoserver-ltsc2025`, `windows/windowsservercore-ltsc2022`, `windows/windowsservercore-ltsc2025` | `windows` |
+
+**Ubuntu is the exception** — different Ubuntu releases support different
+architecture sets (e.g., `noble` adds `riscv64` which `jammy` does not have),
+so each Ubuntu release must remain a separate row.
+
+When grouping:
+- A family group is **✅ Complete** only if *every* variant in the group is complete.
+- If any variant is missing or has missing architectures, the group is not complete.
+  List the specific variants that are incomplete in the Notes column.
+- For stale-version detection, all variants in a group must be at the same Java
+  version. If any variant is stale, mark the group as stale and note which
+  variants are behind.
+
 ### Step 2: Read deprecation rules from config
 
 Read `config/temurin.yml` to understand distro deprecation rules. Each distro
@@ -126,7 +150,9 @@ version so reviewers can confirm the omissions are deliberate.
 ### Step 3: Compare local vs upstream per version
 
 JDK and JRE are always published together as a pair, so treat them as a single
-unit per distro. For each Java version (8, 11, 17, 21, 25, 26, etc.), compare
+unit per distro. Apply the distro family grouping from Step 1 — collapse Alpine,
+UBI, and Windows variants into single family rows, keeping Ubuntu releases
+separate. For each Java version (8, 11, 17, 21, 25, 26, etc.), compare
 the local manifest against the upstream manifest:
 
 1. **Matching entries** (same Directory in both): Have architectures been added
@@ -223,10 +249,11 @@ identical to upstream. This version was not updated in this PR.
 
 | Distro | Arches | Entry Version | Status |
 |--------|--------|--------------|--------|
-| alpine/3.23 | amd64 | 17.0.19_10 | ✅ Complete |
+| alpine | amd64 | 17.0.19_10 | ✅ Complete (3.21, 3.22, 3.23) |
 | ubuntu/noble | amd64, ppc64le | 17.0.19_10 | ⚠️ Missing arm32v7, arm64v8, riscv64, s390x |
-| windows/nanoserver-ltsc2022 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
-| windows/windowsservercore-ltsc2022 | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated (still at 17.0.18_8) |
+| ubuntu/jammy | amd64, arm32v7, arm64v8, ppc64le, s390x | 17.0.19_10 | ✅ Complete |
+| ubi | amd64, arm64v8, ppc64le, s390x | 17.0.19_10 | ✅ Complete (ubi9-minimal, ubi10-minimal) |
+| windows | windows-amd64 | 17.0.18_8 | ⏳ Not yet updated — all 4 variants still at 17.0.18_8 |
 
 **Changes from upstream:**
 - Version bumped from 17.0.18_8 to 17.0.19_10 (Linux only — Windows not yet updated)
@@ -238,9 +265,11 @@ identical to upstream. This version was not updated in this PR.
 
 | Distro | Arches | Entry Version | Status |
 |--------|--------|--------------|--------|
-| alpine/3.23 | amd64 | 21.0.7_6 | ✅ Complete |
-| ubuntu/noble | amd64, arm32v7, arm64v8, ppc64le | 21.0.7_6 | ✅ Complete |
-| ... | ... | ... | ... |
+| alpine | amd64, arm64v8 | 21.0.7_6 | ✅ Complete (3.21, 3.22, 3.23) |
+| ubuntu/noble | amd64, arm32v7, arm64v8, ppc64le, riscv64, s390x | 21.0.7_6 | ✅ Complete |
+| ubuntu/jammy | amd64, arm32v7, arm64v8, ppc64le, s390x | 21.0.7_6 | ✅ Complete |
+| ubi | amd64, arm64v8, ppc64le, s390x | 21.0.7_6 | ✅ Complete (ubi9-minimal, ubi10-minimal) |
+| windows | windows-amd64 | 21.0.7_6 | ✅ Complete (all 4 variants) |
 
 **Changes from upstream:**
 - Version bumped from 21.0.6_7 to 21.0.7_6
@@ -260,6 +289,10 @@ identical to upstream. This version was not updated in this PR.
 - Always group by Java version number (8, 11, 17, 21, 25, 26).
 - JDK and JRE are always published together. Show one row per distro (not
   separate rows for jdk/jre). Only flag an issue if one of the pair is missing.
+- Group Alpine, UBI, and Windows variants into a single row per family. List
+  the individual variants covered in the Status column (e.g.,
+  "✅ Complete (3.21, 3.22, 3.23)"). Keep each Ubuntu release as its own row
+  because Ubuntu releases differ in supported architectures.
 - Clearly highlight any architecture that is in the config but missing from the
   manifest — these are **unpublished architectures** that haven't been built yet.
 - Clearly highlight any architecture in the manifest that is NOT in the config —

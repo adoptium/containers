@@ -4,6 +4,11 @@
       "repo": "actions/github-script",
       "version": "v9",
       "sha": "373c709c69115d41ff229c7e5df9f8788daa9553"
+    },
+    "actions/github-script@v9.0.0": {
+      "repo": "actions/github-script",
+      "version": "v9.0.0",
+      "sha": "d746ffe35508b1917358783b479e04febd2b8f71"
     }
   }
 }

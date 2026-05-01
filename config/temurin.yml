@@ -14,6 +14,12 @@
 
 configurations:
   linux:
+  # EOL April 2031
+  - directory: ubuntu/plucky
+    image: ubuntu:26.04
+    architectures: [aarch64, arm, ppc64le, riscv64, s390x, x64]
+    os: ubuntu
+
   # EOL April 2029
   - directory: ubuntu/noble
     image: ubuntu:24.04

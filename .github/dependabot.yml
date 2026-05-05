@@ -4,4 +4,6 @@ updates:
   directory: "/"
   schedule:
     interval: daily
+  ignore:
+    - dependency-name: "github/gh-aw-actions/setup"
   open-pull-requests-limit: 10

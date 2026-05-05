@@ -22,8 +22,10 @@ RUN set -eux; \
         # https://github.com/docker-library/openjdk/pull/235#issuecomment-424466077
         fontconfig \
         glibc-langpack-en \
+{%- if "ubi10" in base_image %}
         # Required for gpg in multi-arch-install
         gnupg2 \
+{%- endif %}
     ; \
     microdnf clean all
 

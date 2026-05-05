@@ -164,6 +164,27 @@ the local manifest against the upstream manifest:
 2. **New entries** (in local but not upstream): New distro variants, new
    versions, or new architecture additions.
 
+   **Predicting expected architectures for new distros**: When an entry is new
+   (exists in local but has no matching upstream entry), do NOT compare its
+   architectures against a global or theoretical architecture list. Instead,
+   predict the expected architectures by looking at **other distros in the same
+   family and same Java version**. For example:
+   - A new `ubuntu/resolute` entry for JDK 8 should be compared against the
+     existing `ubuntu/noble` and `ubuntu/jammy` entries for JDK 8 — if those
+     only ship `amd64, arm32v7, arm64v8, ppc64le`, then those are the expected
+     architectures for `ubuntu/resolute` too. Do NOT flag `riscv64` or `s390x`
+     as missing if no other Ubuntu for that JDK version ships them.
+   - A new `alpine/3.24` should look at `alpine/3.23`, `alpine/3.22`, etc. for
+     the same Java version.
+   - A new `ubi/ubi11-minimal` should look at `ubi/ubi10-minimal`,
+     `ubi/ubi9-minimal` for the same Java version.
+   - For an entirely new Java version with no upstream entries at all, use the
+     entries within that same version to cross-check each other (e.g., compare
+     all Ubuntu entries against each other within that version).
+
+   This ensures architecture expectations are grounded in what is actually
+   published for that JDK version, not in a superset of all possible arches.
+
 3. **Removed entries** (in upstream but not local): Distros being dropped,
    deprecated variants removed.
 
@@ -303,6 +324,11 @@ identical to upstream. This version was not updated in this PR.
 - If the Java version string changed between upstream and local, call it out as a
   **version bump**.
 - Be precise about which specific distro + arch combinations are missing.
+- **Architecture expectations for new distros must be derived from sibling
+  distros** in the same Java version, not from a global architecture list.
+  Different Java versions support different architecture sets (e.g., JDK 8
+  does not ship `riscv64` or `s390x` on Ubuntu, while JDK 21 does). Always
+  use sibling distros within the same version as the baseline.
 - **Stale entry detection**: When a version bump has occurred, check EVERY entry's
   Tags to extract its individual Java version. If an entry's Java version matches
   the OLD upstream version (not the new bumped version), it is **stale** — it has

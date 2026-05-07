@@ -167,7 +167,7 @@ flowchart TD
 
 ### 5.1 Get PMC Approval
 
-Submit a proposal (see [Section 3](#3-criteria-for-adding-new-distributions)) and obtain PMC approval before making any code changes.
+Submit a proposal (see [Section 3](#3-criteria-for-adding-new-distributions)) and obtain PMC approval before making any code changes. Add the `PMC-agenda` label to the issue or PR to ensure it gets visibility at the next PMC meeting.
 
 ### 5.2 Add the Configuration Entry
 

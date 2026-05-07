@@ -19,6 +19,7 @@ features:
   copilot-requests: true
 
 safe-outputs:
+  report-failure-as-issue: false
   add-comment:
     hide-older-comments: true
   noop:

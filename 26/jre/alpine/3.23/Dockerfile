@@ -54,6 +54,10 @@ RUN set -eux; \
          ESUM='3106f091aad558977d890b0f6639beacd2815ea051a75a23733b3b16fee6ca55'; \
          BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.1%2B8/OpenJDK26U-jre_aarch64_alpine-linux_hotspot_26.0.1_8.tar.gz'; \
          ;; \
+       x86_64) \
+         ESUM='d218b359f735122cadeb9cbb226c4ddff8746c46a8d5b833809aedff85bd48a6'; \
+         BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.1%2B8/OpenJDK26U-jre_x64_alpine-linux_hotspot_26.0.1_8.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

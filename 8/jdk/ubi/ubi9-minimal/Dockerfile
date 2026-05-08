@@ -55,6 +55,10 @@ RUN set -eux; \
          ESUM='3c2253b986909c20f79d6de7a0cb957f89c243df57615897836046e24d2e5257'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u492-b09/OpenJDK8U-jdk_aarch64_linux_hotspot_8u492b09.tar.gz'; \
          ;; \
+       ppc64le) \
+         ESUM='867e477e0a54159c7b774c55cfb046767120b1de43f705fa775ece74ea39e341'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u492-b09/OpenJDK8U-jdk_ppc64le_linux_hotspot_8u492b09.tar.gz'; \
+         ;; \
        x86_64) \
          ESUM='da257f161d7f8c6ca5b0e5d9e4090f65ac28c5e398072e68b8ae87988b1d1a2e'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u492-b09/OpenJDK8U-jdk_x64_linux_hotspot_8u492b09.tar.gz'; \

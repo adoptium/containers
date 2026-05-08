@@ -69,6 +69,18 @@ jobs:
           if ($dockerState.Status -ne "Running") {
             Start-Service -Name "docker"
           }
+          # Pre-pull the Windows servercore base image to avoid intermittent MCR connectivity
+          # issues during the Prepare Environment step. "docker build --no-cache" (without
+          # "--pull") uses the locally cached image and won't re-pull from MCR if already present.
+          $ltsc = if ("${{ matrix.name }}" -like "*ltsc2025*") { "ltsc2025" } else { "ltsc2022" }
+          $image = "mcr.microsoft.com/windows/servercore:$ltsc"
+          for ($i = 1; $i -le 3; $i++) {
+            Write-Host "Pulling $image (attempt $i/3)..."
+            docker pull $image
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($i -lt 3) { Start-Sleep -Seconds 15 }
+            else { exit 1 }
+          }
       - name: Prepare Environment
         run: ${{ matrix.runs.prepare }}
       - name: Pull Dependencies

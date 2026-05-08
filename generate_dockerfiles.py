@@ -14,7 +14,9 @@
 #
 
 import argparse
+import operator
 import os
+import re
 import shutil
 
 import requests
@@ -43,6 +45,48 @@ headers = {
 parser.add_argument("--force", action="store_true", help="Force remove old Dockerfiles")
 
 args = parser.parse_args()
+
+
+VERSION_OPERATORS = {
+    "==": operator.eq,
+    "!=": operator.ne,
+    ">=": operator.ge,
+    "<=": operator.le,
+    ">": operator.gt,
+    "<": operator.lt,
+}
+
+VERSION_CONDITION_RE = re.compile(r"^(==|!=|>=|<=|>|<)(\d+)$")
+
+
+def resolve_architectures(default_architectures, overrides, version):
+    """Resolve effective architectures for a given version by applying overrides.
+
+    All matching overrides are applied in order. Each override has a 'versions'
+    string (e.g. '==8', '<=11', '>17') and either:
+      - 'exclude': list of architectures to remove
+      - 'include': list of architectures to add
+      - 'architectures': full replacement list (overrides default entirely)
+    """
+    if not overrides:
+        return default_architectures
+
+    result = list(default_architectures)
+    for override in overrides:
+        condition = override["versions"].strip()
+        match = VERSION_CONDITION_RE.match(condition)
+        if not match:
+            raise ValueError(f"Invalid version condition: '{condition}'")
+        op_str, target = match.groups()
+        if VERSION_OPERATORS[op_str](version, int(target)):
+            if "architectures" in override:
+                result = list(override["architectures"])
+            if "exclude" in override:
+                result = [a for a in result if a not in override["exclude"]]
+            if "include" in override:
+                result = result + [a for a in override["include"] if a not in result]
+
+    return result
 
 
 def archHelper(arch, os_name):
@@ -74,6 +118,9 @@ if args.force:
 with open("config/temurin.yml", "r") as file:
     config = yaml.safe_load(file)
 
+# Global architecture overrides apply to all configurations
+global_architecture_overrides = config.get("architecture_overrides", [])
+
 # Fetch supported versions from the Adoptium API
 supported_versions = get_supported_versions()
 
@@ -81,7 +128,9 @@ supported_versions = get_supported_versions()
 for os_family, configurations in config["configurations"].items():
     for configuration in configurations:
         directory = configuration["directory"]
-        architectures = configuration["architectures"]
+        default_architectures = configuration["architectures"]
+        local_overrides = configuration.get("architecture_overrides", [])
+        architecture_overrides = global_architecture_overrides + local_overrides
         os_name = configuration["os"]
         base_image = configuration["image"]
         deprecated = configuration.get("deprecated", None)
@@ -96,6 +145,8 @@ for os_family, configurations in config["configurations"].items():
             # if deprecated is set and version is greater than or equal to deprecated, skip
             if deprecated and version >= deprecated:
                 continue
+
+            architectures = resolve_architectures(default_architectures, architecture_overrides, version)
             print("Generating Dockerfiles for", base_image, "-", version)
             for image_type in ["jdk", "jre"]:
                 output_directory = os.path.join(str(version), image_type, directory)

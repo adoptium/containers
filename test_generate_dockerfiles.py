@@ -16,6 +16,8 @@ from unittest.mock import Mock, mock_open, patch
 
 from jinja2 import Environment, FileSystemLoader
 
+from generate_dockerfiles import resolve_architectures
+
 
 class TestJinjaRendering(unittest.TestCase):
     def setUp(self):
@@ -231,6 +233,83 @@ class TestJinjaRendering(unittest.TestCase):
         # Ensure that the entrypoint script contains expected commands
         self.assertIn("update-ca-certificates", rendered_template)
         self.assertIn("exec \"$@\"", rendered_template)
+
+
+class TestResolveArchitectures(unittest.TestCase):
+    def setUp(self):
+        self.default_archs = ["aarch64", "arm", "ppc64le", "s390x", "x64"]
+
+    def test_no_overrides_returns_default(self):
+        result = resolve_architectures(self.default_archs, None, 17)
+        self.assertEqual(result, self.default_archs)
+
+    def test_empty_overrides_returns_default(self):
+        result = resolve_architectures(self.default_archs, [], 17)
+        self.assertEqual(result, self.default_archs)
+
+    def test_exact_match_full_replacement(self):
+        overrides = [{"versions": "==8", "architectures": ["aarch64", "x64"]}]
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 8), ["aarch64", "x64"])
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 11), self.default_archs)
+
+    def test_exclude(self):
+        overrides = [{"versions": ">=21", "exclude": ["arm"]}]
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 21), ["aarch64", "ppc64le", "s390x", "x64"])
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 17), self.default_archs)
+
+    def test_include(self):
+        overrides = [{"versions": ">=17", "include": ["riscv64"]}]
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 17), ["aarch64", "arm", "ppc64le", "s390x", "x64", "riscv64"])
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 11), self.default_archs)
+
+    def test_include_no_duplicates(self):
+        overrides = [{"versions": ">=17", "include": ["x64", "riscv64"]}]
+        result = resolve_architectures(self.default_archs, overrides, 17)
+        self.assertEqual(result.count("x64"), 1)
+        self.assertIn("riscv64", result)
+
+    def test_multiple_matching_overrides_applied(self):
+        overrides = [
+            {"versions": ">=21", "exclude": ["arm"]},
+            {"versions": "<17", "exclude": ["riscv64"]},
+        ]
+        # version 8 matches only second rule
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 8), ["aarch64", "arm", "ppc64le", "s390x", "x64"])
+        # version 17 matches neither
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 17), self.default_archs)
+        # version 21 matches only first rule
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 21), ["aarch64", "ppc64le", "s390x", "x64"])
+
+    def test_all_matching_overrides_accumulate(self):
+        overrides = [
+            {"versions": "==8", "exclude": ["s390x"]},
+            {"versions": "<17", "exclude": ["riscv64"]},
+        ]
+        # version 8 matches both rules
+        result = resolve_architectures(["aarch64", "arm", "ppc64le", "riscv64", "s390x", "x64"], overrides, 8)
+        self.assertNotIn("s390x", result)
+        self.assertNotIn("riscv64", result)
+        self.assertEqual(result, ["aarch64", "arm", "ppc64le", "x64"])
+
+    def test_not_equal(self):
+        overrides = [{"versions": "!=8", "exclude": ["arm"]}]
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 11), ["aarch64", "ppc64le", "s390x", "x64"])
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 8), self.default_archs)
+
+    def test_less_than(self):
+        overrides = [{"versions": "<11", "exclude": ["s390x"]}]
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 8), ["aarch64", "arm", "ppc64le", "x64"])
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 11), self.default_archs)
+
+    def test_greater_than(self):
+        overrides = [{"versions": ">17", "exclude": ["arm"]}]
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 21), ["aarch64", "ppc64le", "s390x", "x64"])
+        self.assertEqual(resolve_architectures(self.default_archs, overrides, 17), self.default_archs)
+
+    def test_invalid_condition_raises(self):
+        overrides = [{"versions": "~8", "exclude": ["x64"]}]
+        with self.assertRaises(ValueError):
+            resolve_architectures(self.default_archs, overrides, 8)
 
 
 if __name__ == "__main__":

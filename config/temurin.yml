@@ -12,24 +12,38 @@
 # limitations under the License.
 #
 
+architecture_overrides:
+  # We don't ship s390x for JDK8 as it has no JIT
+  - versions: "==8"
+    exclude: [s390x]
+  # We only ship riscv64 for JDK17 and above
+  - versions: "<17"
+    exclude: [riscv64]
+  # We don't ship arm32 for JDK21 and above
+  - versions: ">=21"
+    exclude: [arm]
+
 configurations:
   linux:
   # EOL April 2031
   - directory: ubuntu/resolute
     image: ubuntu:26.04
-    architectures: [aarch64, arm, ppc64le, riscv64, s390x, x64]
+    # TODO add riscv64 back once upstream docker can build it
+    architectures: [aarch64, arm, ppc64le, s390x, x64]
     os: ubuntu
 
   # EOL April 2029
   - directory: ubuntu/noble
     image: ubuntu:24.04
     architectures: [aarch64, arm, ppc64le, riscv64, s390x, x64]
+    deprecated: 27
     os: ubuntu
   
   # EOL April 2027
   - directory: ubuntu/jammy
     image: ubuntu:22.04
     architectures: [aarch64, arm, ppc64le, s390x, x64]
+    deprecated: 27
     os: ubuntu
 
   # EOL May 2035

@@ -14,7 +14,9 @@
 #
 
 import argparse
+import operator
 import os
+import re
 import shutil
 
 import requests
@@ -26,23 +28,47 @@ from adoptium_api import get_supported_versions
 
 requests_cache.install_cache("adoptium_cache", expire_after=3600)
 
-parser = argparse.ArgumentParser(
-    description="Generate Dockerfiles for Eclipse Temurin images"
-)
 
-# Setup the Jinja2 environment
-env = Environment(
-    loader=FileSystemLoader("docker_templates"), trim_blocks=False, lstrip_blocks=False
-)
-
-headers = {
-    "User-Agent": "Adoptium Dockerfile Updater",
+VERSION_OPERATORS = {
+    "==": operator.eq,
+    "!=": operator.ne,
+    ">=": operator.ge,
+    "<=": operator.le,
+    ">": operator.gt,
+    "<": operator.lt,
 }
 
-# Flag for force removing old Dockerfiles
-parser.add_argument("--force", action="store_true", help="Force remove old Dockerfiles")
+VERSION_CONDITION_RE = re.compile(r"^(==|!=|>=|<=|>|<)(\d+)$")
 
-args = parser.parse_args()
+
+def resolve_architectures(default_architectures, overrides, version):
+    """Resolve effective architectures for a given version by applying overrides.
+
+    All matching overrides are applied in order. Each override has a 'versions'
+    string (e.g. '==8', '<=11', '>17') and either:
+      - 'exclude': list of architectures to remove
+      - 'include': list of architectures to add
+      - 'architectures': full replacement list (overrides default entirely)
+    """
+    if not overrides:
+        return default_architectures
+
+    result = list(default_architectures)
+    for override in overrides:
+        condition = override["versions"].strip()
+        match = VERSION_CONDITION_RE.match(condition)
+        if not match:
+            raise ValueError(f"Invalid version condition: '{condition}'")
+        op_str, target = match.groups()
+        if VERSION_OPERATORS[op_str](version, int(target)):
+            if "architectures" in override:
+                result = list(override["architectures"])
+            if "exclude" in override:
+                result = [a for a in result if a not in override["exclude"]]
+            if "include" in override:
+                result = result + [a for a in override["include"] if a not in result]
+
+    return result
 
 
 def archHelper(arch, os_name):
@@ -61,146 +87,172 @@ def archHelper(arch, os_name):
         return arch
 
 
-# Remove old Dockerfiles if --force is set
-if args.force:
-    # Remove all top level dirs that are numbers
-    for dir in os.listdir():
-        if dir.isdigit():
-            print(f"Removing {dir}")
-            shutil.rmtree(dir)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate Dockerfiles for Eclipse Temurin images"
+    )
+
+    # Setup the Jinja2 environment
+    env = Environment(
+        loader=FileSystemLoader("docker_templates"), trim_blocks=False, lstrip_blocks=False
+    )
+
+    headers = {
+        "User-Agent": "Adoptium Dockerfile Updater",
+    }
+
+    # Flag for force removing old Dockerfiles
+    parser.add_argument("--force", action="store_true", help="Force remove old Dockerfiles")
+
+    args = parser.parse_args()
+
+    # Remove old Dockerfiles if --force is set
+    if args.force:
+        # Remove all top level dirs that are numbers
+        for dir in os.listdir():
+            if dir.isdigit():
+                print(f"Removing {dir}")
+                shutil.rmtree(dir)
 
 
-# Load the YAML configuration
-with open("config/temurin.yml", "r") as file:
-    config = yaml.safe_load(file)
+    # Load the YAML configuration
+    with open("config/temurin.yml", "r") as file:
+        config = yaml.safe_load(file)
 
-# Fetch supported versions from the Adoptium API
-supported_versions = get_supported_versions()
+    # Global architecture overrides apply to all configurations
+    global_architecture_overrides = config.get("architecture_overrides", [])
 
-# Iterate through OS families and then configurations
-for os_family, configurations in config["configurations"].items():
-    for configuration in configurations:
-        directory = configuration["directory"]
-        architectures = configuration["architectures"]
-        os_name = configuration["os"]
-        base_image = configuration["image"]
-        deprecated = configuration.get("deprecated", None)
-        versions = configuration.get("versions", supported_versions)
+    # Fetch supported versions from the Adoptium API
+    supported_versions = get_supported_versions()
 
-        # Define the path for the template based on OS
-        template_name = f"{os_name}.Dockerfile.j2"
-        template = env.get_template(template_name)
+    # Iterate through OS families and then configurations
+    for os_family, configurations in config["configurations"].items():
+        for configuration in configurations:
+            directory = configuration["directory"]
+            default_architectures = configuration["architectures"]
+            local_overrides = configuration.get("architecture_overrides", [])
+            architecture_overrides = global_architecture_overrides + local_overrides
+            os_name = configuration["os"]
+            base_image = configuration["image"]
+            deprecated = configuration.get("deprecated", None)
+            versions = configuration.get("versions", supported_versions)
 
-        # Create output directories if they don't exist
-        for version in versions:
-            # if deprecated is set and version is greater than or equal to deprecated, skip
-            if deprecated and version >= deprecated:
-                continue
-            print("Generating Dockerfiles for", base_image, "-", version)
-            for image_type in ["jdk", "jre"]:
-                output_directory = os.path.join(str(version), image_type, directory)
-                os.makedirs(output_directory, exist_ok=True)
+            # Define the path for the template based on OS
+            template_name = f"{os_name}.Dockerfile.j2"
+            template = env.get_template(template_name)
 
-                # Fetch latest release for version from Adoptium API
-                url = f"https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?page=0&image_type={image_type}&os={os_family}&page_size=1&vendor=eclipse"
-                response = requests.get(url, headers=headers)
-
-                # Handle 404 errors gracefully - skip this version if not available
-                if response.status_code == 404:
-                    print(f"Version {version} not available for {image_type} on {os_family}, skipping...")
+            # Create output directories if they don't exist
+            for version in versions:
+                # if deprecated is set and version is greater than or equal to deprecated, skip
+                if deprecated and version >= deprecated:
                     continue
 
-                response.raise_for_status()
-                data = response.json()
+                architectures = resolve_architectures(default_architectures, architecture_overrides, version)
+                print("Generating Dockerfiles for", base_image, "-", version)
+                for image_type in ["jdk", "jre"]:
+                    output_directory = os.path.join(str(version), image_type, directory)
+                    os.makedirs(output_directory, exist_ok=True)
 
-                release = response.json()[0]
+                    # Fetch latest release for version from Adoptium API
+                    url = f"https://api.adoptium.net/v3/assets/feature_releases/{version}/ga?page=0&image_type={image_type}&os={os_family}&page_size=1&vendor=eclipse"
+                    response = requests.get(url, headers=headers)
 
-                # Extract the version number from the release name
-                openjdk_version = release["release_name"]
-
-                # If version doesn't equal 8, get the more accurate version number
-                if version != 8:
-                    openjdk_version = (
-                        "jdk-" + release["version_data"]["openjdk_version"]
-                    )
-                    # if openjdk_version contains -LTS remove it
-                    if "-LTS" in openjdk_version:
-                        openjdk_version = openjdk_version.replace("-LTS", "")
-
-                # Generate the data for each architecture
-                arch_data = {}
-
-                for binary in release["binaries"]:
-                    if (
-                        binary["architecture"] in architectures
-                        and binary["os"] == os_family
-                    ):
-                        if os_family == "windows":
-                            # Windows only has x64 binaries
-                            copy_from = openjdk_version.replace(
-                                "jdk", ""
-                            )  # jdk8u292-b10 -> 8u292-b10
-                            if version != 8:
-                                copy_from = copy_from.replace("-", "").replace(
-                                    "+", "_"
-                                )  # 11.0.11+9 -> 11.0.11_9
-                            copy_from = f"{copy_from}-{image_type}-windowsservercore-{base_image.split(':')[1]}"
-                            arch_data = {
-                                "download_url": binary["installer"]["link"],
-                                "checksum": binary["installer"]["checksum"],
-                                "copy_from": copy_from,
-                            }
-                        else:
-                            arch_data[archHelper(binary["architecture"], os_name)] = {
-                                "download_url": binary["package"]["link"],
-                                "checksum": binary["package"]["checksum"],
-                            }
-
-                    else:
+                    # Handle 404 errors gracefully - skip this version if not available
+                    if response.status_code == 404:
+                        print(f"Version {version} not available for {image_type} on {os_family}, skipping...")
                         continue
 
-                # If arch_data is empty, skip updating the dockerfile
-                if arch_data.__len__() == 0:
-                    continue
+                    response.raise_for_status()
+                    data = response.json()
 
-                # Sort arch_data by key
-                arch_data = dict(sorted(arch_data.items()))
+                    release = response.json()[0]
 
-                # Generate Dockerfile for each architecture
-                rendered_dockerfile = template.render(
-                    base_image=base_image,
-                    image_type=image_type,
-                    java_version=openjdk_version,
-                    version=version,
-                    arch_data=arch_data,
-                    os_family=os_family,
-                    os=os_name,
-                )
+                    # Extract the version number from the release name
+                    openjdk_version = release["release_name"]
 
-                print("Writing Dockerfile to", output_directory)
-                # Save the rendered Dockerfile
-                with open(
-                    os.path.join(output_directory, "Dockerfile"), "w"
-                ) as out_file:
-                    out_file.write(rendered_dockerfile)
+                    # If version doesn't equal 8, get the more accurate version number
+                    if version != 8:
+                        openjdk_version = (
+                            "jdk-" + release["version_data"]["openjdk_version"]
+                        )
+                        # if openjdk_version contains -LTS remove it
+                        if "-LTS" in openjdk_version:
+                            openjdk_version = openjdk_version.replace("-LTS", "")
 
-                if os_family != "windows":
-                    # Entrypoint is currently only needed for CA certificate handling, which is not (yet)
-                    # available on Windows
+                    # Generate the data for each architecture
+                    arch_data = {}
 
-                    # Generate entrypoint.sh
-                    template_entrypoint_file = "entrypoint.sh.j2"
-                    template_entrypoint = env.get_template(template_entrypoint_file)
+                    for binary in release["binaries"]:
+                        if (
+                            binary["architecture"] in architectures
+                            and binary["os"] == os_family
+                        ):
+                            if os_family == "windows":
+                                # Windows only has x64 binaries
+                                copy_from = openjdk_version.replace(
+                                    "jdk", ""
+                                )  # jdk8u292-b10 -> 8u292-b10
+                                if version != 8:
+                                    copy_from = copy_from.replace("-", "").replace(
+                                        "+", "_"
+                                    )  # 11.0.11+9 -> 11.0.11_9
+                                copy_from = f"{copy_from}-{image_type}-windowsservercore-{base_image.split(':')[1]}"
+                                arch_data = {
+                                    "download_url": binary["installer"]["link"],
+                                    "checksum": binary["installer"]["checksum"],
+                                    "copy_from": copy_from,
+                                }
+                            else:
+                                arch_data[archHelper(binary["architecture"], os_name)] = {
+                                    "download_url": binary["package"]["link"],
+                                    "checksum": binary["package"]["checksum"],
+                                }
 
-                    entrypoint = template_entrypoint.render(
+                        else:
+                            continue
+
+                    # If arch_data is empty, skip updating the dockerfile
+                    if arch_data.__len__() == 0:
+                        continue
+
+                    # Sort arch_data by key
+                    arch_data = dict(sorted(arch_data.items()))
+
+                    # Generate Dockerfile for each architecture
+                    rendered_dockerfile = template.render(
+                        base_image=base_image,
                         image_type=image_type,
-                        os=os_name,
+                        java_version=openjdk_version,
                         version=version,
+                        arch_data=arch_data,
+                        os_family=os_family,
+                        os=os_name,
                     )
 
+                    print("Writing Dockerfile to", output_directory)
+                    # Save the rendered Dockerfile
                     with open(
-                        os.path.join(output_directory, "entrypoint.sh"), "w"
+                        os.path.join(output_directory, "Dockerfile"), "w"
                     ) as out_file:
-                        out_file.write(entrypoint)
+                        out_file.write(rendered_dockerfile)
 
-print("Dockerfiles generated successfully!")
+                    if os_family != "windows":
+                        # Entrypoint is currently only needed for CA certificate handling, which is not (yet)
+                        # available on Windows
+
+                        # Generate entrypoint.sh
+                        template_entrypoint_file = "entrypoint.sh.j2"
+                        template_entrypoint = env.get_template(template_entrypoint_file)
+
+                        entrypoint = template_entrypoint.render(
+                            image_type=image_type,
+                            os=os_name,
+                            version=version,
+                        )
+
+                        with open(
+                            os.path.join(output_directory, "entrypoint.sh"), "w"
+                        ) as out_file:
+                            out_file.write(entrypoint)
+
+    print("Dockerfiles generated successfully!")

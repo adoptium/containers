@@ -63,10 +63,6 @@ RUN set -eux; \
          ESUM='60e016faf4177840430035d948f83f2887d556fe512b78c1d43b320322fe6685'; \
          BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.1%2B8/OpenJDK26U-jdk_ppc64le_linux_hotspot_26.0.1_8.tar.gz'; \
          ;; \
-       riscv64) \
-         ESUM='f1b762d6d86599627983df200f215bc970444a697159ca3fae93208756b44715'; \
-         BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.1%2B8/OpenJDK26U-jdk_riscv64_linux_hotspot_26.0.1_8.tar.gz'; \
-         ;; \
        s390x) \
          ESUM='942de7ded1427592a2a4b6dbea4083b2d0891de2626c7863e970de3e2819a93f'; \
          BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.1%2B8/OpenJDK26U-jdk_s390x_linux_hotspot_26.0.1_8.tar.gz'; \

@@ -1,10 +1,11 @@
+{%- set vflag = "--" if version|int >= 11 else "-" -%}
 RUN set -eux; \
     echo "Verifying install ..."; \
     {% if image_type == "jdk" and version|int >= 11 -%}
     fileEncoding="$(echo 'System.out.println(System.getProperty("file.encoding"))' | jshell -s -)"; [ "$fileEncoding" = 'UTF-8' ]; rm -rf ~/.java; \
     {% endif -%}
     {% if image_type == "jdk" -%}
-    echo "javac {% if version|int >= 11 %}--{% else %}-{% endif %}version"; javac {% if version|int >= 11 %}--{% else %}-{% endif %}version; \
+    echo "javac {{ vflag }}version"; javac {{ vflag }}version; \
     {% endif -%}
-    echo "java {% if version|int >= 11 %}--{% else %}-{% endif %}version"; java {% if version|int >= 11 %}--{% else %}-{% endif %}version; \
+    echo "java {{ vflag }}version"; java {{ vflag }}version; \
     echo "Complete."

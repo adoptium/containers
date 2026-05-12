@@ -31,4 +31,7 @@ RUN Write-Host ('Downloading {{ arch_data.download_url }} ...'); \
     Remove-Item openjdk.msi -Force
 
 {% include 'partials/version-check-windows.j2' %}
+
+COPY entrypoint.ps1 C:/entrypoint.ps1
+ENTRYPOINT ["powershell", "-File", "C:\\entrypoint.ps1"]
 {% include 'partials/jshell.j2' %}

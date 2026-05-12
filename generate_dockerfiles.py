@@ -237,10 +237,7 @@ if __name__ == "__main__":
                         out_file.write(rendered_dockerfile)
 
                     if os_family != "windows":
-                        # Entrypoint is currently only needed for CA certificate handling, which is not (yet)
-                        # available on Windows
-
-                        # Generate entrypoint.sh
+                        # Generate entrypoint.sh for CA certificate handling
                         template_entrypoint_file = "entrypoint.sh.j2"
                         template_entrypoint = env.get_template(template_entrypoint_file)
 
@@ -252,6 +249,21 @@ if __name__ == "__main__":
 
                         with open(
                             os.path.join(output_directory, "entrypoint.sh"), "w"
+                        ) as out_file:
+                            out_file.write(entrypoint)
+
+                    if os_name == "servercore":
+                        # Generate entrypoint.ps1 for CA certificate handling on Windows Server Core
+                        template_entrypoint_file = "entrypoint.ps1.j2"
+                        template_entrypoint = env.get_template(template_entrypoint_file)
+
+                        entrypoint = template_entrypoint.render(
+                            image_type=image_type,
+                            version=version,
+                        )
+
+                        with open(
+                            os.path.join(output_directory, "entrypoint.ps1"), "w"
                         ) as out_file:
                             out_file.write(entrypoint)
 

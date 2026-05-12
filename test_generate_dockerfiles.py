@@ -234,6 +234,69 @@ class TestJinjaRendering(unittest.TestCase):
         self.assertIn("update-ca-certificates", rendered_template)
         self.assertIn("exec \"$@\"", rendered_template)
 
+    def test_entrypoint_ps1_rendering(self):
+        template_name = "entrypoint.ps1.j2"
+        template = self.env.get_template(template_name)
+
+        with self.subTest("jdk 11 truststore path"):
+            context = {
+                "image_type": "jdk",
+                "version": 11,
+            }
+            rendered_template = template.render(**context)
+
+            # Equivalent of update-ca-certificates: imports from Windows cert store
+            self.assertIn("Cert:\\LocalMachine\\Root", rendered_template)
+            # Equivalent of exec "$@": forwards to the original command
+            self.assertIn("& $args[0]", rendered_template)
+            # Uses standard truststore path for JDK 11+
+            self.assertIn("$env:JAVA_HOME\\lib\\security\\cacerts", rendered_template)
+            # Should not use JDK8 JRE subdirectory path
+            self.assertNotIn("\\jre\\lib\\security\\cacerts", rendered_template)
+
+        with self.subTest("jdk 8 truststore path"):
+            context = {
+                "image_type": "jdk",
+                "version": 8,
+            }
+            rendered_template = template.render(**context)
+
+            # JDK8 puts its JRE in a subdirectory
+            self.assertIn("$env:JAVA_HOME\\jre\\lib\\security\\cacerts", rendered_template)
+
+        with self.subTest("jre 11 truststore path"):
+            context = {
+                "image_type": "jre",
+                "version": 11,
+            }
+            rendered_template = template.render(**context)
+
+            # JRE uses standard path
+            self.assertIn("$env:JAVA_HOME\\lib\\security\\cacerts", rendered_template)
+            self.assertNotIn("\\jre\\lib\\security\\cacerts", rendered_template)
+
+    def test_servercore_entrypoint_wiring(self):
+        template_name = "servercore.Dockerfile.j2"
+        template = self.env.get_template(template_name)
+
+        context = {
+            "base_image": "mcr.microsoft.com/windows/servercore:ltsc2022",
+            "image_type": "jdk",
+            "java_version": "11.0.20+8",
+            "version": 11,
+            "arch_data": {
+                "download_url": "http://fake-url.com",
+                "checksum": "fake-checksum",
+            },
+            "os": "servercore",
+        }
+        rendered_template = template.render(**context)
+
+        # Ensure entrypoint.ps1 is copied and set as ENTRYPOINT
+        self.assertIn("COPY entrypoint.ps1", rendered_template)
+        self.assertIn("ENTRYPOINT", rendered_template)
+        self.assertIn("C:\\\\entrypoint.ps1", rendered_template)
+
 
 class TestResolveArchitectures(unittest.TestCase):
     def setUp(self):

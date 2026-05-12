@@ -52,3 +52,6 @@ RUN Write-Host 'Verifying install ...'; \
     Write-Host 'java -version'; java -version; \
     \
     Write-Host 'Complete.'
+
+COPY entrypoint.ps1 C:/entrypoint.ps1
+ENTRYPOINT ["powershell", "-File", "C:\\entrypoint.ps1"]

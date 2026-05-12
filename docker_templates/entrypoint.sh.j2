@@ -52,7 +52,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
     rm -f "$tmp_store"
 
     # Import the additional certificate into JVM truststore
-    find /certificates -name "*crt" -type f | while IFS= read -r i; do
+    find -L /certificates -name "*crt" -type f | while IFS= read -r i; do
         tmp_dir=$(mktemp -d)
         BASENAME=$(basename "$i" .crt)
 
@@ -97,9 +97,9 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
             {%- if os == "ubuntu" or os == "alpine-linux" %}
-            find /certificates -name "*crt" -type f -exec cp -L {} /usr/local/share/ca-certificates/ \;
+            find -L /certificates -name "*crt" -type f -exec cp -L {} /usr/local/share/ca-certificates/ \;
             {%- elif os == "ubi-minimal" %}
-            find /certificates -name "*crt" -type f -exec cp -L {} /usr/share/pki/ca-trust-source/anchors/ \;
+            find -L /certificates -name "*crt" -type f -exec cp -L {} /usr/share/pki/ca-trust-source/anchors/ \;
             {%- endif %}
         fi
 

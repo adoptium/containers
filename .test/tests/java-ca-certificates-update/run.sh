@@ -8,6 +8,9 @@ runDir="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 # Windows Server Core: use cmd/PowerShell instead of sh/bash, skip non-root tests
 case "$1" in
     *windowsservercore*)
+        # Prevent MSYS/Git Bash from converting C:/certificates paths
+        export MSYS_NO_PATHCONV=1
+
         WIN_CMD1=(cmd /C "echo ok")
         WIN_CMD2=(cmd /C "keytool -list -keystore %JRE_CACERTS_PATH% -storepass changeit -alias dockerbuilder && keytool -list -keystore %JRE_CACERTS_PATH% -storepass changeit -alias dockerbuilder2")
 

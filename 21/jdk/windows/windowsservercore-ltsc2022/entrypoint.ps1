@@ -63,6 +63,8 @@ if ($env:USE_SYSTEM_CA_CERTS) {
         try {
             [System.IO.File]::WriteAllBytes($certFile, $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
             & keytool -import -noprompt -alias $alias -file $certFile -keystore $JRE_CACERTS_PATH -storepass changeit 2>$null | Out-Null
+        } catch {
+            # Skip certificates that cannot be exported or imported
         } finally {
             Remove-Item -Path $certFile -Force -ErrorAction SilentlyContinue
         }
@@ -105,6 +107,8 @@ if ($env:USE_SYSTEM_CA_CERTS) {
 
                     Write-Host "Adding certificate with alias $alias to the JVM truststore"
                     & keytool -import -noprompt -alias $alias -file $tmpCert -keystore $JRE_CACERTS_PATH -storepass changeit 2>$null | Out-Null
+                } catch {
+                    Write-Host "Failed to import certificate from $($certFile.Name): $_"
                 } finally {
                     Remove-Item -Path $tmpCert -Force -ErrorAction SilentlyContinue
                     if ($x509) { $x509.Dispose() }

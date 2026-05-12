@@ -16,11 +16,11 @@ USER ContainerUser
 
 COPY --from=eclipse-temurin:{{ arch_data.copy_from }} $JAVA_HOME $JAVA_HOME
 
-{% set vflag = "--" if version|int >= 11 else "-" -%}
+{% set vflag = "--version" if version|int >= 11 else "-version" -%}
 RUN echo Verifying install ... \
     {% if image_type == "jdk" -%}
-    && echo javac {{ vflag }}version && javac {{ vflag }}version \
+    && echo javac {{ vflag }} && javac {{ vflag }} \
     {% endif -%}
-    && echo java {{ vflag }}version && java {{ vflag }}version \
+    && echo java {{ vflag }} && java {{ vflag }} \
     && echo Complete.
 {% include 'partials/jshell.j2' %}

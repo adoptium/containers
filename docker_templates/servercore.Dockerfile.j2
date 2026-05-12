@@ -30,5 +30,12 @@ RUN Write-Host ('Downloading {{ arch_data.download_url }} ...'); \
     Write-Host 'Removing openjdk.msi ...'; \
     Remove-Item openjdk.msi -Force
 
-{% include 'partials/version-check-windows.j2' %}
+{% set vflag = "--version" if version|int >= 11 else "-version" -%}
+RUN Write-Host 'Verifying install ...'; \
+    {% if image_type == "jdk" -%}
+    Write-Host 'javac {{ vflag }}'; javac {{ vflag }}; \
+    {% endif -%}
+    Write-Host 'java {{ vflag }}'; java {{ vflag }}; \
+    \
+    Write-Host 'Complete.'
 {% include 'partials/jshell.j2' %}

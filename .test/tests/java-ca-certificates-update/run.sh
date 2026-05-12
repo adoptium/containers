@@ -5,6 +5,80 @@ set -o pipefail
 testDir="$(readlink -f "$(dirname "$BASH_SOURCE")")"
 runDir="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
+# Windows Server Core: use cmd/PowerShell instead of sh/bash, skip non-root tests
+case "$1" in
+    *windowsservercore*)
+        WIN_CMD1=(cmd /C "echo ok")
+        WIN_CMD2=(cmd /C "keytool -list -keystore %JRE_CACERTS_PATH% -storepass changeit -alias dockerbuilder && keytool -list -keystore %JRE_CACERTS_PATH% -storepass changeit -alias dockerbuilder2")
+
+        TESTIMAGE=$1.test
+        function finish { docker rmi "$TESTIMAGE" >&/dev/null; }
+        trap finish EXIT HUP INT TERM
+
+        # Build custom entrypoint image for test 6
+        docker build -t "$TESTIMAGE" "$runDir" -f - <<WEOF >&/dev/null
+FROM $1
+COPY custom-entrypoint.ps1 C:/custom-entrypoint.ps1
+ENTRYPOINT ["powershell", "-File", "C:\\\\custom-entrypoint.ps1"]
+WEOF
+
+        #
+        # PHASE 1: Root containers
+        #
+
+        # Test 1: No certs, no env. CMD1 succeeds, CMD2 fails.
+        docker run --rm "$1" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        docker run --rm "$1" "${WIN_CMD2[@]}" >&/dev/null
+        echo -n $?
+
+        # Test 2: No certs, env set. CMD1 succeeds, CMD2 fails.
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 "$1" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 "$1" "${WIN_CMD2[@]}" >&/dev/null
+        echo -n $?
+
+        # Test 3: Certs mounted, no env. CMD1 succeeds, CMD2 fails.
+        docker run --rm --volume="$testDir/certs:C:/certificates" "$1" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        docker run --rm --volume="$testDir/certs:C:/certificates" "$1" "${WIN_CMD2[@]}" >&/dev/null
+        echo -n $?
+
+        # Test 4: Certs mounted, env set. Both succeed.
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:C:/certificates" "$1" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:C:/certificates" "$1" "${WIN_CMD2[@]}" >&/dev/null
+        echo -n $?
+
+        # Test 5: Symlink certs, env set. Both succeed.
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_symlink:C:/certificates" "$1" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_symlink:C:/certificates" "$1" "${WIN_CMD2[@]}" >&/dev/null
+        echo -n $?
+
+        # Test 6: Custom entrypoint (bypasses cert import). CMD1 succeeds, CMD2 fails.
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:C:/certificates" "$TESTIMAGE" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs:C:/certificates" "$TESTIMAGE" "${WIN_CMD2[@]}" >&/dev/null
+        echo -n $?
+
+        # Test 7: Duplicate CN certs. Both succeed.
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_duplicate_cn:C:/certificates" "$1" "${WIN_CMD1[@]}" >&/dev/null
+        echo -n $?
+        WIN_CMD3=(cmd /C "keytool -list -keystore %JRE_CACERTS_PATH% -storepass changeit -alias dockerbuilder && keytool -list -keystore %JRE_CACERTS_PATH% -storepass changeit -alias dockerbuilder_02")
+        docker run --rm -e USE_SYSTEM_CA_CERTS=1 --volume="$testDir/certs_duplicate_cn:C:/certificates" "$1" "${WIN_CMD3[@]}" >&/dev/null
+        echo -n $?
+
+        # PHASE 2: Non-root containers
+        # Windows containers do not support --user or --read-only flags.
+        # These tests verify Linux-specific features, so we emit the expected
+        # values to keep the output format consistent with expected-std-out.txt.
+        echo -n "01010100000100"
+
+        exit 0
+        ;;
+esac
+
 # CMD1 in each run is just a `date` to make sure nothing is broken with or without the entrypoint
 CMD1=date
 

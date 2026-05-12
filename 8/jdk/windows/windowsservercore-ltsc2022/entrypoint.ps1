@@ -121,6 +121,7 @@ $env:JRE_CACERTS_PATH = $JRE_CACERTS_PATH
 # Execute the original command
 if ($args.Count -gt 0) {
     & $args[0] $args[1..($args.Count-1)]
+    exit $LASTEXITCODE
 } else {
     # Default: drop into PowerShell
     powershell

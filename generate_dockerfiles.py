@@ -266,5 +266,7 @@ if __name__ == "__main__":
                             os.path.join(output_directory, "entrypoint.ps1"), "w"
                         ) as out_file:
                             out_file.write(entrypoint)
+                            if not entrypoint.endswith("\n"):
+                                out_file.write("\n")
 
     print("Dockerfiles generated successfully!")

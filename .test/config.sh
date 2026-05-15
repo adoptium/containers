@@ -5,7 +5,6 @@ imageTests[openjdk]+='
 '
 
 globalExcludeTests+=(
-	# nanoserver/windowsservercore: updating local store with additional certificates is not implemented
+	# nanoserver: PowerShell is not available for CA certificate handling
 	[openjdk:nanoserver_java-ca-certificates-update]=1
-	[openjdk:windowsservercore_java-ca-certificates-update]=1
 )

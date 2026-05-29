@@ -31,6 +31,7 @@ jobs:
               - 'docker_templates/**'
               - 'config/**'
               - '**/Dockerfile'
+              - '**/entrypoint.sh‎'
               - 'requirements.txt'
 
   generate-jobs:

@@ -37,6 +37,18 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         exit 1
     fi
 
+    # Wrap keytool truststore access. JDK 9+ uses -cacerts (added in JDK 9)
+    # to avoid the "Warning: use -cacerts option to access cacerts keystore"
+    # that keytool emits when -keystore points at the default cacerts file.
+    # JDK 8 has no -cacerts and uses -keystore. The temporary-truststore
+    # branch below rebinds the JDK 9+ wrapper to -keystore as well, since
+    # -cacerts would still resolve to the read-only default. -importkeystore
+    # is not routed through this wrapper: its -destkeystore/-srckeystore do
+    # not trigger the warning and have no -cacerts form.
+    keytool_truststore() {
+        keytool -keystore "$JRE_CACERTS_PATH" "$@"
+    }
+
     # Figure out whether we can write to the JVM truststore. If we can, we'll add the certificates there. If not,
     # we'll use a temporary truststore.
     if [ ! -w "$JRE_CACERTS_PATH" ]; then
@@ -81,14 +93,14 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
             # failures on container restart when the certificate was added to the system CA store in a
             # previous run and is now being re-imported via keytool -importkeystore.
             FINGERPRINT=$(openssl x509 -in "$crt" -noout -fingerprint -sha256 2>/dev/null | cut -d'=' -f2)
-            if [ -n "$FINGERPRINT" ] && keytool -list -keystore "$JRE_CACERTS_PATH" -storepass changeit -v 2>/dev/null | grep -qiF "$FINGERPRINT"; then
+            if [ -n "$FINGERPRINT" ] && keytool_truststore -list -storepass changeit -v 2>/dev/null | grep -qiF "$FINGERPRINT"; then
                 echo "Certificate with CN=$CN is already in the JVM truststore, skipping"
                 continue
             fi
 
             # Check if an alias with the CN already exists in the keystore
             ALIAS=$CN
-            if keytool -list -keystore "$JRE_CACERTS_PATH" -storepass changeit -alias "$ALIAS" >/dev/null 2>&1; then
+            if keytool_truststore -list -storepass changeit -alias "$ALIAS" >/dev/null 2>&1; then
                 # If the CN already exists, append the serial number to the alias
                 ALIAS="${CN}_${SERIAL}"
             fi
@@ -96,7 +108,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
             echo "Adding certificate with alias $ALIAS to the JVM truststore"
 
             # Add the certificate to the JVM truststore
-            keytool -import -noprompt -alias "$ALIAS" -file "$crt" -keystore "$JRE_CACERTS_PATH" -storepass changeit >/dev/null
+            keytool_truststore -import -noprompt -alias "$ALIAS" -file "$crt" -storepass changeit >/dev/null
         done
     done
 

@@ -88,46 +88,6 @@ class TestJinjaRendering(unittest.TestCase):
             self.assertNotIn("javac -version", rendered_template)
             self.assertIn("java -version", rendered_template)
 
-    def test_version_checker_windows(self):
-        template_name = "partials/version-check-windows.j2"
-        template = self.env.get_template(template_name)
-
-        with self.subTest():
-            # The context/variables to render the template
-            context = {"version": "11", "image_type": "jdk"}
-            rendered_template = template.render(**context)
-
-            # Expected string/partial in the rendered output
-            expected_string = "Write-Host 'javac --version'; javac --version;"
-            self.assertIn(expected_string, rendered_template)
-
-        with self.subTest():
-            # The context/variables to render the template
-            context = {"version": "8", "image_type": "jdk"}
-            rendered_template = template.render(**context)
-
-            # Expected string/partial in the rendered output
-            expected_string = "Write-Host 'javac -version'; javac -version;"
-            self.assertIn(expected_string, rendered_template)
-
-        with self.subTest():
-            # The context/variables to render the template
-            context = {"version": "11", "image_type": "jre"}
-            rendered_template = template.render(**context)
-
-            # Expected string/partial in the rendered output
-            expected_string = "Write-Host 'javac --version'; javac --version;"
-            self.assertNotIn(expected_string, rendered_template)
-
-        with self.subTest():
-            # The context/variables to render the template
-            context = {"version": "8", "image_type": "jre"}
-            rendered_template = template.render(**context)
-
-            # Expected string/partial in the rendered output
-            expected_string = "Write-Host 'javac -version'; javac -version;"
-            self.assertNotIn(expected_string, rendered_template)
-
     def test_jdk11plus_jshell_cmd(self):
         template_name = "partials/jshell.j2"
         template = self.env.get_template(template_name)

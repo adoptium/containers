@@ -1,5 +1,5 @@
 RUN set -eux; \
-{%- include 'partials/arch-variable.j2' %} \
+    ARCH="$({{ arch_cmd }})"; \
 {%- set ver = version|int %}
     case "${ARCH}" in \
        {% for arch, details in arch_data.items() -%}

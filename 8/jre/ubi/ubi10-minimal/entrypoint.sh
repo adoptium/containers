@@ -72,10 +72,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
     rm -f "$tmp_store"
 
     # Import the additional certificate into JVM truststore
-    for i in /certificates/*crt; do
-        if [ ! -f "$i" ]; then
-            continue
-        fi
+    find -L /certificates -name "*crt" -type f 2>/dev/null | sort | while IFS= read -r i; do
         tmp_dir=$(mktemp -d)
         BASENAME=$(basename "$i" .crt)
 
@@ -119,7 +116,10 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # The reason why this is not part of the opt-in is because it leaves open the option to mount certificates at the
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
-            cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
+            find -L /certificates -name "*crt" -type f | while IFS= read -r _crt; do
+                _rel="${_crt#/certificates/}"
+                cp -L "$_crt" "/usr/share/pki/ca-trust-source/anchors/${_rel//\//_}"
+            done
         fi
         update-ca-trust
     else

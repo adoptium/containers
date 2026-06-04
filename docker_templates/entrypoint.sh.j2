@@ -52,7 +52,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
     rm -f "$tmp_store"
 
     # Import the additional certificate into JVM truststore
-    find -L /certificates -name "*crt" -type f | while IFS= read -r i; do
+    find -L /certificates -name "*crt" -type f | sort | while IFS= read -r i; do
         tmp_dir=$(mktemp -d)
         BASENAME=$(basename "$i" .crt)
 

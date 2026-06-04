@@ -8,7 +8,7 @@ runDir="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 # CMD1 in each run is just a `date` to make sure nothing is broken with or without the entrypoint
 CMD1=date
 
-# CMD2 in each run is to check for the `dockerbuilder` certificate in the Java keystore. Entrypoint export $CACERT to
+# CMD2 in each run is to check for the `dockerbuilder` certificate in the Java keystore. Entrypoint exports $JRE_CACERTS_PATH to
 # point to the Java keystore.
 CMD2=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder2 && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder3")
 

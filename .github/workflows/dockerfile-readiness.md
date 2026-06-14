@@ -14,9 +14,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
-
-features:
-  copilot-requests: true
+  copilot-requests: write
 
 safe-outputs:
   add-comment:

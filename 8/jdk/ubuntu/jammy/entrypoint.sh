@@ -85,11 +85,19 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
             # Extract the Common Name (CN) from the certificate
             CN=$(openssl x509 -in "$crt" -noout -subject -nameopt -space_eq | sed -n 's/^.*CN=\([^,]*\).*$/\1/p')
 
+            # Compute the certificate SHA-256 fingerprint. It is used both to skip certificates that are
+            # already present and to build a collision-free alias below. A certificate that openssl cannot
+            # parse yields an empty fingerprint; skip it rather than risk a non-unique alias.
+            FINGERPRINT=$(openssl x509 -in "$crt" -noout -fingerprint -sha256 2>/dev/null | cut -d'=' -f2)
+            if [ -z "$FINGERPRINT" ]; then
+                echo "Could not read the fingerprint of a certificate in $i, skipping"
+                continue
+            fi
+
             # Check if the certificate is already in the JVM truststore by fingerprint. This prevents
             # failures on container restart when the certificate was added to the system CA store in a
             # previous run and is now being re-imported via keytool -importkeystore.
-            FINGERPRINT=$(openssl x509 -in "$crt" -noout -fingerprint -sha256 2>/dev/null | cut -d'=' -f2)
-            if [ -n "$FINGERPRINT" ] && keytool_truststore -list -storepass changeit -v 2>/dev/null | grep -qiF "$FINGERPRINT"; then
+            if keytool_truststore -list -storepass changeit -v 2>/dev/null | grep -qiF "$FINGERPRINT"; then
                 echo "Certificate with CN=$CN is already in the JVM truststore, skipping"
                 continue
             fi

@@ -20,7 +20,8 @@ CMD3=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit 
 
 # CMD4 covers certificates that have no CN and share a non-unique serial number (00). These cannot be
 # disambiguated by CN+serial, so the script derives a unique alias from the SHA-256 fingerprint:
-# adoptium_<fingerprint>. Both certs in certs_no_cn must import under their distinct fingerprint aliases.
+# adoptium_<fingerprint>. All three certs in certs_no_cn (ca_a/ca_b/ca_c) must import under their distinct
+# fingerprint aliases.
 ALIAS_NO_CN_A="adoptium_27b513b1e7f0f61a23c2b4e3135bf606b7b81339a126bfebd86a306e69406eef"
 ALIAS_NO_CN_B="adoptium_f4a91cab0ad6e7fe0c41d4827b44a89b21234425b0f973d9cbb63bfa09688b92"
 ALIAS_NO_CN_C="adoptium_3418bd65082762a1a37ab63b19dbe5b17db17472900eaa192a72499cadfd845e"

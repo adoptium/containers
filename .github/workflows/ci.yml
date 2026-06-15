@@ -4,8 +4,10 @@ on:
     paths:
       - adoptium_api.py
       - dockerhub_doc_config_update.py
+      - eol_checker.py
       - generate_dockerfiles.py
       - test_dockerhub_doc_config_update.py
+      - test_eol_checker.py
       - test_generate_dockerfiles.py
       - requirements.txt
     branches: [ main ]
@@ -27,6 +29,4 @@ jobs:
         run: "pip3 install -r requirements.txt"
 
       - name: Run tests
-        run: |
-          python3 -m unittest test_generate_dockerfiles -v
-          python3 -m unittest test_dockerhub_doc_config_update -v
+        run: python3 -m unittest discover -v -p 'test_*.py'

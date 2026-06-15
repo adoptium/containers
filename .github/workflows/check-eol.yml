@@ -1,0 +1,92 @@
+name: Check EOL Distros
+
+on:
+  schedule:
+    # Run every Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-eol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check for expired distros
+        id: eol-check
+        run: |
+          python -c "
+          import yaml, json, sys
+          from eol_checker import check_eol_configs
+
+          with open('config/temurin.yml') as f:
+              config = yaml.safe_load(f)
+
+          expired = check_eol_configs(config)
+          if not expired:
+              print('No expired distros found.')
+              sys.exit(0)
+
+          print(f'Found {len(expired)} expired distro(s):')
+          body_lines = ['## Expired Distro Report', '', 'The following base images are past their EOL date and should be removed:', '']
+          for cfg, eol_date in expired:
+              image = cfg.get('image', cfg.get('directory', 'unknown'))
+              directory = cfg.get('directory', '')
+              line = f'- **{image}** (\`{directory}\`) — EOL {eol_date}'
+              print(f'  {image} ({directory}) expired {eol_date}')
+              body_lines.append(line)
+
+          body_lines.append('')
+          body_lines.append('Please remove these configurations and their generated Dockerfiles.')
+
+          with open('eol_report.json', 'w') as f:
+              json.dump({'title': f'🗑️ {len(expired)} distro(s) past EOL', 'body': chr(10).join(body_lines)}, f)
+          "
+
+      - name: Create issue for expired distros
+        if: hashFiles('eol_report.json') != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('eol_report.json', 'utf8'));
+
+            // Check if an open issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'eol-cleanup',
+            });
+
+            if (issues.data.length > 0) {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: report.body,
+              });
+              console.log(`Updated existing issue #${issues.data[0].number}`);
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: report.title,
+                body: report.body,
+                labels: ['eol-cleanup'],
+              });
+              console.log('Created new EOL cleanup issue');
+            }

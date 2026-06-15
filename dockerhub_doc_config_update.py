@@ -29,6 +29,7 @@ import urllib.request
 import yaml
 
 from adoptium_api import get_latest_lts, get_supported_versions
+from eol_checker import print_eol_warnings
 
 OFFICIAL_MANIFEST_URL = (
     "https://raw.githubusercontent.com/docker-library/official-images/"
@@ -310,6 +311,7 @@ def generate_manifest(config, output_file):
 def main():
     output_file = sys.argv[1] if len(sys.argv) > 1 else "eclipse-temurin"
     config = load_config()
+    print_eol_warnings(config)
     generate_manifest(config, output_file)
 
 

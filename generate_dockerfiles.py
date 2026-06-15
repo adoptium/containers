@@ -18,6 +18,7 @@ import operator
 import os
 import re
 import shutil
+import sys
 
 import requests
 import requests_cache
@@ -25,6 +26,7 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from adoptium_api import get_supported_versions
+from eol_checker import print_eol_warnings
 
 requests_cache.install_cache("adoptium_cache", expire_after=3600)
 
@@ -126,6 +128,9 @@ if __name__ == "__main__":
     supported_versions = get_supported_versions()
 
     # Iterate through OS families and then configurations
+    # Check for expired distros
+    print_eol_warnings(config)
+
     for os_family, configurations in config["configurations"].items():
         for configuration in configurations:
             directory = configuration["directory"]

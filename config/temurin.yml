@@ -60,10 +60,17 @@ configurations:
     os: ubi-minimal
 
   alpine-linux:
+  # EOL 01 June 2028
+  - directory: alpine/3.24
+    architectures: [aarch64, x64]
+    image: alpine:3.24
+    os: alpine-linux
+
   # EOL 01 Nov 2027
   - directory: alpine/3.23
     architectures: [aarch64, x64]
     image: alpine:3.23
+    deprecated: 27
     os: alpine-linux
 
   # EOL 01 May 2027

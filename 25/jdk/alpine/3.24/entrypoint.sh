@@ -1,0 +1,157 @@
+#!/usr/bin/env sh
+# ------------------------------------------------------------------------------
+#             NOTE: THIS FILE IS GENERATED VIA "generate_dockerfiles.py"
+#
+#                       PLEASE DO NOT EDIT IT DIRECTLY.
+# ------------------------------------------------------------------------------
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This script defines `sh` as the interpreter, which is available in all POSIX environments. However, it might get
+# started with `bash` as the shell to support dotted.environment.variable.names which are not supported by POSIX, but
+# are supported by `sh` in some Linux flavours.
+
+set -e
+
+TMPDIR=${TMPDIR:-/tmp}
+
+# JDK truststore location
+JRE_CACERTS_PATH=$JAVA_HOME/lib/security/cacerts
+
+# Opt-in is only activated if the environment variable is set
+if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
+
+    if [ ! -w "$TMPDIR" ]; then
+        echo "Using additional CA certificates requires write permissions to $TMPDIR. Cannot create truststore."
+        exit 1
+    fi
+
+    # Wrap keytool truststore access. JDK 9+ uses -cacerts (added in JDK 9)
+    # to avoid the "Warning: use -cacerts option to access cacerts keystore"
+    # that keytool emits when -keystore points at the default cacerts file.
+    # JDK 8 has no -cacerts and uses -keystore. The temporary-truststore
+    # branch below rebinds the JDK 9+ wrapper to -keystore as well, since
+    # -cacerts would still resolve to the read-only default. -importkeystore
+    # is not routed through this wrapper: its -destkeystore/-srckeystore do
+    # not trigger the warning and have no -cacerts form.
+    keytool_truststore() {
+        keytool -cacerts "$@"
+    }
+
+    # Figure out whether we can write to the JVM truststore. If we can, we'll add the certificates there. If not,
+    # we'll use a temporary truststore.
+    if [ ! -w "$JRE_CACERTS_PATH" ]; then
+        # We cannot write to the JVM truststore, so we create a temporary one
+        JRE_CACERTS_PATH_NEW=$(mktemp)
+        echo "Using a temporary truststore at $JRE_CACERTS_PATH_NEW"
+        cp "$JRE_CACERTS_PATH" "$JRE_CACERTS_PATH_NEW"
+        JRE_CACERTS_PATH=$JRE_CACERTS_PATH_NEW
+        # If we use a custom truststore, we need to make sure that the JVM uses it
+        export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -Djavax.net.ssl.trustStore=${JRE_CACERTS_PATH} -Djavax.net.ssl.trustStorePassword=changeit"
+        # Rebind: -cacerts would still resolve to the read-only default.
+        keytool_truststore() {
+            keytool -keystore "$JRE_CACERTS_PATH" "$@"
+        }
+    fi
+
+    tmp_store=$(mktemp)
+
+    # Copy full system CA store to a temporary location
+    trust extract --overwrite --format=java-cacerts --filter=ca-anchors --purpose=server-auth "$tmp_store" > /dev/null
+
+    # Add the system CA certificates to the JVM truststore.
+    keytool -importkeystore -destkeystore "$JRE_CACERTS_PATH" -srckeystore "$tmp_store" -srcstorepass changeit -deststorepass changeit -noprompt > /dev/null
+
+    # Clean up the temporary truststore
+    rm -f "$tmp_store"
+
+    # Import the additional certificate into JVM truststore
+    find -L /certificates -path '*/..*' -prune -o -type f -name "*crt" -print 2>/dev/null | sort | while IFS= read -r i; do
+        tmp_dir=$(mktemp -d)
+        BASENAME=$(basename "$i" .crt)
+
+        # We might have multiple certificates in the file. Split this file into single files. The reason is that
+        # `keytool` does not accept multi-certificate files
+        csplit -s -z -b %02d.crt -f "$tmp_dir/$BASENAME-" "$i" '/-----BEGIN CERTIFICATE-----/' '{*}'
+
+        for crt in "$tmp_dir/$BASENAME"-*; do
+            # Extract the Common Name (CN) from the certificate
+            CN=$(openssl x509 -in "$crt" -noout -subject -nameopt -space_eq | sed -n 's/^.*CN=\([^,]*\).*$/\1/p')
+
+            # Compute the certificate SHA-256 fingerprint. It is used both to skip certificates that are
+            # already present and to build a collision-free alias below. A certificate that openssl cannot
+            # parse yields an empty fingerprint; skip it rather than risk a non-unique alias.
+            FINGERPRINT=$(openssl x509 -in "$crt" -noout -fingerprint -sha256 2>/dev/null | cut -d'=' -f2)
+            if [ -z "$FINGERPRINT" ]; then
+                echo "Could not read the fingerprint of a certificate in $i, skipping"
+                continue
+            fi
+
+            # Check if the certificate is already in the JVM truststore by fingerprint. This prevents
+            # failures on container restart when the certificate was added to the system CA store in a
+            # previous run and is now being re-imported via keytool -importkeystore.
+            if keytool_truststore -list -storepass changeit -v 2>/dev/null | grep -qiF "$FINGERPRINT"; then
+                echo "Certificate with CN=$CN is already in the JVM truststore, skipping"
+                continue
+            fi
+
+            # Normalized, globally-unique fingerprint suffix used to disambiguate aliases. The serial
+            # number is not reliable for this: CA roots can share a non-unique serial (e.g. 00) and may
+            # have no CN at all, which previously collapsed every such cert to the same alias.
+            FP=$(printf '%s' "$FINGERPRINT" | tr -d ':' | tr 'A-Z' 'a-z')
+
+            if [ -n "$CN" ]; then
+                # Use the CN as the alias, falling back to the fingerprint on collision
+                ALIAS=$CN
+                if keytool_truststore -list -storepass changeit -alias "$ALIAS" >/dev/null 2>&1; then
+                    ALIAS="${CN}_${FP}"
+                fi
+            else
+                # No CN available: derive a unique, deterministic alias from the fingerprint
+                ALIAS="adoptium_${FP}"
+            fi
+
+            echo "Adding certificate with alias $ALIAS to the JVM truststore"
+
+            # Add the certificate to the JVM truststore
+            keytool_truststore -import -noprompt -alias "$ALIAS" -file "$crt" -storepass changeit >/dev/null
+        done
+    done
+
+    # Add additional certificates to the system CA store. This requires write permissions to several system
+    # locations, which is not possible in a container with read-only filesystem and/or non-root container.
+    if [ "$(id -u)" -eq 0 ]; then
+
+        # Copy certificates from /certificates to the system truststore, but only if the directory exists and is not empty.
+        # The reason why this is not part of the opt-in is because it leaves open the option to mount certificates at the
+        # system location, for whatever reason.
+        if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
+            find -L /certificates -path '*/..*' -prune -o -type f -name "*crt" -print 2>/dev/null | while IFS= read -r _crt; do
+                _rel="${_crt#/certificates/}"
+                _dst_rel="${_rel//_/__}"
+                _dst_rel="${_dst_rel//\//_}"
+                cp -L "$_crt" "/usr/local/share/ca-certificates/${_dst_rel}"
+            done
+        fi
+        update-ca-certificates
+    else
+        # If we are not root, we cannot update the system truststore. That's bad news for tools like `curl` and `wget`,
+        # but since the JVM is the primary focus here, we can live with that.
+        true
+    fi
+fi
+
+# Let's provide a variable with the correct path for tools that want or need to use it
+export JRE_CACERTS_PATH
+
+exec "$@"

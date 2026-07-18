@@ -3,7 +3,7 @@ updates:
   exclude-paths:
     - ".github/workflows/*.lock.yml" # gh aw managed workflows
   ignore:
-    - dependency-name: "github/gh-aw-actions" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+    - dependency-name: "github/gh-aw-actions*" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
   open-pull-requests-limit: 10
   package-ecosystem: github-actions
   schedule:

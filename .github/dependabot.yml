@@ -1,16 +1,16 @@
 updates:
-- directory: /
-  exclude-paths:
-    - ".github/workflows/*.lock.yml" # gh aw managed workflows
-  ignore:
-    - dependency-name: "github/gh-aw-actions/setup" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
-    - dependency-name: "github/gh-aw-actions/setup-cli" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
-  open-pull-requests-limit: 10
-  package-ecosystem: github-actions
-  schedule:
-    interval: daily
-  groups:
-    codeql-action:
-      patterns:
-         - "github/codeql-action/*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+    exclude-paths:
+      - ".github/workflows/*.lock.yml" # gh aw managed workflows
+    ignore:
+      - dependency-name: "github/gh-aw-actions/setup" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+      - dependency-name: "github/gh-aw-actions/setup-cli" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action/*"
 version: 2

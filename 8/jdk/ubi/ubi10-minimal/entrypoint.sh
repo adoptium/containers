@@ -136,7 +136,12 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # The reason why this is not part of the opt-in is because it leaves open the option to mount certificates at the
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
-            cp -La /certificates/* /usr/share/pki/ca-trust-source/anchors/
+            for _crt in /certificates/*crt; do
+                if [ ! -f "$_crt" ]; then
+                    continue
+                fi
+                cp -L "$_crt" /usr/share/pki/ca-trust-source/anchors/
+            done
         fi
         update-ca-trust
     else

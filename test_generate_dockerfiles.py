@@ -192,6 +192,8 @@ class TestJinjaRendering(unittest.TestCase):
 
         # Ensure that the entrypoint script contains expected commands
         self.assertIn("update-ca-certificates", rendered_template)
+        self.assertIn("/certificates/*crt", rendered_template)
+        self.assertNotIn("/certificates/*.crt", rendered_template)
         self.assertIn("exec \"$@\"", rendered_template)
 
 

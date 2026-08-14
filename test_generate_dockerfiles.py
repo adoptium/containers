@@ -194,6 +194,7 @@ class TestJinjaRendering(unittest.TestCase):
         self.assertIn("update-ca-certificates", rendered_template)
         self.assertIn("/certificates/*crt", rendered_template)
         self.assertNotIn("/certificates/*.crt", rendered_template)
+        self.assertIn("cp -La /certificates/* /usr/local/share/ca-certificates/", rendered_template)
         self.assertIn("exec \"$@\"", rendered_template)
 
 

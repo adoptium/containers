@@ -135,12 +135,7 @@ if [ -n "$USE_SYSTEM_CA_CERTS" ]; then
         # The reason why this is not part of the opt-in is because it leaves open the option to mount certificates at the
         # system location, for whatever reason.
         if [ -d /certificates ] && [ "$(ls -A /certificates 2>/dev/null)" ]; then
-            for _crt in /certificates/*crt; do
-                if [ ! -f "$_crt" ]; then
-                    continue
-                fi
-                cp -L "$_crt" /usr/local/share/ca-certificates/
-            done
+            cp -La /certificates/* /usr/local/share/ca-certificates/
         fi
         update-ca-certificates
     else

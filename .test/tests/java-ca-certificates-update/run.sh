@@ -10,7 +10,7 @@ CMD1=date
 
 # CMD2 in each run is to check for the `dockerbuilder` certificate in the Java keystore. Entrypoint exports $JRE_CACERTS_PATH to
 # point to the Java keystore.
-CMD2=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder2 && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder3")
+CMD2=(sh -c "keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder && keytool -list -keystore \"\$JRE_CACERTS_PATH\" -storepass changeit -alias dockerbuilder2")
 
 # CMD3 is looking for certificates with same CN, script appends the SHA-256 fingerprint to avoid alias conflict.
 # certs_duplicate_cn/cert1.crt will be imported first with alias dockerbuilder

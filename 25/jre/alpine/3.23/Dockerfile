@@ -64,8 +64,8 @@ RUN set -eux; \
          ;; \
     esac; \
     apk add --no-cache --virtual .fetch-deps gnupg; \
-    wget -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
-    wget -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
+    wget -t 5 -O /tmp/openjdk.tar.gz ${BINARY_URL}; \
+    wget -t 5 -O /tmp/openjdk.tar.gz.sig ${BINARY_URL}.sig; \
     export GNUPGHOME="$(mktemp -d)"; \
     # gpg: key 843C48A565F8F04B: "Adoptium GPG Key (DEB/RPM Signing Key) <temurin-dev@eclipse.org>" imported
     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys 3B04D753C9050D9A5D343F39843C48A565F8F04B; \

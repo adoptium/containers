@@ -50,6 +50,10 @@ ENV JAVA_VERSION=jdk-25.0.4.1+1
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
+       aarch64) \
+         ESUM='0200539904de3669dce5c435aa1ef71f530325d6461c76d85fe90d5424e4974e'; \
+         BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_aarch64_alpine-linux_hotspot_25.0.4.1_1.tar.gz'; \
+         ;; \
        x86_64) \
          ESUM='cde9e39d32cab07722cb3218d91980091012f16333f8a298c40896cd05e2ffea'; \
          BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_x64_alpine-linux_hotspot_25.0.4.1_1.tar.gz'; \

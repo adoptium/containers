@@ -258,6 +258,10 @@ if __name__ == "__main__":
                         with open(
                             os.path.join(output_directory, "entrypoint.sh"), "w"
                         ) as out_file:
-                            out_file.write(entrypoint)
+                            out_file.write(
+                                entrypoint
+                                if entrypoint.endswith("\n")
+                                else f"{entrypoint}\n"
+                            )
 
     print("Dockerfiles generated successfully!")

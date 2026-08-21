@@ -48,34 +48,14 @@ RUN set -eux; \
     locale-gen en_US.UTF-8; \
     rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_VERSION=jdk-17.0.20+8
+ENV JAVA_VERSION=jdk-17.0.20.1+1
 
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        amd64) \
-         ESUM='ef491a51a46ef90cc47fbc4abb219fde32483ff91be5ec66ddc896df43524b27'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jre_x64_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       arm64) \
-         ESUM='9d14a95e07c44bc48666625162baf40db9da4dcb192bfc3e43047790693061a2'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jre_aarch64_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       armhf) \
-         ESUM='b3b1c5aa21111d9000a855008b0f08ca3f7cdd4d9ba99e2b9f0750eb82e261e5'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jre_arm_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       ppc64el) \
-         ESUM='cb3d0280a1be22db89ec81058471a8c694ea35b33d4bfc23d52c55f6be2a34f7'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jre_ppc64le_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       riscv64) \
-         ESUM='9c018e609c1f851018f053bb634e14473e8c0b6532aae400a105aa4d52c84d42'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jre_riscv64_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       s390x) \
-         ESUM='6effd0a45b0ea7ee9fccc861e7bd4dcb92a6096e7cea3ed22484231c1be82736'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jre_s390x_linux_hotspot_17.0.20_8.tar.gz'; \
+         ESUM='0b2b640e3046b64c8ec504de0ab9d91bb5610182bda21fad454681ce54d45a62'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jre_x64_linux_hotspot_17.0.20.1_1.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

@@ -46,26 +46,14 @@ RUN set -eux; \
     ; \
     microdnf clean all
 
-ENV JAVA_VERSION=jdk-17.0.20+8
+ENV JAVA_VERSION=jdk-17.0.20.1+1
 
 RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
-       aarch64) \
-         ESUM='d143936f473a4cb24e3b0e247d6d0775769d55ec9775c339540e753059a8d77a'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jdk_aarch64_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       ppc64le) \
-         ESUM='a14127c5577dc12e058459549e5388fd47ebd1b3d8441fbd23c4d931bdcebee9'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jdk_ppc64le_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
-       s390x) \
-         ESUM='d5bbce66faa1482adb6ddcabc51d6c14b7c35cb11174e657d84ecb2177a4f6e9'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.20_8.tar.gz'; \
-         ;; \
        x86_64) \
-         ESUM='be7668bc030d578b83d6d5ef9221d6d6729bbbca8cf94a7d52e16ac68b5a5a35'; \
-         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20%2B8/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20_8.tar.gz'; \
+         ESUM='3808d1d15e3ec6bd5b84057fb5d84c33d8a1536a258146bcea2e603fc726e08e'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.20.1%2B1/OpenJDK17U-jdk_x64_linux_hotspot_17.0.20.1_1.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

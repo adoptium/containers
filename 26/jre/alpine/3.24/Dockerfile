@@ -50,6 +50,10 @@ ENV JAVA_VERSION=jdk-26.0.2.1+1
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
+       aarch64) \
+         ESUM='e69231c395189e522128c0cd4a77ba51afdb8a4d20043432e782c64598e75f09'; \
+         BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.2.1%2B1/OpenJDK26U-jre_aarch64_alpine-linux_hotspot_26.0.2.1_1.tar.gz'; \
+         ;; \
        x86_64) \
          ESUM='6e888041f134826787d62bbf35fd007ea27ad18588c4c5e46e78d2706449d368'; \
          BINARY_URL='https://github.com/adoptium/temurin26-binaries/releases/download/jdk-26.0.2.1%2B1/OpenJDK26U-jre_x64_alpine-linux_hotspot_26.0.2.1_1.tar.gz'; \

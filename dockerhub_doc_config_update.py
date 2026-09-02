@@ -36,6 +36,8 @@ OFFICIAL_MANIFEST_URL = (
     "master/library/eclipse-temurin"
 )
 
+ARM32_ARCHITECTURE = "arm32v7"
+
 
 def load_config():
     with open("config/temurin.yml", "r") as f:
@@ -86,6 +88,11 @@ def get_distro_name(os_family, directory):
     if os_family == "alpine-linux":
         return f"alpine-{name}"
     return name
+
+
+def add_tag_suffix(tags, suffix):
+    """Append a variant suffix to every tag in a comma-separated list."""
+    return ", ".join(f"{tag}-{suffix}" for tag in tags.split(", "))
 
 
 # Map Dockerfile arch names to Docker Hub official image architecture names
@@ -266,39 +273,71 @@ def generate_manifest(config, output_file):
                     else:
                         all_shared_tags = f"{shared_tags}{extra_shared_tags}"
 
-                    # Compare with official manifest (before appending alpine aliases)
-                    manifest_block = find_manifest_block(official_manifest, all_tags)
-                    official_gitcommit = get_block_gitcommit(manifest_block)
-
-                    if official_gitcommit and not has_changed(
-                        gitcommit, official_gitcommit, dfdir
-                    ):
-                        commit = official_gitcommit
+                    if is_windows:
+                        manifest_variants = [
+                            (all_tags, all_shared_tags, ["windows-amd64"])
+                        ]
                     else:
-                        commit = gitcommit
+                        dockerfile_arches = get_dockerfile_arches(dockerfile)
+                        if ver == 8 and ARM32_ARCHITECTURE in dockerfile_arches:
+                            non_arm32_arches = [
+                                arch
+                                for arch in dockerfile_arches
+                                if arch != ARM32_ARCHITECTURE
+                            ]
+                            manifest_variants = []
+                            if non_arm32_arches:
+                                manifest_variants.append(
+                                    (all_tags, all_shared_tags, non_arm32_arches)
+                                )
+                            manifest_variants.append(
+                                (
+                                    add_tag_suffix(all_tags, ARM32_ARCHITECTURE),
+                                    add_tag_suffix(shared_tags, ARM32_ARCHITECTURE),
+                                    [ARM32_ARCHITECTURE],
+                                )
+                            )
+                        else:
+                            manifest_variants = [
+                                (all_tags, all_shared_tags, dockerfile_arches)
+                            ]
 
-                    # Append alpine alias tags for the default alpine image
-                    if distro == default_alpine_image:
-                        alpine_aliases = (
-                            all_shared_tags.replace(", ", "-alpine, ") + "-alpine"
+                    for entry_tags, entry_shared_tags, arches in manifest_variants:
+                        if not arches:
+                            continue
+
+                        # Compare with official manifest (before appending alpine aliases)
+                        manifest_block = find_manifest_block(
+                            official_manifest, entry_tags
                         )
-                        all_tags = f"{all_tags}, {alpine_aliases}"
+                        official_gitcommit = get_block_gitcommit(manifest_block)
 
-                    # Write entry
-                    lines.append(f"Tags: {all_tags}")
-                    if is_windows or distro == default_linux_image:
-                        lines.append(f"SharedTags: {all_shared_tags}")
-                    if is_windows:
-                        lines.append("Architectures: windows-amd64")
-                    else:
-                        arches = ", ".join(get_dockerfile_arches(dockerfile))
-                        lines.append(f"Architectures: {arches}")
-                    lines.append(f"GitCommit: {commit}")
-                    lines.append(f"Directory: {dfdir}")
-                    if is_windows:
-                        lines.append("Builder: classic")
-                        lines.append(f"Constraints: {constraints}")
-                    lines.append("")
+                        if official_gitcommit and not has_changed(
+                            gitcommit, official_gitcommit, dfdir
+                        ):
+                            commit = official_gitcommit
+                        else:
+                            commit = gitcommit
+
+                        # Append alpine alias tags for the default alpine image
+                        if distro == default_alpine_image:
+                            alpine_aliases = (
+                                entry_shared_tags.replace(", ", "-alpine, ")
+                                + "-alpine"
+                            )
+                            entry_tags = f"{entry_tags}, {alpine_aliases}"
+
+                        # Write entry
+                        lines.append(f"Tags: {entry_tags}")
+                        if is_windows or distro == default_linux_image:
+                            lines.append(f"SharedTags: {entry_shared_tags}")
+                        lines.append(f"Architectures: {', '.join(arches)}")
+                        lines.append(f"GitCommit: {commit}")
+                        lines.append(f"Directory: {dfdir}")
+                        if is_windows:
+                            lines.append("Builder: classic")
+                            lines.append(f"Constraints: {constraints}")
+                        lines.append("")
 
     with open(output_file, "w") as f:
         # Remove trailing empty lines before writing

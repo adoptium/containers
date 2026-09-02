@@ -379,6 +379,67 @@ class TestGenerateManifest(unittest.TestCase):
         # alpine-linux config exists but no Dockerfile was created for it
         self.assertNotIn("alpine-3.23", content)
 
+    @patch("dockerhub_doc_config_update.get_supported_versions", return_value=[8])
+    @patch("dockerhub_doc_config_update.get_latest_lts", return_value=8)
+    @patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123")
+    @patch("dockerhub_doc_config_update.fetch_official_manifest", return_value="")
+    def test_jdk8_arm32_has_independent_tags(
+        self, _fetch, _git, _lts, _versions
+    ):
+        jdk_dir = os.path.join(self.tmpdir, "8", "jdk", "ubuntu", "noble")
+        os.makedirs(jdk_dir)
+
+        with open(os.path.join(jdk_dir, "Dockerfile"), "w") as f:
+            f.write(textwrap.dedent("""\
+                FROM ubuntu:24.04
+                ENV JAVA_VERSION=jdk8u504-b01
+                                RUN case "${ARCH}" in
+                                     amd64)
+                                         ;;
+                                     armhf)
+                                         ;;
+                esac;
+            """))
+
+        generate_manifest(self.config, self.output_file)
+
+        with open(self.output_file) as f:
+            content = f.read()
+
+        blocks = content.split("\n\n")
+        main_block = next(
+            block
+            for block in blocks
+            if "Tags: 8u504-b01-jdk-noble, 8-jdk-noble, 8-noble" in block
+        )
+        arm32_block = next(
+            block
+            for block in blocks
+            if "Tags: 8u504-b01-jdk-noble-arm32v7" in block
+        )
+
+        self.assertIn(
+            "SharedTags: 8u504-b01-jdk, 8-jdk, 8, latest",
+            main_block,
+        )
+        self.assertIn("Architectures: amd64", main_block)
+        self.assertNotIn("arm32v7", main_block)
+
+        self.assertIn(
+            "Tags: 8u504-b01-jdk-noble-arm32v7, "
+            "8-jdk-noble-arm32v7, 8-noble-arm32v7",
+            arm32_block,
+        )
+        self.assertIn(
+            "SharedTags: 8u504-b01-jdk-arm32v7, "
+            "8-jdk-arm32v7, 8-arm32v7",
+            arm32_block,
+        )
+        self.assertIn("Architectures: arm32v7", arm32_block)
+        self.assertIn("Directory: 8/jdk/ubuntu/noble", arm32_block)
+        self.assertNotIn("File:", arm32_block)
+        self.assertNotIn("latest", arm32_block)
+
 
 if __name__ == "__main__":
     unittest.main()

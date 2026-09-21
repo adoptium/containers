@@ -54,6 +54,10 @@ RUN set -eux; \
          ESUM='65177a444f1a8201ef6e557c6f24c1dded80ae2e4dc33987fb31173f6c06cd74'; \
          BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_aarch64_alpine-linux_hotspot_27_35.tar.gz'; \
          ;; \
+       x86_64) \
+         ESUM='09323dd71131eb7f30a98cd4a6e050fe10135a23ab5e7ad01b0e097e533ce7c3'; \
+         BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_alpine-linux_hotspot_27_35.tar.gz'; \
+         ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \
          exit 1; \

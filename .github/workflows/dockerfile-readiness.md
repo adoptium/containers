@@ -16,6 +16,10 @@ permissions:
   pull-requests: read
   copilot-requests: write
 
+engine:
+  id: copilot
+  model: claude-sonnet-5
+
 safe-outputs:
   add-comment:
     hide-older-comments: true

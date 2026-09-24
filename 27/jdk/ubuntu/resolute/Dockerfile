@@ -59,6 +59,10 @@ RUN set -eux; \
          ESUM='e4ec5c7276290c7bde0baecba9a29be4962f5388684296406a9799d465936087'; \
          BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jdk_aarch64_linux_hotspot_27_35.tar.gz'; \
          ;; \
+       ppc64el) \
+         ESUM='49a350d6e0fe41f7ee94ffaf101f0951f35042e86c52efa8a751a38fcb2126bb'; \
+         BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jdk_ppc64le_linux_hotspot_27_35.tar.gz'; \
+         ;; \
        s390x) \
          ESUM='5bc83a1453c2b68963218717f138512ce10d7553a68432082e6553ac31fa829b'; \
          BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jdk_s390x_linux_hotspot_27_35.tar.gz'; \

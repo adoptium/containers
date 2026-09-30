@@ -56,12 +56,12 @@ configurations:
 
   alpine-linux:
   - directory: alpine/3.24
-    architectures: [aarch64, x64]
+    architectures: [aarch64, riscv64, x64]
     image: alpine:3.24
     os: alpine-linux
 
   - directory: alpine/3.23
-    architectures: [aarch64, x64]
+    architectures: [aarch64, riscv64, x64]
     image: alpine:3.23
     deprecated: 27
     os: alpine-linux

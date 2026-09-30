@@ -4,6 +4,11 @@ RUN set -eux; \
     case "${ARCH}" in \
        {% for arch, details in arch_data.items() -%}
         {{ arch }}) \
+         {% if details.pending|default(false) -%}
+         # TODO: This configured architecture is pending upstream binary availability for {{ java_version }}.
+         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
+         exit 1; \
+         {% else -%}
          ESUM='{{ details.checksum }}'; \
          BINARY_URL='{{ details.download_url }}'; \
          {% if arch == "armhf" and os == "ubuntu" and ver == 8 -%}
@@ -11,6 +16,7 @@ RUN set -eux; \
          apt-get update; \
          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1; \
          rm -rf /var/lib/apt/lists/*; \
+         {% endif -%}
          {% endif -%}
          ;; \
        {% endfor -%}

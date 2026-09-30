@@ -94,6 +94,20 @@ Architecture name mapping between config/Dockerfiles and the manifest:
 - `riscv64` → `riscv64`
 - Windows entries always show `windows-amd64`
 
+Generated Dockerfiles retain a `case` branch for every configured Linux
+architecture, even when the current Adoptium release does not have that binary
+yet. Such a branch contains this marker:
+
+```
+# TODO: This configured architecture is pending upstream binary availability
+```
+
+and exits intentionally before downloading anything. The architecture remains
+in the manifest so official-images can keep serving its previous successful
+build while other architectures advance. This is an expected, non-blocking
+state, not an unsupported architecture or a reason to create architecture-
+specific tags.
+
 ## Instructions
 
 ### Step 1: Parse both manifests
@@ -110,6 +124,12 @@ From the Directory field, derive:
 - **Version** (e.g., `21`)
 - **Package type** (`jdk` or `jre`)
 - **Distro** (e.g., `ubuntu/noble`, `alpine/3.23`, `ubi/ubi10-minimal`, `windows/nanoserver-ltsc2022`)
+
+Then inspect each local Linux Dockerfile referenced by the manifest. Within its
+`case "${ARCH}"` statement, record every branch containing the pending-upstream
+marker above. Map its Dockerfile architecture name to the manifest name and
+associate it with the entry's version, package type, and distro. Only the marked
+branch is pending; other branches in the same Dockerfile can be ready.
 
 ### Distro family grouping
 
@@ -203,6 +223,12 @@ the local manifest against the upstream manifest:
    that it is ready. Mark such entries as:
    `⏳ Not yet updated (still at <old_version>)`
 
+6. **Pending upstream binaries**: For each marked Dockerfile branch, report the
+   distro and mapped manifest architecture as pending. Do not report it as
+   missing from the manifest or config: retaining it in `Architectures:` is
+   deliberate. Check both JDK and JRE Dockerfiles; if only one is pending, name
+   the package type explicitly.
+
 ### Step 4: Determine readiness per version
 
 First, check whether the version has **any changes at all** compared to upstream.
@@ -210,6 +236,7 @@ A version has **no updates** if ALL of the following are true for every entry:
 - The Java version string in the tags is identical to upstream
 - The set of architectures is identical to upstream
 - No entries were added or removed
+- No local Dockerfile contains a pending-upstream architecture marker
 
 A version with no updates must be marked **⏭️ No Updates** — do NOT mark it as
 "Ready to Ship". This is critical: "Ready to Ship" implies the version was updated
@@ -226,6 +253,7 @@ A version is **Ready to Ship** only if ALL of the following are true:
   version is NOT consistent and CANNOT be marked Ready to Ship.
 - Both jdk and jre entries exist for all distros that had them upstream (they are always published as a pair)
 - All windows variants (servercore + nanoserver for each LTSC version) present upstream are also present locally
+- No Dockerfile for the version contains a pending-upstream architecture marker
 
 A version is **Partially Ready** if:
 - Some entries match upstream but others have missing architectures
@@ -234,6 +262,9 @@ A version is **Partially Ready** if:
 - Some entries have been bumped to the new Java version but others are still at
   the old version (e.g. Linux updated but Windows stale). In this case the
   summary must explicitly list which entries are stale and at which version.
+- One or more configured architectures are marked pending upstream. Other
+  architectures remain shippable, and the previous successful image for each
+  pending architecture remains published.
 
 A version is **Not Ready** if:
 - Most upstream entries are missing from the local manifest
@@ -249,10 +280,10 @@ Output a clear markdown report. Use this structure:
 
 ### Summary
 
-| Version | Status | Java Version | Missing Distros | Missing Arches | Notes |
-|---------|--------|-------------|-----------------|----------------|-------|
+| Version | Status | Java Version | Missing Distros | Pending / Missing Arches | Notes |
+|---------|--------|-------------|-----------------|--------------------------|-------|
 | 8       | ⏭️ No Updates | 8u482-b08 | — | — | Unchanged from upstream |
-| 11      | ⚠️ Partial | 11.0.30_7 | — | noble: riscv64 | New arch not yet built |
+| 11      | ⚠️ Partial | 11.0.30_7 | — | noble: riscv64 (pending upstream) | Previous riscv64 build remains published |
 | 21      | ✅ Ready | 21.0.7_6 | — | — | Version bumped from 21.0.6_7 |
 | 17      | ⚠️ Partial | 17.0.19_10 | — | noble: arm64v8, s390x | Linux bumped; Windows stale at 17.0.18_8 |
 | 25      | ❌ Not Ready | 25.0.2_10 | alpine/3.23 (jre) | noble: s390x | First release, ubi9-minimal skipped (deprecated) |
@@ -318,6 +349,11 @@ identical to upstream. This version was not updated in this PR.
   manifest — these are **unpublished architectures** that haven't been built yet.
 - Clearly highlight any architecture in the manifest that is NOT in the config —
   these are **new architectures** that have been added.
+- Clearly highlight marked pending-upstream branches separately from missing
+  architectures. A pending architecture is intentionally still present in the
+  manifest, its current release build is expected to fail with the generated
+  diagnostic, and official-images continues serving its previous successful
+  build. Never suggest architecture-specific tags for this state.
 - If a version exists in local but not upstream, mark it as a **new version**.
 - If the Java version string changed between upstream and local, call it out as a
   **version bump**.

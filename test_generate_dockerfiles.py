@@ -16,7 +16,7 @@ from unittest.mock import Mock, mock_open, patch
 
 from jinja2 import Environment, FileSystemLoader
 
-from generate_dockerfiles import resolve_architectures
+from generate_dockerfiles import add_missing_architectures, resolve_architectures
 
 
 class TestJinjaRendering(unittest.TestCase):
@@ -179,6 +179,36 @@ class TestJinjaRendering(unittest.TestCase):
         self.assertIn("http://fake-url.com", rendered_template)
         self.assertIn("fake-checksum", rendered_template)
 
+    def test_pending_architecture_rendering(self):
+        template = self.env.get_template("ubuntu.Dockerfile.j2")
+        context = {
+            "version": 11,
+            "image_type": "jdk",
+            "java_version": "jdk-11.0.30+7",
+            "os": "ubuntu",
+            "arch_data": {
+                "amd64": {
+                    "download_url": "http://fake-url.com",
+                    "checksum": "fake-checksum",
+                },
+                "arm64": {"pending": True},
+            },
+        }
+
+        rendered_template = template.render(**context)
+        pending_branch = rendered_template.split("arm64)", 1)[1].split(";;", 1)[0]
+
+        self.assertIn(
+            "This configured architecture is pending upstream binary availability",
+            pending_branch,
+        )
+        self.assertIn(
+            "retry after it is published upstream",
+            pending_branch,
+        )
+        self.assertNotIn("ESUM=", pending_branch)
+        self.assertNotIn("BINARY_URL=", pending_branch)
+
     def test_entrypoint_rendering(self):
         template_name = "entrypoint.sh.j2"
         template = self.env.get_template(template_name)
@@ -273,6 +303,28 @@ class TestResolveArchitectures(unittest.TestCase):
         overrides = [{"versions": "~8", "exclude": ["x64"]}]
         with self.assertRaises(ValueError):
             resolve_architectures(self.default_archs, overrides, 8)
+
+
+class TestAddMissingArchitectures(unittest.TestCase):
+    def test_adds_pending_entries_for_every_missing_architecture(self):
+        arch_data = {
+            "amd64": {
+                "download_url": "http://fake-url.com",
+                "checksum": "fake-checksum",
+            }
+        }
+        architectures = ["aarch64", "arm", "ppc64le", "s390x", "x64"]
+
+        result = add_missing_architectures(arch_data, architectures, "ubuntu")
+
+        self.assertEqual(
+            set(result),
+            {"amd64", "arm64", "armhf", "ppc64el", "s390x"},
+        )
+        self.assertEqual(result["amd64"], arch_data["amd64"])
+        for architecture in ["arm64", "armhf", "ppc64el", "s390x"]:
+            self.assertEqual(result[architecture], {"pending": True})
+        self.assertEqual(set(arch_data), {"amd64"})
 
 
 if __name__ == "__main__":

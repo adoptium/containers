@@ -89,6 +89,18 @@ def archHelper(arch, os_name):
         return arch
 
 
+def add_missing_architectures(arch_data, architectures, os_name):
+    """Add pending entries for configured architectures absent from the release."""
+    complete_arch_data = dict(arch_data)
+    for architecture in architectures:
+        dockerfile_architecture = archHelper(architecture, os_name)
+        complete_arch_data.setdefault(
+            dockerfile_architecture,
+            {"pending": True},
+        )
+    return complete_arch_data
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate Dockerfiles for Eclipse Temurin images"
@@ -215,6 +227,11 @@ if __name__ == "__main__":
 
                         else:
                             continue
+
+                    if os_family != "windows":
+                        arch_data = add_missing_architectures(
+                            arch_data, architectures, os_name
+                        )
 
                     # If arch_data is empty, skip updating the dockerfile
                     if arch_data.__len__() == 0:

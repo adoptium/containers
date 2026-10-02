@@ -52,6 +52,11 @@ ENV JAVA_VERSION=jdk-11.0.32.1+1
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
+       aarch64) \
+         # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.32.1+1.
+         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
+         exit 1; \
+         ;; \
        x86_64) \
          ESUM='1dc1d3259fa4ca7a2db43c539a60bfa7fc0ea595f445a71ef36d28120f3094aa'; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.32.1%2B1/OpenJDK11U-jdk_x64_alpine-linux_hotspot_11.0.32.1_1.tar.gz'; \

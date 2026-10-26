@@ -66,9 +66,8 @@ RUN set -eux; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.21%2B9/OpenJDK17U-jre_arm_linux_hotspot_17.0.21_9.tar.gz'; \
          ;; \
        ppc64el) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-17.0.21+9.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='7836a98346529939fc1149a59c7159d0ea721c2028fbfade620d60e58293d65f'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.21%2B9/OpenJDK17U-jre_ppc64le_linux_hotspot_17.0.21_9.tar.gz'; \
          ;; \
        riscv64) \
          # TODO: This configured architecture is pending upstream binary availability for jdk-17.0.21+9.

@@ -51,9 +51,8 @@ RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        aarch64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-27.0.1.0.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='96bd067e2a6904c2c48925b3b66cbcbf33fac7ebadee3409aeba40c5f9494209'; \
+         BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27.0.1.0.2%2B1/OpenJDK27U-jre_aarch64_alpine-linux_hotspot_27.0.1.0.2_1.tar.gz'; \
          ;; \
        x86_64) \
          ESUM='2ed5b164f40cf5f5a04b73054d147f9111e431eff710d9c725a0efb191ff20a6'; \

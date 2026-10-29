@@ -12,9 +12,11 @@
 #
 
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
 
 from jinja2 import Environment, FileSystemLoader
+import yaml
 
 from architecture_config import resolve_architectures
 from generate_dockerfiles import add_missing_architectures
@@ -304,6 +306,49 @@ class TestResolveArchitectures(unittest.TestCase):
         overrides = [{"versions": "~8", "exclude": ["x64"]}]
         with self.assertRaises(ValueError):
             resolve_architectures(self.default_archs, overrides, 8)
+
+
+class TestConfiguredAlpineArchitectures(unittest.TestCase):
+    def setUp(self):
+        root = Path(__file__).resolve().parent
+        with (root / "config" / "temurin.yml").open() as source:
+            self.config = yaml.safe_load(source)
+        self.env = Environment(loader=FileSystemLoader(root / "docker_templates"))
+
+    def test_alpine_arm64_starts_at_java21_for_every_distro(self):
+        for distro in self.config["configurations"]["alpine-linux"]:
+            overrides = self.config["architecture_overrides"] + distro.get("architecture_overrides", [])
+            for version in (8, 11, 17, 21, 25, 26, 27):
+                with self.subTest(distro=distro["directory"], version=version):
+                    architectures = resolve_architectures(distro["architectures"], overrides, version)
+                    self.assertEqual(architectures, ["x64"] if version < 21 else ["aarch64", "x64"])
+
+    def test_old_alpine_jdk_and_jre_do_not_render_pending_arm64(self):
+        template = self.env.get_template("alpine-linux.Dockerfile.j2")
+        for distro in self.config["configurations"]["alpine-linux"]:
+            overrides = self.config["architecture_overrides"] + distro.get("architecture_overrides", [])
+            for version in (8, 11, 17):
+                architectures = resolve_architectures(distro["architectures"], overrides, version)
+                arch_data = add_missing_architectures({
+                    "x86_64": {"download_url": "https://example.com/java.tar.gz", "checksum": "abc"},
+                }, architectures, "alpine-linux")
+                for package in ("jdk", "jre"):
+                    with self.subTest(distro=distro["directory"], version=version, package=package):
+                        rendered = template.render(
+                            base_image=distro["image"], image_type=package,
+                            java_version=f"jdk-{version}", version=version,
+                            arch_data=arch_data, os_family="alpine-linux", os="alpine-linux",
+                        )
+                        self.assertIn("x86_64)", rendered)
+                        self.assertNotIn("aarch64)", rendered)
+                        self.assertNotIn("pending upstream binary availability", rendered)
+
+    def test_other_linux_distros_retain_arm64_for_older_java(self):
+        for distro in self.config["configurations"]["linux"]:
+            overrides = self.config["architecture_overrides"] + distro.get("architecture_overrides", [])
+            for version in (8, 11, 17):
+                with self.subTest(distro=distro["directory"], version=version):
+                    self.assertIn("aarch64", resolve_architectures(distro["architectures"], overrides, version))
 
 
 class TestAddMissingArchitectures(unittest.TestCase):

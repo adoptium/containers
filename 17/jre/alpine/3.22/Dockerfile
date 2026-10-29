@@ -52,11 +52,6 @@ ENV JAVA_VERSION=jdk-17.0.21+9
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
-       aarch64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-17.0.21+9.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
-         ;; \
        x86_64) \
          ESUM='e42129db57e3965d9d8befdb097531d7887916690338ff0be7d1b0113287c872'; \
          BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.21%2B9/OpenJDK17U-jre_x64_alpine-linux_hotspot_17.0.21_9.tar.gz'; \

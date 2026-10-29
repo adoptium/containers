@@ -92,6 +92,12 @@ Each configuration entry has the following fields:
 | `os` | Yes | The Dockerfile template to use. Must match one of the Jinja2 templates in `docker_templates/`: `ubuntu`, `alpine-linux`, `ubi-minimal`, `servercore`, or `nanoserver`. |
 | `deprecated` | No | Java major version number at which to stop generating Dockerfiles for this distro. For example, `deprecated: 25` means the distro will not receive Dockerfiles for Java 25 or later. |
 | `versions` | No | Override the list of Java versions to generate for this distro. Defaults to all supported versions from the Adoptium API. |
+| `architecture_overrides` | No | Per-distro version conditions that replace, include, or exclude architectures after the global overrides are applied. |
+
+Alpine ARM64 (`aarch64`) binaries are supported from Java 21 onwards. Each Alpine
+configuration excludes `aarch64` for Java versions below 21, so Java 8, 11, and 17
+generate only x64 images rather than pending branches for unsupported binaries.
+This exclusion does not apply to Ubuntu or UBI.
 
 ### 4.2 Dockerfile Generation
 

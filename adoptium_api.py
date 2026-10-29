@@ -30,23 +30,20 @@ def _fetch_release_data():
 def get_supported_versions():
     """Fetch supported versions from the Adoptium API.
 
-    Returns all LTS versions plus any non-LTS versions between the most
-    recent LTS and the most recent feature release (inclusive).
+    Returns all LTS versions plus the most recent feature release.
+    Older non-LTS releases are EOL and must not be regenerated.
 
     For example, if LTS versions are [8, 11, 17, 21, 25] and the most
-    recent feature release is 26, this returns [8, 11, 17, 21, 25, 26].
+    recent feature release is 27, this returns [8, 11, 17, 21, 25, 27].
     """
     data = _fetch_release_data()
 
     lts_versions = set(data["available_lts_releases"])
-    most_recent_lts = data["most_recent_lts"]
     most_recent_feature = data["most_recent_feature_release"]
 
-    # All LTS versions + anything between latest LTS and most recent feature release
     versions = set(lts_versions)
-    for v in range(most_recent_lts + 1, most_recent_feature + 1):
-        if v in data["available_releases"]:
-            versions.add(v)
+    if most_recent_feature in data["available_releases"]:
+        versions.add(most_recent_feature)
 
     return sorted(versions)
 

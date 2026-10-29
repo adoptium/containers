@@ -67,11 +67,16 @@ class TestAdoptiumAPI(unittest.TestCase):
             self.assertEqual(versions, [8, 11, 17, 21, 25])
 
     @patch("adoptium_api.urllib.request.urlopen", side_effect=mock_urlopen)
+    def test_get_supported_versions_excludes_eol_26(self, _mock):
+        with patch.dict(MOCK_API_RESPONSE, {"most_recent_feature_release": 27, "available_releases": [8, 11, 17, 21, 25, 26, 27]}):
+            self.assertEqual(get_supported_versions(), [8, 11, 17, 21, 25, 27])
+
+    @patch("adoptium_api.urllib.request.urlopen", side_effect=mock_urlopen)
     def test_get_supported_versions_multiple_non_lts(self, _mock):
-        """When there are multiple non-LTS releases between the latest LTS and the most recent feature release."""
+        """Only the latest non-LTS release is supported alongside LTS releases."""
         with patch.dict(MOCK_API_RESPONSE, {"most_recent_feature_release": 28, "available_releases": [8, 11, 17, 21, 25, 26, 27, 28]}):
             versions = get_supported_versions()
-            self.assertEqual(versions, [8, 11, 17, 21, 25, 26, 27, 28])
+            self.assertEqual(versions, [8, 11, 17, 21, 25, 28])
 
     @patch("adoptium_api.urllib.request.urlopen", side_effect=mock_urlopen)
     def test_get_latest_lts(self, _mock):

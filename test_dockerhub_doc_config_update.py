@@ -21,11 +21,14 @@ import textwrap
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+from urllib.error import URLError
 
 from adoptium_api import get_latest_lts, get_supported_versions
 from dockerhub_doc_config_update import (
     find_manifest_block,
+    fetch_official_manifest,
+    fetch_open_publication_prs,
     format_ojdk_version,
     get_block_gitcommit,
     get_distro_name,
@@ -34,6 +37,8 @@ from dockerhub_doc_config_update import (
     get_pending_arches,
     generate_manifest,
     java_version_key,
+    github_pages,
+    PublicationPR,
 )
 
 
@@ -276,6 +281,20 @@ class TestJavaVersionKey(unittest.TestCase):
         self.assertLess(java_version_key("jdk8u492-b10"), java_version_key("jdk8u502-b01"))
         self.assertLess(java_version_key("jdk8u502-b09"), java_version_key("jdk8u502-b10"))
 
+    def test_manifest_tag_and_java_version_compare_equal(self):
+        self.assertEqual(java_version_key("25.0.2_10"), java_version_key("jdk-25.0.2+10"))
+        self.assertEqual(java_version_key("8u502-b10"), java_version_key("jdk8u502-b10"))
+
+
+class TestFetchOfficialManifest(unittest.TestCase):
+
+    @patch("dockerhub_doc_config_update.urllib.request.urlopen", side_effect=URLError("unavailable"))
+    def test_fetch_failure_is_reported_as_unavailable_not_an_empty_manifest(self, _urlopen):
+        output = io.StringIO()
+        with redirect_stderr(output):
+            self.assertIsNone(fetch_official_manifest())
+        self.assertIn("cannot compare with the official manifest", output.getvalue())
+
 
 class TestFindManifestBlock(unittest.TestCase):
 
@@ -514,14 +533,15 @@ class TestPublishReadiness(unittest.TestCase):
         path.write_text("\n".join(lines))
         return path
 
-    def generate(self):
+    def generate(self, official_manifest="", versions=None, open_prs=()):
         output = io.StringIO()
         stdout = io.StringIO()
         with (
-            patch("dockerhub_doc_config_update.get_supported_versions", return_value=[25]),
+            patch("dockerhub_doc_config_update.get_supported_versions", return_value=versions or [25]),
             patch("dockerhub_doc_config_update.get_latest_lts", return_value=25),
             patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123"),
-            patch("dockerhub_doc_config_update.fetch_official_manifest", return_value=""),
+            patch("dockerhub_doc_config_update.fetch_official_manifest", return_value=official_manifest),
+            patch("dockerhub_doc_config_update.fetch_open_publication_prs", return_value=open_prs),
             redirect_stderr(output),
             redirect_stdout(stdout),
         ):
@@ -534,12 +554,12 @@ class TestPublishReadiness(unittest.TestCase):
             [cell.strip() for cell in line.strip("|").split("|")]
             for line in summary.splitlines() if line.startswith("|")
         ]
-        self.assertIn(["25", "25.0.2_10", status, complete], rows)
+        self.assertIn(["25", "25.0.2_10", status, complete], [row[:4] for row in rows])
 
     def test_complete_release_is_ready_and_summary_is_not_in_manifest(self):
         summary, manifest = self.generate()
         self.assert_readiness(summary, "READY", "4/4")
-        self.assertIn("Ready for upstream publish: manifest", summary)
+        self.assertIn("Ready for upstream publish: Java 25.", summary)
         self.assertNotIn("readiness", manifest)
         self.assertNotIn("Publication blockers:", summary)
 
@@ -549,7 +569,7 @@ class TestPublishReadiness(unittest.TestCase):
         self.assert_readiness(summary, "BLOCKED", "3/4")
         self.assertIn("pending binaries: arm64v8", summary)
         self.assertIn("JRE ubuntu/noble", summary)
-        self.assertIn("NOT ready for upstream publish", summary)
+        self.assertIn("No updated Java versions are ready for upstream publish.", summary)
         self.assertIn("Architectures: amd64, arm64v8", manifest)
         self.assertIn("Directory: 25/jre/ubuntu/noble", manifest)
 
@@ -558,7 +578,7 @@ class TestPublishReadiness(unittest.TestCase):
         summary, _ = self.generate()
         self.assertIn("missing architectures: arm64v8", summary)
         self.assertIn("JDK ubuntu/noble", summary)
-        self.assertIn("NOT ready for upstream publish", summary)
+        self.assertIn("No updated Java versions are ready for upstream publish.", summary)
 
     def test_missing_jre_blocks_publish(self):
         Path("25/jre/ubuntu/noble/Dockerfile").unlink()
@@ -641,7 +661,7 @@ class TestPublishReadiness(unittest.TestCase):
             for line in summary.splitlines() if line.startswith("|")
         ]
         self.assertIn("no Dockerfile architectures", " ".join(blocker_cells))
-        self.assertIn("NOT ready for upstream publish", summary)
+        self.assertIn("No updated Java versions are ready for upstream publish.", summary)
 
     def test_no_configured_architectures_blocks_publish(self):
         self.config["configurations"]["linux"][0]["architectures"] = []
@@ -685,7 +705,162 @@ class TestPublishReadiness(unittest.TestCase):
         self.assertLessEqual(max(map(len, table_lines)), 116)
         for directory in directories:
             self.assertIn(directory, summary)
-        self.assertIn("NOT ready for upstream publish", summary)
+        self.assertIn("No updated Java versions are ready for upstream publish.", summary)
+
+    def test_same_release_upstream_is_up_to_date_even_with_different_git_commit(self):
+        _, manifest = self.generate()
+        upstream = manifest.replace("GitCommit: abc123", "GitCommit: already-published")
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assert_readiness(summary, "UP TO DATE", "4/4")
+        self.assertNotIn("Ready for upstream publish: Java 25.", summary)
+
+    def test_new_release_relative_to_upstream_is_ready(self):
+        _, manifest = self.generate()
+        summary, _ = self.generate(official_manifest=manifest.replace("25.0.2_10", "25.0.1_8"))
+        self.assert_readiness(summary, "READY", "4/4")
+
+    def test_new_distro_is_an_update_even_when_release_matches(self):
+        _, manifest = self.generate()
+        upstream = "\n\n".join(
+            block for block in manifest.split("\n\n") if "Directory: 25/jre/ubuntu/noble" not in block
+        )
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assert_readiness(summary, "READY", "4/4")
+
+    def test_older_local_release_than_upstream_is_blocked(self):
+        _, manifest = self.generate()
+        summary, _ = self.generate(official_manifest=manifest.replace("25.0.2_10", "25.0.3_7"))
+        self.assert_readiness(summary, "BLOCKED", "0/4")
+        self.assertIn("older than upstream release 25.0.3_7", summary)
+
+    def test_missing_upstream_comparison_does_not_claim_ready(self):
+        summary, _ = self.generate(official_manifest=None)
+        self.assert_readiness(summary, "UNKNOWN", "4/4")
+        self.assertIn("Upstream comparison unavailable", summary)
+        self.assertNotIn("Ready for upstream publish:", summary)
+
+    def test_ready_release_can_publish_independently_of_blocked_and_unchanged_releases(self):
+        import shutil
+        shutil.copytree("25", "26")
+        shutil.copytree("25", "27")
+        for path in Path("26").rglob("Dockerfile"):
+            path.write_text(path.read_text().replace("jdk-25.0.2+10", "jdk-26.0.2.1+1"))
+        for path in Path("27").rglob("Dockerfile"):
+            path.write_text(path.read_text().replace("jdk-25.0.2+10", "jdk-27.0.1+1"))
+        Path("27/jre/ubuntu/noble/Dockerfile").unlink()
+        _, upstream = self.generate(versions=[25, 26, 27])
+        upstream = "\n\n".join(
+            block.replace("25.0.2_10", "25.0.1_8")
+            for block in upstream.split("\n\n")
+            if "Directory: 27/" not in block
+        )
+        summary, _ = self.generate(official_manifest=upstream, versions=[25, 26, 27])
+        rows = [
+            [cell.strip() for cell in line.strip("|").split("|")]
+            for line in summary.splitlines() if line.startswith("|")
+        ]
+        self.assertIn(["25", "25.0.2_10", "READY", "4/4"], [row[:4] for row in rows])
+        self.assertIn(["26", "26.0.2.1_1", "UP TO DATE", "4/4"], [row[:4] for row in rows])
+        self.assertIn(["27", "27.0.1_1", "BLOCKED", "3/4"], [row[:4] for row in rows])
+        self.assertIn("Ready for upstream publish: Java 25.", summary)
+        self.assertNotIn("Ready for upstream publish: Java 25, 26", summary)
+
+    def test_exact_release_in_open_pr_is_not_suggested_again(self):
+        _, manifest = self.generate()
+        url = "https://github.com/docker-library/official-images/pull/123"
+        summary, _ = self.generate(
+            official_manifest=manifest.replace("25.0.2_10", "25.0.1_8"),
+            open_prs=[PublicationPR(url, {"25.0.2_10"})],
+        )
+        self.assert_readiness(summary, "PR OPEN", "4/4")
+        self.assertIn("#123", summary)
+        self.assertIn(url, summary)
+        self.assertNotIn("Ready for upstream publish: Java 25.", summary)
+        self.assertIn("Publication already in progress: Java 25.", summary)
+        self.assertNotIn("No updated Java versions are ready", summary)
+
+    def test_open_pr_for_different_patch_release_does_not_match(self):
+        _, manifest = self.generate()
+        summary, _ = self.generate(
+            official_manifest=manifest.replace("25.0.2_10", "25.0.1_8"),
+            open_prs=[PublicationPR("https://github.com/docker-library/official-images/pull/123", {"25.0.1_8"})],
+        )
+        self.assert_readiness(summary, "READY", "4/4")
+        self.assertNotIn("#123", summary)
+
+    def test_failed_pr_lookup_does_not_claim_no_pr_exists(self):
+        _, manifest = self.generate()
+        summary, _ = self.generate(
+            official_manifest=manifest.replace("25.0.2_10", "25.0.1_8"), open_prs=None,
+        )
+        self.assert_readiness(summary, "UNKNOWN", "4/4")
+        self.assertIn("Open upstream PRs could not be checked", summary)
+
+
+class TestOpenPublicationPRs(unittest.TestCase):
+
+    @patch("dockerhub_doc_config_update.github_pages")
+    def test_match_added_tags_not_titles_removed_tags_or_context(self, pages):
+        pages.side_effect = [
+            [{"number": 123, "html_url": "https://github.com/docker-library/official-images/pull/123"}],
+            [{
+                "filename": "library/eclipse-temurin",
+                "patch": (
+                    " Tags: 17.0.21_9-jdk-noble\n"
+                    "-Tags: 26.0.2.1_1-jdk-noble\n"
+                    "+Tags: 25.0.5_8-jdk-noble, 25-jdk-noble\n"
+                    "+Tags: 25.0.5_8-jre-noble, 25-jre-noble\n"
+                ),
+            }],
+        ]
+        prs = fetch_open_publication_prs()
+        self.assertEqual(len(prs), 1)
+        self.assertEqual(prs[0].releases, {"25.0.5_8"})
+
+    @patch("dockerhub_doc_config_update.github_pages")
+    def test_unrelated_file_does_not_match(self, pages):
+        pages.side_effect = [
+            [{"number": 123, "html_url": "https://github.com/docker-library/official-images/pull/123"}],
+            [{"filename": "library/other", "patch": "+Tags: 25.0.5_8-jdk-noble"}],
+        ]
+        self.assertEqual(fetch_open_publication_prs(), [])
+
+    @patch("dockerhub_doc_config_update.github_pages", side_effect=URLError("rate limited"))
+    def test_lookup_failure_is_explicit(self, _pages):
+        output = io.StringIO()
+        with redirect_stderr(output):
+            self.assertIsNone(fetch_open_publication_prs())
+        self.assertIn("cannot check open upstream publication PRs", output.getvalue())
+
+    @patch("dockerhub_doc_config_update.github_pages")
+    def test_omitted_manifest_diff_does_not_claim_no_matching_pr(self, pages):
+        pages.side_effect = [
+            [{"number": 123, "html_url": "https://github.com/docker-library/official-images/pull/123"}],
+            [{"filename": "library/eclipse-temurin"}],
+        ]
+        output = io.StringIO()
+        with redirect_stderr(output):
+            self.assertIsNone(fetch_open_publication_prs())
+        self.assertIn("omitted the manifest diff", output.getvalue())
+
+    @patch("dockerhub_doc_config_update.urllib.request.urlopen")
+    def test_github_results_are_paginated(self, urlopen):
+        responses = []
+        for data in [[{"number": n} for n in range(100)], [{"number": 100}]]:
+            response = MagicMock()
+            response.__enter__.return_value.read.return_value = json.dumps(data).encode("utf-8")
+            responses.append(response)
+        urlopen.side_effect = responses
+        self.assertEqual(len(list(github_pages("https://api.github.com/example"))), 101)
+        self.assertIn("page=2", urlopen.call_args.args[0].full_url)
+
+    @patch("dockerhub_doc_config_update.urllib.request.urlopen")
+    def test_incomplete_search_results_cannot_claim_no_matching_pr(self, urlopen):
+        urlopen.return_value.__enter__.return_value.read.return_value = json.dumps({
+            "incomplete_results": True, "items": [],
+        }).encode("utf-8")
+        with self.assertRaisesRegex(ValueError, "incomplete PR search"):
+            list(github_pages("https://api.github.com/search/issues?q=example", "items"))
 
 
 class TestManifestCLI(unittest.TestCase):

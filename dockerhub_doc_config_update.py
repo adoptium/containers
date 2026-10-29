@@ -20,12 +20,14 @@
 # 3. After above PR is merged, git pull the latest changes.
 # 4. Run this command
 
+import json
 import os
 import re
 import subprocess
 import sys
 import textwrap
 import urllib.request
+from urllib.parse import urlencode
 from dataclasses import dataclass, field
 
 import yaml
@@ -38,6 +40,7 @@ OFFICIAL_MANIFEST_URL = (
     "https://raw.githubusercontent.com/docker-library/official-images/"
     "master/library/eclipse-temurin"
 )
+OFFICIAL_IMAGES_API = "https://api.github.com/repos/docker-library/official-images"
 
 
 def load_config():
@@ -58,8 +61,63 @@ def fetch_official_manifest():
         req = urllib.request.Request(OFFICIAL_MANIFEST_URL)
         with urllib.request.urlopen(req) as response:
             return response.read().decode("utf-8")
-    except Exception:
-        return ""
+    except (OSError, UnicodeError) as error:
+        print(f"Warning: cannot compare with the official manifest: {error}", file=sys.stderr)
+        return None
+
+
+@dataclass
+class PublicationPR:
+    url: str
+    releases: set[str]
+
+
+def github_pages(url, items_key=None):
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Adoptium Dockerfile Updater"}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    page = 1
+    while True:
+        separator = "&" if "?" in url else "?"
+        request = urllib.request.Request(f"{url}{separator}per_page=100&page={page}", headers=headers)
+        with urllib.request.urlopen(request, timeout=30) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        if items_key and data.get("incomplete_results"):
+            raise ValueError("GitHub returned incomplete PR search results")
+        items = data[items_key] if items_key else data
+        yield from items
+        if len(items) < 100:
+            break
+        page += 1
+
+
+def fetch_open_publication_prs():
+    """Match open upstream PRs by release tags added to the Temurin manifest."""
+    query = urlencode({
+        "q": "repo:docker-library/official-images is:pr is:open eclipse-temurin in:title,body",
+    })
+    try:
+        prs = []
+        for issue in github_pages(f"https://api.github.com/search/issues?{query}", "items"):
+            releases = set()
+            for change in github_pages(f"{OFFICIAL_IMAGES_API}/pulls/{issue['number']}/files"):
+                if change["filename"] != "library/eclipse-temurin":
+                    continue
+                if "patch" not in change:
+                    raise ValueError(f"GitHub omitted the manifest diff for {issue['html_url']}")
+                for line in change["patch"].splitlines():
+                    if line.startswith("+Tags: "):
+                        tag = line.removeprefix("+Tags: ").split(", ", 1)[0]
+                        match = re.match(r"^(.+?)-(?:jdk|jre)-", tag)
+                        if match:
+                            releases.add(match.group(1))
+            if releases:
+                prs.append(PublicationPR(issue["html_url"], releases))
+        return prs
+    except (OSError, ValueError) as error:
+        print(f"Warning: cannot check open upstream publication PRs: {error}", file=sys.stderr)
+        return None
 
 
 def get_java_version(dockerfile_path):
@@ -144,10 +202,11 @@ class ImageReadiness:
     directory: str
     java_version: str | None = None
     blockers: list[str] = field(default_factory=list)
+    updated: bool = False
 
 
 def java_version_key(release):
-    version, _, build = release.replace("-b", "+").partition("+")
+    version, _, build = release.replace("-b", "+").replace("_", "+").partition("+")
     parts = tuple(int(n) for n in re.findall(r"\d+", version))
     return parts + (0,) * max(0, 4 - len(parts)), int(build or 0)
 
@@ -176,11 +235,13 @@ def print_table(headers, rows, max_widths):
     print(separator, file=sys.stderr)
 
 
-def print_publish_summary(readiness, output_file):
+def print_publish_summary(readiness, output_file, upstream_available, open_prs):
     print("\nUpstream publish readiness (JDK + JRE, all configured architectures):", file=sys.stderr)
-    all_ready = bool(readiness)
+    ready_versions = []
+    open_versions = []
     summary_rows = []
     blocker_rows = []
+    linked_prs = {}
     for version, images in readiness.items():
         releases = [image.java_version for image in images if image.java_version]
         latest = max(
@@ -198,13 +259,38 @@ def print_publish_summary(readiness, output_file):
 
         ready = bool(images) and not blocked
         blocked_count = sum(len(paths) for paths in blocked.values())
-        all_ready = all_ready and ready
-        status = "READY" if ready else "BLOCKED"
+        updated = any(image.updated for image in images)
+        matching_prs = [
+            pr for pr in open_prs or []
+            if updated and latest and any(
+                java_version_key(release) == java_version_key(latest) for release in pr.releases
+            )
+        ]
+        pr_labels = []
+        for pr in matching_prs:
+            label = f"#{pr.url.rsplit('/', 1)[-1]}"
+            linked_prs[label] = pr.url
+            pr_labels.append(label)
+        if not ready:
+            status = "BLOCKED"
+        elif not upstream_available:
+            status = "UNKNOWN"
+        elif updated and open_prs is None:
+            status = "UNKNOWN"
+        elif matching_prs:
+            status = "PR OPEN"
+            open_versions.append(str(version))
+        elif updated:
+            status = "READY"
+            ready_versions.append(str(version))
+        else:
+            status = "UP TO DATE"
         summary_rows.append([
             str(version),
             format_ojdk_version(latest) if latest else "-",
             status,
             f"{len(images) - blocked_count}/{len(images)}",
+            ", ".join(pr_labels) or "-",
         ])
         if not images:
             blocker_rows.append([str(version), "No configured images", "-"])
@@ -223,17 +309,47 @@ def print_publish_summary(readiness, output_file):
             blocker_rows.append([str(version), reasons, targets])
 
     if readiness:
-        print_table(["Java", "Release", "Status", "Complete"], summary_rows, [4, 18, 7, 8])
+        print_table(
+            ["Java", "Release", "Status", "Complete", "Upstream PR"],
+            summary_rows, [4, 18, 10, 8, 18],
+        )
     else:
         print("  No supported Java versions to assess", file=sys.stderr)
     if blocker_rows:
         print("\nPublication blockers:", file=sys.stderr)
         print_table(["Java", "Blocker", "Affected images"], blocker_rows, [4, 48, 54])
+    if linked_prs:
+        print("\nOpen upstream PRs:", file=sys.stderr)
+        for label, url in linked_prs.items():
+            print(f"  {label}: {url}", file=sys.stderr)
     print(file=sys.stderr)
-    if all_ready:
-        print(f"Ready for upstream publish: {output_file}", file=sys.stderr)
+    if not upstream_available:
+        print("Upstream comparison unavailable; publication readiness cannot be confirmed.", file=sys.stderr)
+    elif open_prs is None:
+        print("Open upstream PRs could not be checked; check GitHub before opening a new PR.", file=sys.stderr)
+    elif ready_versions:
+        print(
+            f"Ready for upstream publish: Java {', '.join(ready_versions)}. "
+            f"Publish only these versions from {output_file}; leave other upstream entries unchanged.",
+            file=sys.stderr,
+        )
+    elif open_versions:
+        print(
+            f"Publication already in progress: Java {', '.join(open_versions)}. "
+            "See the open upstream PRs above.",
+            file=sys.stderr,
+        )
     else:
-        print(f"NOT ready for upstream publish: resolve the blockers above before publishing {output_file}.", file=sys.stderr)
+        print("No updated Java versions are ready for upstream publish.", file=sys.stderr)
+
+
+def get_manifest_entries(manifest):
+    entries = {}
+    for block in (manifest or "").split("\n\n"):
+        fields = dict(line.split(": ", 1) for line in block.splitlines() if ": " in line)
+        if "Directory" in fields:
+            entries[fields["Directory"]] = fields
+    return entries
 
 
 def find_manifest_block(official_manifest, tags_str):
@@ -295,6 +411,7 @@ def has_changed(gitcommit, official_gitcommit, dfdir):
 def generate_manifest(config, output_file):
     gitcommit = get_git_commit()
     official_manifest = fetch_official_manifest()
+    official_entries = get_manifest_entries(official_manifest)
 
     versions = get_supported_versions()
     readiness = {version: [] for version in versions}
@@ -379,6 +496,27 @@ def generate_manifest(config, output_file):
 
                     # Build tags
                     full_ver_tag = f"{ojdk_version}-{pkg}-{distro}"
+                    upstream_entry = official_entries.get(dfdir)
+                    if upstream_entry is None:
+                        image.updated = True
+                    else:
+                        suffix = f"-{pkg}-{distro}"
+                        published_version = next(
+                            (
+                                tag[:-len(suffix)]
+                                for tag in upstream_entry.get("Tags", "").split(", ")
+                                if tag.endswith(suffix)
+                            ),
+                            None,
+                        )
+                        if published_version is None:
+                            image.blockers.append("upstream entry has no release tag")
+                        else:
+                            local_key = java_version_key(ojdk_version)
+                            published_key = java_version_key(published_version)
+                            image.updated = local_key > published_key
+                            if local_key < published_key:
+                                image.blockers.append(f"older than upstream release {published_version}")
                     ver_tag = f"{ver}-{pkg}-{distro}"
                     all_tags = f"{full_ver_tag}, {ver_tag}"
 
@@ -449,7 +587,9 @@ def generate_manifest(config, output_file):
         f.write("\n".join(lines))
         f.write("\n")
 
-    print_publish_summary(readiness, output_file)
+    updated = any(image.updated for images in readiness.values() for image in images)
+    open_prs = fetch_open_publication_prs() if official_manifest and updated else []
+    print_publish_summary(readiness, output_file, official_manifest is not None, open_prs)
 
 
 def main():

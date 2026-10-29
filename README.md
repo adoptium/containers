@@ -68,6 +68,23 @@ python3 dockerhub_doc_config_update.py
 
 This script will create a file called _eclipse-temurin_ by default.
 
+At the end it prints a publication-readiness summary for each Java version,
+checking JDK and JRE images against the configured architectures (including
+version-specific overrides). Missing Dockerfiles, missing architectures, pending
+upstream binary branches, and images still on an older release are reported as
+blockers. Deprecated and explicitly excluded configurations are not required.
+Release consistency is checked against the newest Java version found in the
+local Dockerfiles for that major version, not against live release assets.
+
+The summary is an aligned table of Java releases, readiness status, and complete
+image counts, followed by a table of grouped blockers and affected images.
+Long cells wrap so the tables stay readable in terminal output.
+
+Only publish when the summary is ready: every required image and architecture
+must be available at the same release. The report is advisory; the script still
+writes the manifest, including pending architecture entries, so review the
+summary before opening the upstream PR.
+
 Create a new PR to replace the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with the new contents of _eclipse-temurin_ - this can be done using a fork of the code or do it via the github UI as follows:
 
 - Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 

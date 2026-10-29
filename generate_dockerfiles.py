@@ -28,9 +28,6 @@ from jinja2 import Environment, FileSystemLoader
 from adoptium_api import get_supported_versions
 from eol_checker import print_eol_warnings
 
-requests_cache.install_cache("adoptium_cache", expire_after=3600)
-
-
 VERSION_OPERATORS = {
     "==": operator.eq,
     "!=": operator.ne,
@@ -102,6 +99,8 @@ def add_missing_architectures(arch_data, architectures, os_name):
 
 
 if __name__ == "__main__":
+    requests_cache.install_cache("adoptium_cache", expire_after=3600)
+
     parser = argparse.ArgumentParser(
         description="Generate Dockerfiles for Eclipse Temurin images"
     )

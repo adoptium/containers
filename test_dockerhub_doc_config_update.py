@@ -11,11 +11,14 @@
 # limitations under the License.
 #
 
+import io
 import json
 import os
 import tempfile
 import textwrap
 import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
 from unittest.mock import patch
 
 from adoptium_api import get_latest_lts, get_supported_versions
@@ -26,7 +29,9 @@ from dockerhub_doc_config_update import (
     get_distro_name,
     get_dockerfile_arches,
     get_java_version,
+    get_pending_arches,
     generate_manifest,
+    java_version_key,
 )
 
 
@@ -230,6 +235,45 @@ class TestGetDockerfileArches(unittest.TestCase):
             self.assertEqual(arches, ["amd64", "arm64v8"])
             os.unlink(f.name)
 
+    def test_pending_arches_only_include_marked_branches(self):
+        dockerfile = textwrap.dedent("""\
+            # TODO: This configured architecture is pending upstream binary availability
+            RUN case "${ARCH}" in
+                amd64)
+                    ESUM='abc';
+                    ;;
+                armhf)
+                    # TODO: This configured architecture is pending upstream binary availability for jdk8u504-b01.
+                    exit 1;
+                    ;;
+                arm64)
+                    ESUM='def';
+                    ;;
+                *)
+                    # TODO: This configured architecture is pending upstream binary availability
+                    exit 1;
+                    ;;
+            esac;
+        """)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "Dockerfile"
+            path.write_text(dockerfile)
+            self.assertEqual(get_pending_arches(path), ["arm32v7"])
+            self.assertEqual(get_dockerfile_arches(path), ["amd64", "arm32v7", "arm64v8"])
+
+
+class TestJavaVersionKey(unittest.TestCase):
+
+    def test_feature_build_is_older_than_patch_release(self):
+        self.assertLess(java_version_key("jdk-27+35"), java_version_key("jdk-27.0.1.0"))
+
+    def test_build_numbers_are_numeric(self):
+        self.assertLess(java_version_key("jdk-25.0.2+9"), java_version_key("jdk-25.0.2+10"))
+
+    def test_jdk8_update_and_build_numbers(self):
+        self.assertLess(java_version_key("jdk8u492-b10"), java_version_key("jdk8u502-b01"))
+        self.assertLess(java_version_key("jdk8u502-b09"), java_version_key("jdk8u502-b10"))
+
 
 class TestFindManifestBlock(unittest.TestCase):
 
@@ -425,6 +469,218 @@ class TestGenerateManifest(unittest.TestCase):
         self.assertIn("Architectures: amd64, arm32v7", main_block)
         self.assertIn("Directory: 8/jdk/ubuntu/noble", main_block)
         self.assertNotIn("Tags: 8u504-b01-jdk-noble-arm32v7", content)
+
+
+class TestPublishReadiness(unittest.TestCase):
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmpdir.cleanup)
+        original_dir = os.getcwd()
+        os.chdir(self.tmpdir.name)
+        self.addCleanup(os.chdir, original_dir)
+        self.config = {
+            "configurations": {
+                "linux": [{
+                    "directory": "ubuntu/noble",
+                    "architectures": ["x64", "aarch64"],
+                }],
+                "alpine-linux": [{
+                    "directory": "alpine/3.24",
+                    "architectures": ["x64", "aarch64"],
+                }],
+            },
+        }
+        for package in ("jdk", "jre"):
+            for directory in ("ubuntu/noble", "alpine/3.24"):
+                self.write_dockerfile(package, directory)
+
+    def write_dockerfile(
+        self, package, directory, release="jdk-25.0.2+10",
+        arches=("amd64", "arm64"), pending=(),
+    ):
+        path = Path("25") / package / directory / "Dockerfile"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lines = [f"ENV JAVA_VERSION={release}", 'RUN case "${ARCH}" in']
+        for arch in arches:
+            lines.append(f"    {arch})")
+            if arch in pending:
+                lines.append("        # TODO: This configured architecture is pending upstream binary availability")
+                lines.append("        exit 1;")
+            lines.append("        ;;")
+        lines.append("esac;")
+        path.write_text("\n".join(lines))
+        return path
+
+    def generate(self):
+        output = io.StringIO()
+        with (
+            patch("dockerhub_doc_config_update.get_supported_versions", return_value=[25]),
+            patch("dockerhub_doc_config_update.get_latest_lts", return_value=25),
+            patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123"),
+            patch("dockerhub_doc_config_update.fetch_official_manifest", return_value=""),
+            redirect_stdout(output),
+        ):
+            generate_manifest(self.config, "manifest")
+        return output.getvalue(), Path("manifest").read_text()
+
+    def assert_readiness(self, summary, status, complete):
+        rows = [
+            [cell.strip() for cell in line.strip("|").split("|")]
+            for line in summary.splitlines() if line.startswith("|")
+        ]
+        self.assertIn(["25", "25.0.2_10", status, complete], rows)
+
+    def test_complete_release_is_ready_and_summary_is_not_in_manifest(self):
+        summary, manifest = self.generate()
+        self.assert_readiness(summary, "READY", "4/4")
+        self.assertIn("Ready for upstream publish: manifest", summary)
+        self.assertNotIn("readiness", manifest)
+        self.assertNotIn("Publication blockers:", summary)
+
+    def test_pending_architecture_blocks_publish_without_removing_manifest_arch(self):
+        self.write_dockerfile("jre", "ubuntu/noble", pending=("arm64",))
+        summary, manifest = self.generate()
+        self.assert_readiness(summary, "BLOCKED", "3/4")
+        self.assertIn("pending binaries: arm64v8", summary)
+        self.assertIn("JRE ubuntu/noble", summary)
+        self.assertIn("NOT ready for upstream publish", summary)
+        self.assertIn("Architectures: amd64, arm64v8", manifest)
+        self.assertIn("Directory: 25/jre/ubuntu/noble", manifest)
+
+    def test_missing_architecture_blocks_publish(self):
+        self.write_dockerfile("jdk", "ubuntu/noble", arches=("amd64",))
+        summary, _ = self.generate()
+        self.assertIn("missing architectures: arm64v8", summary)
+        self.assertIn("JDK ubuntu/noble", summary)
+        self.assertIn("NOT ready for upstream publish", summary)
+
+    def test_missing_jre_blocks_publish(self):
+        Path("25/jre/ubuntu/noble/Dockerfile").unlink()
+        summary, _ = self.generate()
+        self.assertIn("missing Dockerfile", summary)
+        self.assertIn("JRE ubuntu/noble", summary)
+        self.assert_readiness(summary, "BLOCKED", "3/4")
+
+    def test_missing_java_version_blocks_publish(self):
+        Path("25/jre/ubuntu/noble/Dockerfile").write_text("FROM ubuntu:24.04\n")
+        summary, _ = self.generate()
+        self.assertIn("missing JAVA_VERSION", summary)
+        self.assertIn("JRE ubuntu/noble", summary)
+
+    def test_stale_jre_blocks_publish(self):
+        self.write_dockerfile("jre", "ubuntu/noble", release="jdk-25.0.2+9")
+        summary, _ = self.generate()
+        self.assertIn("stale release jdk-25.0.2+9;", summary)
+        self.assertIn("jdk-25.0.2+10", summary)
+        self.assertIn("JRE ubuntu/noble", summary)
+        self.assert_readiness(summary, "BLOCKED", "3/4")
+
+    def test_stale_windows_release_blocks_publish(self):
+        self.config["configurations"]["windows"] = [{
+            "directory": "windows/windowsservercore-ltsc2022",
+            "architectures": ["x64"],
+        }]
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(
+                package, "windows/windowsservercore-ltsc2022",
+                release="jdk-25+36", arches=(),
+            )
+        summary, _ = self.generate()
+        self.assert_readiness(summary, "BLOCKED", "4/6")
+        self.assertIn("stale release jdk-25+36;", summary)
+        self.assertIn("jdk-25.0.2+10", summary)
+        self.assertEqual(summary.count("stale release"), 1)
+        self.assertIn("JDK+JRE windows/windowsservercore-ltsc2022", summary)
+
+    def test_current_windows_release_is_ready(self):
+        self.config["configurations"]["windows"] = [{
+            "directory": "windows/windowsservercore-ltsc2022",
+            "architectures": ["x64"],
+        }]
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(package, "windows/windowsservercore-ltsc2022", arches=())
+        summary, manifest = self.generate()
+        self.assert_readiness(summary, "READY", "6/6")
+        self.assertIn("Architectures: windows-amd64", manifest)
+
+    def test_global_and_local_architecture_overrides(self):
+        self.config["architecture_overrides"] = [{"versions": ">=25", "exclude": ["aarch64"]}]
+        self.config["configurations"]["linux"][0]["architecture_overrides"] = [
+            {"versions": "==25", "include": ["s390x"]},
+        ]
+        summary, _ = self.generate()
+        self.assertIn("missing architectures: s390x", summary)
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(package, "ubuntu/noble", arches=("amd64", "s390x"))
+            self.write_dockerfile(package, "alpine/3.24", arches=("amd64",))
+        summary, _ = self.generate()
+        self.assert_readiness(summary, "READY", "4/4")
+
+    def test_deprecated_and_version_excluded_configs_are_not_blockers(self):
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 25
+        self.config["configurations"]["linux"].append({
+            "directory": "ubuntu/jammy",
+            "architectures": ["x64"],
+            "versions": [21],
+        })
+        summary, _ = self.generate()
+        self.assert_readiness(summary, "READY", "2/2")
+        self.assertNotIn("missing Dockerfile", summary)
+
+    def test_no_dockerfile_architectures_blocks_publish(self):
+        self.write_dockerfile("jdk", "ubuntu/noble", arches=())
+        summary, _ = self.generate()
+        blocker_cells = [
+            line.split("|")[2].strip()
+            for line in summary.splitlines() if line.startswith("|")
+        ]
+        self.assertIn("no Dockerfile architectures", " ".join(blocker_cells))
+        self.assertIn("NOT ready for upstream publish", summary)
+
+    def test_no_configured_architectures_blocks_publish(self):
+        self.config["configurations"]["linux"][0]["architectures"] = []
+        summary, _ = self.generate()
+        self.assertIn("no configured architectures", summary)
+        self.assert_readiness(summary, "BLOCKED", "2/4")
+
+    def test_identical_blockers_are_grouped_into_a_short_summary(self):
+        for package in ("jdk", "jre"):
+            for directory in ("ubuntu/noble", "alpine/3.24"):
+                self.write_dockerfile(package, directory, pending=("arm64",))
+        summary, _ = self.generate()
+        self.assert_readiness(summary, "BLOCKED", "0/4")
+        self.assertEqual(summary.count("pending binaries: arm64v8"), 1)
+        self.assertIn("JDK+JRE alpine/3.24, ubuntu/noble", summary)
+        table_lines = [line for line in summary.splitlines() if line.startswith(("|", "+"))]
+        self.assertTrue(table_lines)
+        self.assertLessEqual(max(map(len, table_lines)), 116)
+        for table in summary.split("\n\n"):
+            lines = [line for line in table.splitlines() if line.startswith(("|", "+"))]
+            if lines:
+                self.assertEqual(len({len(line) for line in lines}), 1)
+
+    def test_long_blockers_wrap_without_losing_affected_images(self):
+        directories = [
+            "windows/windowsservercore-ltsc2022",
+            "windows/nanoserver-ltsc2022",
+            "windows/windowsservercore-ltsc2025",
+            "windows/nanoserver-ltsc2025",
+        ]
+        self.config["configurations"]["windows"] = [
+            {"directory": directory, "architectures": ["x64"]}
+            for directory in directories
+        ]
+        for package in ("jdk", "jre"):
+            for directory in directories:
+                self.write_dockerfile(package, directory, release="jdk-25+36", arches=())
+        summary, _ = self.generate()
+        self.assert_readiness(summary, "BLOCKED", "4/12")
+        table_lines = [line for line in summary.splitlines() if line.startswith(("|", "+"))]
+        self.assertLessEqual(max(map(len, table_lines)), 116)
+        for directory in directories:
+            self.assertIn(directory, summary)
+        self.assertIn("NOT ready for upstream publish", summary)
 
 
 if __name__ == "__main__":

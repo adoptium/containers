@@ -72,6 +72,37 @@ python3 dockerhub_doc_config_update.py
 
 This script will create a file called _eclipse-temurin_ by default.
 
+At the end it prints a publication-readiness summary for each Java version,
+checking JDK and JRE images against the configured architectures (including
+version-specific overrides). Missing Dockerfiles, missing architectures, pending
+upstream binary branches, and images still on an older release are reported as
+blockers. Deprecated and explicitly excluded configurations are not required.
+Release consistency is checked against the newest Java version found in the
+local Dockerfiles for that major version, not against live release assets.
+
+The summary is an aligned table of Java releases, readiness status, and complete
+image counts, followed by a table of grouped blockers and affected images.
+`READY` means that Java version has an update relative to the official upstream
+manifest and all its images are complete. `UP TO DATE` means the same releases
+are already published; a different Git commit alone is not a new Java release.
+New distro entries also count as updates. `UNKNOWN` means the upstream manifest
+could not be fetched, so publication readiness cannot be confirmed.
+Open `eclipse-temurin` PRs in `docker-library/official-images` are checked for
+added manifest tags matching the exact release, rather than just a Java major
+version in the PR title. Matching updates show `PR OPEN`, with the PR number and
+link, and are not suggested for another PR. A failed GitHub lookup is reported
+explicitly and makes otherwise-ready updates `UNKNOWN`. `GH_TOKEN` or
+`GITHUB_TOKEN` can be used for authenticated GitHub API requests.
+Long cells wrap so the tables stay readable in terminal output.
+The report is written to stderr, keeping stdout clean for tools that request the
+manifest via `python3 dockerhub_doc_config_update.py /dev/stdout`.
+
+Publish each `READY` Java version independently: every required image and
+architecture for that version must be available at the same release, but other
+Java versions need not be ready. The report is advisory; the script still writes
+the full manifest, including pending architecture entries. Select only the ready
+versions for the upstream PR, leaving other upstream entries unchanged.
+
 Create a new PR to replace the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with the new contents of _eclipse-temurin_ - this can be done using a fork of the code or do it via the github UI as follows:
 
 - Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 

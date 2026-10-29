@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - adoptium_api.py
+      - architecture_config.py
       - dockerhub_doc_config_update.py
       - eol_checker.py
       - generate_dockerfiles.py

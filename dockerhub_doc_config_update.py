@@ -20,21 +20,27 @@
 # 3. After above PR is merged, git pull the latest changes.
 # 4. Run this command
 
+import json
 import os
 import re
 import subprocess
 import sys
+import textwrap
 import urllib.request
+from urllib.parse import urlencode
+from dataclasses import dataclass, field
 
 import yaml
 
 from adoptium_api import get_latest_lts, get_supported_versions
+from architecture_config import resolve_architectures
 from eol_checker import print_eol_warnings
 
 OFFICIAL_MANIFEST_URL = (
     "https://raw.githubusercontent.com/docker-library/official-images/"
     "master/library/eclipse-temurin"
 )
+OFFICIAL_IMAGES_API = "https://api.github.com/repos/docker-library/official-images"
 
 
 def load_config():
@@ -55,8 +61,63 @@ def fetch_official_manifest():
         req = urllib.request.Request(OFFICIAL_MANIFEST_URL)
         with urllib.request.urlopen(req) as response:
             return response.read().decode("utf-8")
-    except Exception:
-        return ""
+    except (OSError, UnicodeError) as error:
+        print(f"Warning: cannot compare with the official manifest: {error}", file=sys.stderr)
+        return None
+
+
+@dataclass
+class PublicationPR:
+    url: str
+    releases: set[str]
+
+
+def github_pages(url, items_key=None):
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Adoptium Dockerfile Updater"}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    page = 1
+    while True:
+        separator = "&" if "?" in url else "?"
+        request = urllib.request.Request(f"{url}{separator}per_page=100&page={page}", headers=headers)
+        with urllib.request.urlopen(request, timeout=30) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        if items_key and data.get("incomplete_results"):
+            raise ValueError("GitHub returned incomplete PR search results")
+        items = data[items_key] if items_key else data
+        yield from items
+        if len(items) < 100:
+            break
+        page += 1
+
+
+def fetch_open_publication_prs():
+    """Match open upstream PRs by release tags added to the Temurin manifest."""
+    query = urlencode({
+        "q": "repo:docker-library/official-images is:pr is:open eclipse-temurin in:title,body",
+    })
+    try:
+        prs = []
+        for issue in github_pages(f"https://api.github.com/search/issues?{query}", "items"):
+            releases = set()
+            for change in github_pages(f"{OFFICIAL_IMAGES_API}/pulls/{issue['number']}/files"):
+                if change["filename"] != "library/eclipse-temurin":
+                    continue
+                if "patch" not in change:
+                    raise ValueError(f"GitHub omitted the manifest diff for {issue['html_url']}")
+                for line in change["patch"].splitlines():
+                    if line.startswith("+Tags: "):
+                        tag = line.removeprefix("+Tags: ").split(", ", 1)[0]
+                        match = re.match(r"^(.+?)-(?:jdk|jre)-", tag)
+                        if match:
+                            releases.add(match.group(1))
+            if releases:
+                prs.append(PublicationPR(issue["html_url"], releases))
+        return prs
+    except (OSError, ValueError) as error:
+        print(f"Warning: cannot check open upstream publication PRs: {error}", file=sys.stderr)
+        return None
 
 
 def get_java_version(dockerfile_path):
@@ -90,16 +151,21 @@ def get_distro_name(os_family, directory):
 
 # Map Dockerfile arch names to Docker Hub official image architecture names
 DOCKERFILE_ARCH_MAP = {
+    "x64": "amd64",
     "amd64": "amd64",
     "x86_64": "amd64",
     "arm64": "arm64v8",
     "aarch64": "arm64v8",
     "armhf": "arm32v7",
+    "arm": "arm32v7",
     "ppc64el": "ppc64le",
     "ppc64le": "ppc64le",
     "s390x": "s390x",
     "riscv64": "riscv64",
 }
+
+DOCKERFILE_ARCH_RE = re.compile(r'\s+(\w+)\)\s*\\?\s*$')
+PENDING_ARCH_MARKER = "TODO: This configured architecture is pending upstream binary availability"
 
 
 def get_dockerfile_arches(dockerfile_path):
@@ -107,12 +173,183 @@ def get_dockerfile_arches(dockerfile_path):
     arches = []
     with open(dockerfile_path, "r") as f:
         for line in f:
-            match = re.match(r'\s+(\w+)\)\s*\\?\s*$', line)
+            match = DOCKERFILE_ARCH_RE.match(line)
             if match:
                 arch = match.group(1)
                 if arch in DOCKERFILE_ARCH_MAP:
                     arches.append(DOCKERFILE_ARCH_MAP[arch])
     return sorted(set(arches))
+
+
+def get_pending_arches(dockerfile_path):
+    """Find architectures whose generated branches have no upstream binary yet."""
+    pending = set()
+    arch = None
+    with open(dockerfile_path) as f:
+        for line in f:
+            match = DOCKERFILE_ARCH_RE.match(line)
+            if match:
+                arch = DOCKERFILE_ARCH_MAP.get(match.group(1))
+            elif line.strip().startswith((";;", "*)", "esac")):
+                arch = None
+            elif arch and PENDING_ARCH_MARKER in line:
+                pending.add(arch)
+    return sorted(pending)
+
+
+@dataclass
+class ImageReadiness:
+    directory: str
+    java_version: str | None = None
+    blockers: list[str] = field(default_factory=list)
+    updated: bool = False
+
+
+def java_version_key(release):
+    version, _, build = release.replace("-b", "+").replace("_", "+").partition("+")
+    parts = tuple(int(n) for n in re.findall(r"\d+", version))
+    return parts + (0,) * max(0, 4 - len(parts)), int(build or 0)
+
+
+def print_table(headers, rows, max_widths):
+    widths = [
+        min(limit, max(len(row[index]) for row in [headers, *rows]))
+        for index, limit in enumerate(max_widths)
+    ]
+    separator = "+-" + "-+-".join("-" * width for width in widths) + "-+"
+
+    def print_row(row):
+        cells = [textwrap.wrap(cell, width=width) or [""] for cell, width in zip(row, widths)]
+        for line in range(max(len(cell) for cell in cells)):
+            values = [
+                (cell[line] if line < len(cell) else "").ljust(width)
+                for cell, width in zip(cells, widths)
+            ]
+            print("| " + " | ".join(values) + " |", file=sys.stderr)
+
+    print(separator, file=sys.stderr)
+    print_row(headers)
+    print(separator, file=sys.stderr)
+    for row in rows:
+        print_row(row)
+    print(separator, file=sys.stderr)
+
+
+def print_publish_summary(readiness, output_file, upstream_available, open_prs):
+    print("\nUpstream publish readiness (JDK + JRE, all configured architectures):", file=sys.stderr)
+    ready_versions = []
+    open_versions = []
+    summary_rows = []
+    blocker_rows = []
+    linked_prs = {}
+    for version, images in readiness.items():
+        releases = [image.java_version for image in images if image.java_version]
+        latest = max(
+            releases,
+            key=java_version_key,
+            default=None,
+        )
+        blocked = {}
+        for image in images:
+            reasons = list(image.blockers)
+            if image.java_version and java_version_key(image.java_version) < java_version_key(latest):
+                reasons.append(f"stale release {image.java_version}; expected {latest}")
+            if reasons:
+                blocked.setdefault("; ".join(reasons), []).append(image.directory)
+
+        ready = bool(images) and not blocked
+        blocked_count = sum(len(paths) for paths in blocked.values())
+        updated = any(image.updated for image in images)
+        matching_prs = [
+            pr for pr in open_prs or []
+            if updated and latest and any(
+                java_version_key(release) == java_version_key(latest) for release in pr.releases
+            )
+        ]
+        pr_labels = []
+        for pr in matching_prs:
+            label = f"#{pr.url.rsplit('/', 1)[-1]}"
+            linked_prs[label] = pr.url
+            pr_labels.append(label)
+        if not ready:
+            status = "BLOCKED"
+        elif not upstream_available:
+            status = "UNKNOWN"
+        elif updated and open_prs is None:
+            status = "UNKNOWN"
+        elif matching_prs:
+            status = "PR OPEN"
+            open_versions.append(str(version))
+        elif updated:
+            status = "READY"
+            ready_versions.append(str(version))
+        else:
+            status = "UP TO DATE"
+        summary_rows.append([
+            str(version),
+            format_ojdk_version(latest) if latest else "-",
+            status,
+            f"{len(images) - blocked_count}/{len(images)}",
+            ", ".join(pr_labels) or "-",
+        ])
+        if not images:
+            blocker_rows.append([str(version), "No configured images", "-"])
+        for reasons, paths in blocked.items():
+            packages_by_distro = {}
+            for path in paths:
+                _, package, distro = path.split("/", 2)
+                packages_by_distro.setdefault(distro, set()).add(package)
+            distros_by_packages = {}
+            for distro, packages in packages_by_distro.items():
+                distros_by_packages.setdefault(tuple(sorted(packages)), []).append(distro)
+            targets = "; ".join(
+                f"{'+'.join(packages).upper()} {', '.join(distros)}"
+                for packages, distros in distros_by_packages.items()
+            )
+            blocker_rows.append([str(version), reasons, targets])
+
+    if readiness:
+        print_table(
+            ["Java", "Release", "Status", "Complete", "Upstream PR"],
+            summary_rows, [4, 18, 10, 8, 18],
+        )
+    else:
+        print("  No supported Java versions to assess", file=sys.stderr)
+    if blocker_rows:
+        print("\nPublication blockers:", file=sys.stderr)
+        print_table(["Java", "Blocker", "Affected images"], blocker_rows, [4, 48, 54])
+    if linked_prs:
+        print("\nOpen upstream PRs:", file=sys.stderr)
+        for label, url in linked_prs.items():
+            print(f"  {label}: {url}", file=sys.stderr)
+    print(file=sys.stderr)
+    if not upstream_available:
+        print("Upstream comparison unavailable; publication readiness cannot be confirmed.", file=sys.stderr)
+    elif open_prs is None:
+        print("Open upstream PRs could not be checked; check GitHub before opening a new PR.", file=sys.stderr)
+    elif ready_versions:
+        print(
+            f"Ready for upstream publish: Java {', '.join(ready_versions)}. "
+            f"Publish only these versions from {output_file}; leave other upstream entries unchanged.",
+            file=sys.stderr,
+        )
+    elif open_versions:
+        print(
+            f"Publication already in progress: Java {', '.join(open_versions)}. "
+            "See the open upstream PRs above.",
+            file=sys.stderr,
+        )
+    else:
+        print("No updated Java versions are ready for upstream publish.", file=sys.stderr)
+
+
+def get_manifest_entries(manifest):
+    entries = {}
+    for block in (manifest or "").split("\n\n"):
+        fields = dict(line.split(": ", 1) for line in block.splitlines() if ": " in line)
+        if "Directory" in fields:
+            entries[fields["Directory"]] = fields
+    return entries
 
 
 def find_manifest_block(official_manifest, tags_str):
@@ -174,8 +411,10 @@ def has_changed(gitcommit, official_gitcommit, dfdir):
 def generate_manifest(config, output_file):
     gitcommit = get_git_commit()
     official_manifest = fetch_official_manifest()
+    official_entries = get_manifest_entries(official_manifest)
 
     versions = get_supported_versions()
+    readiness = {version: [] for version in versions}
     latest_version = get_latest_lts()
     # Default images are the first entry in each OS family
     default_linux_image = get_distro_name("linux", config["configurations"]["linux"][0]["directory"])
@@ -208,7 +447,6 @@ def generate_manifest(config, output_file):
 
                 for cfg in config["configurations"][os_family]:
                     directory = cfg["directory"]
-                    architectures = cfg["architectures"]
                     deprecated = cfg.get("deprecated", None)
                     cfg_versions = cfg.get("versions", versions)
 
@@ -219,12 +457,37 @@ def generate_manifest(config, output_file):
 
                     dfdir = os.path.join(str(ver), pkg, directory)
                     dockerfile = os.path.join(dfdir, "Dockerfile")
+                    image = ImageReadiness(dfdir)
+                    readiness[ver].append(image)
 
                     if not os.path.exists(dockerfile):
+                        image.blockers.append("missing Dockerfile")
                         continue
 
                     full_version = get_java_version(dockerfile)
                     if not full_version:
+                        image.blockers.append("missing JAVA_VERSION")
+                        continue
+                    image.java_version = full_version
+
+                    overrides = config.get("architecture_overrides", []) + cfg.get("architecture_overrides", [])
+                    architectures = resolve_architectures(cfg["architectures"], overrides, ver)
+                    expected_arches = {
+                        ("windows-" if os_family == "windows" else "") + DOCKERFILE_ARCH_MAP[arch]
+                        for arch in architectures
+                    }
+                    arches = ["windows-amd64"] if os_family == "windows" else get_dockerfile_arches(dockerfile)
+                    missing = sorted(expected_arches - set(arches))
+                    if not expected_arches:
+                        image.blockers.append("no configured architectures")
+                    if missing:
+                        image.blockers.append(f"missing architectures: {', '.join(missing)}")
+                    if os_family != "windows":
+                        pending = get_pending_arches(dockerfile)
+                        if pending:
+                            image.blockers.append(f"pending binaries: {', '.join(pending)}")
+                    if not arches:
+                        image.blockers.append("no Dockerfile architectures")
                         continue
 
                     ojdk_version = format_ojdk_version(full_version)
@@ -233,6 +496,27 @@ def generate_manifest(config, output_file):
 
                     # Build tags
                     full_ver_tag = f"{ojdk_version}-{pkg}-{distro}"
+                    upstream_entry = official_entries.get(dfdir)
+                    if upstream_entry is None:
+                        image.updated = True
+                    else:
+                        suffix = f"-{pkg}-{distro}"
+                        published_version = next(
+                            (
+                                tag[:-len(suffix)]
+                                for tag in upstream_entry.get("Tags", "").split(", ")
+                                if tag.endswith(suffix)
+                            ),
+                            None,
+                        )
+                        if published_version is None:
+                            image.blockers.append("upstream entry has no release tag")
+                        else:
+                            local_key = java_version_key(ojdk_version)
+                            published_key = java_version_key(published_version)
+                            image.updated = local_key > published_key
+                            if local_key < published_key:
+                                image.blockers.append(f"older than upstream release {published_version}")
                     ver_tag = f"{ver}-{pkg}-{distro}"
                     all_tags = f"{full_ver_tag}, {ver_tag}"
 
@@ -265,14 +549,6 @@ def generate_manifest(config, output_file):
                             )
                     else:
                         all_shared_tags = f"{shared_tags}{extra_shared_tags}"
-
-                    if is_windows:
-                        arches = ["windows-amd64"]
-                    else:
-                        arches = get_dockerfile_arches(dockerfile)
-
-                    if not arches:
-                        continue
 
                     # Compare with official manifest (before appending alpine aliases)
                     manifest_block = find_manifest_block(official_manifest, all_tags)
@@ -310,6 +586,10 @@ def generate_manifest(config, output_file):
             lines.pop()
         f.write("\n".join(lines))
         f.write("\n")
+
+    updated = any(image.updated for images in readiness.values() for image in images)
+    open_prs = fetch_open_publication_prs() if official_manifest and updated else []
+    print_publish_summary(readiness, output_file, official_manifest is not None, open_prs)
 
 
 def main():

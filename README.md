@@ -79,6 +79,8 @@ local Dockerfiles for that major version, not against live release assets.
 The summary is an aligned table of Java releases, readiness status, and complete
 image counts, followed by a table of grouped blockers and affected images.
 Long cells wrap so the tables stay readable in terminal output.
+The report is written to stderr, keeping stdout clean for tools that request the
+manifest via `python3 dockerhub_doc_config_update.py /dev/stdout`.
 
 Only publish when the summary is ready: every required image and architecture
 must be available at the same release. The report is advisory; the script still

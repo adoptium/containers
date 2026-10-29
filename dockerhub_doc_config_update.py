@@ -31,8 +31,8 @@ from dataclasses import dataclass, field
 import yaml
 
 from adoptium_api import get_latest_lts, get_supported_versions
+from architecture_config import resolve_architectures
 from eol_checker import print_eol_warnings
-from generate_dockerfiles import resolve_architectures
 
 OFFICIAL_MANIFEST_URL = (
     "https://raw.githubusercontent.com/docker-library/official-images/"
@@ -166,18 +166,18 @@ def print_table(headers, rows, max_widths):
                 (cell[line] if line < len(cell) else "").ljust(width)
                 for cell, width in zip(cells, widths)
             ]
-            print("| " + " | ".join(values) + " |")
+            print("| " + " | ".join(values) + " |", file=sys.stderr)
 
-    print(separator)
+    print(separator, file=sys.stderr)
     print_row(headers)
-    print(separator)
+    print(separator, file=sys.stderr)
     for row in rows:
         print_row(row)
-    print(separator)
+    print(separator, file=sys.stderr)
 
 
 def print_publish_summary(readiness, output_file):
-    print("\nUpstream publish readiness (JDK + JRE, all configured architectures):")
+    print("\nUpstream publish readiness (JDK + JRE, all configured architectures):", file=sys.stderr)
     all_ready = bool(readiness)
     summary_rows = []
     blocker_rows = []
@@ -225,15 +225,15 @@ def print_publish_summary(readiness, output_file):
     if readiness:
         print_table(["Java", "Release", "Status", "Complete"], summary_rows, [4, 18, 7, 8])
     else:
-        print("  No supported Java versions to assess")
+        print("  No supported Java versions to assess", file=sys.stderr)
     if blocker_rows:
-        print("\nPublication blockers:")
+        print("\nPublication blockers:", file=sys.stderr)
         print_table(["Java", "Blocker", "Affected images"], blocker_rows, [4, 48, 54])
-    print()
+    print(file=sys.stderr)
     if all_ready:
-        print(f"Ready for upstream publish: {output_file}")
+        print(f"Ready for upstream publish: {output_file}", file=sys.stderr)
     else:
-        print(f"NOT ready for upstream publish: resolve the blockers above before publishing {output_file}.")
+        print(f"NOT ready for upstream publish: resolve the blockers above before publishing {output_file}.", file=sys.stderr)
 
 
 def find_manifest_block(official_manifest, tags_str):

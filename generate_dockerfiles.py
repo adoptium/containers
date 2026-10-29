@@ -14,9 +14,7 @@
 #
 
 import argparse
-import operator
 import os
-import re
 import shutil
 import sys
 
@@ -26,48 +24,8 @@ import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from adoptium_api import get_supported_versions
+from architecture_config import resolve_architectures
 from eol_checker import print_eol_warnings
-
-VERSION_OPERATORS = {
-    "==": operator.eq,
-    "!=": operator.ne,
-    ">=": operator.ge,
-    "<=": operator.le,
-    ">": operator.gt,
-    "<": operator.lt,
-}
-
-VERSION_CONDITION_RE = re.compile(r"^(==|!=|>=|<=|>|<)(\d+)$")
-
-
-def resolve_architectures(default_architectures, overrides, version):
-    """Resolve effective architectures for a given version by applying overrides.
-
-    All matching overrides are applied in order. Each override has a 'versions'
-    string (e.g. '==8', '<=11', '>17') and either:
-      - 'exclude': list of architectures to remove
-      - 'include': list of architectures to add
-      - 'architectures': full replacement list (overrides default entirely)
-    """
-    if not overrides:
-        return default_architectures
-
-    result = list(default_architectures)
-    for override in overrides:
-        condition = override["versions"].strip()
-        match = VERSION_CONDITION_RE.match(condition)
-        if not match:
-            raise ValueError(f"Invalid version condition: '{condition}'")
-        op_str, target = match.groups()
-        if VERSION_OPERATORS[op_str](version, int(target)):
-            if "architectures" in override:
-                result = list(override["architectures"])
-            if "exclude" in override:
-                result = [a for a in result if a not in override["exclude"]]
-            if "include" in override:
-                result = result + [a for a in override["include"] if a not in result]
-
-    return result
 
 
 def archHelper(arch, os_name):

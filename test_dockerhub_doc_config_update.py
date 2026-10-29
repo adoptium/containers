@@ -14,10 +14,12 @@
 import io
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -514,14 +516,17 @@ class TestPublishReadiness(unittest.TestCase):
 
     def generate(self):
         output = io.StringIO()
+        stdout = io.StringIO()
         with (
             patch("dockerhub_doc_config_update.get_supported_versions", return_value=[25]),
             patch("dockerhub_doc_config_update.get_latest_lts", return_value=25),
             patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123"),
             patch("dockerhub_doc_config_update.fetch_official_manifest", return_value=""),
-            redirect_stdout(output),
+            redirect_stderr(output),
+            redirect_stdout(stdout),
         ):
             generate_manifest(self.config, "manifest")
+        self.assertEqual(stdout.getvalue(), "")
         return output.getvalue(), Path("manifest").read_text()
 
     def assert_readiness(self, summary, status, complete):
@@ -681,6 +686,47 @@ class TestPublishReadiness(unittest.TestCase):
         for directory in directories:
             self.assertIn(directory, summary)
         self.assertIn("NOT ready for upstream publish", summary)
+
+
+class TestManifestCLI(unittest.TestCase):
+
+    def test_stdout_manifest_needs_only_yaml_and_report_goes_to_stderr(self):
+        code = textwrap.dedent("""\
+            import builtins
+            import sys
+            from unittest.mock import patch
+
+            original_import = builtins.__import__
+
+            def minimal_import(name, *args, **kwargs):
+                if name.split(".")[0] in {"requests", "requests_cache", "jinja2", "generate_dockerfiles"}:
+                    raise ModuleNotFoundError(f"{name} is not available in the matrix-generation job")
+                return original_import(name, *args, **kwargs)
+
+            with patch("builtins.__import__", side_effect=minimal_import):
+                import dockerhub_doc_config_update as manifest
+                with (
+                    patch.object(manifest, "get_supported_versions", return_value=[25]),
+                    patch.object(manifest, "get_latest_lts", return_value=25),
+                    patch.object(manifest, "fetch_official_manifest", return_value=""),
+                    patch.object(manifest, "print_eol_warnings"),
+                    patch.object(sys, "argv", ["dockerhub_doc_config_update.py", "/dev/stdout"]),
+                ):
+                    manifest.main()
+        """)
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.startswith("# Eclipse Temurin OpenJDK images"))
+        self.assertIn("Directory: 25/jdk/", result.stdout)
+        self.assertIn("Directory: 25/jre/", result.stdout)
+        self.assertNotIn("Upstream publish readiness", result.stdout)
+        self.assertNotIn("|", result.stdout)
+        self.assertIn("Upstream publish readiness", result.stderr)
+        self.assertIn("| Java", result.stderr)
 
 
 if __name__ == "__main__":

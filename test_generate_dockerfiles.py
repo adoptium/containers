@@ -16,7 +16,8 @@ from unittest.mock import Mock, mock_open, patch
 
 from jinja2 import Environment, FileSystemLoader
 
-from generate_dockerfiles import add_missing_architectures, resolve_architectures
+from architecture_config import resolve_architectures
+from generate_dockerfiles import add_missing_architectures
 
 
 class TestJinjaRendering(unittest.TestCase):

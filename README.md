@@ -13,6 +13,10 @@ In general, we support Alpine, UBI, Ubuntu and Windows containers.
 
 [List of Supported Images By Tag](https://github.com/docker-library/docs/tree/master/eclipse-temurin#simple-tags)
 
+We maintain images for all LTS Java releases and the latest feature release.
+Older non-LTS releases are EOL and are removed from this repository and future
+Docker Hub manifests.
+
 ## Update Policy
 
 As these are official Docker Hub images, Docker Inc maintains the base image

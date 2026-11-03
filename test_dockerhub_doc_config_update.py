@@ -1187,6 +1187,14 @@ class TestCreatePublicationPR(unittest.TestCase):
         self.assertIn("17.0.21_9", self.proposed)
         self.assertIn("25.0.5_8", self.proposed)
 
+    def test_explicit_repository_fork_does_not_use_the_remote_flag(self):
+        with redirect_stderr(io.StringIO()):
+            create_publication_pr(self.plan)
+        args, _ = next(call for call in self.commands if call[0][:3] == ("gh", "repo", "fork"))
+        self.assertIn("docker-library/official-images", args)
+        self.assertIn("--clone=false", args)
+        self.assertFalse(any(arg.startswith("--remote") for arg in args))
+
     def test_publication_git_flow_pushes_only_ready_entries_to_an_isolated_fork(self):
         with tempfile.TemporaryDirectory() as temporary:
             upstream = Path(temporary) / "upstream"

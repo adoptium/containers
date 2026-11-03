@@ -547,7 +547,7 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         if not login:
             raise ValueError("GitHub did not return an authenticated user")
         run_publication_command(
-            "gh", "repo", "fork", "docker-library/official-images", "--clone=false", "--remote=false",
+            "gh", "repo", "fork", "docker-library/official-images", "--clone=false",
         )
         run_publication_command("git", "checkout", "-b", branch, cwd=checkout)
         upstream_file.write_text(manifest)

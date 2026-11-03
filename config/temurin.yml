@@ -81,15 +81,6 @@ configurations:
     deprecated: 26
     os: alpine-linux
 
-  - directory: alpine/3.21
-    architectures: [aarch64, x64]
-    architecture_overrides:
-      - versions: "<21"
-        exclude: [aarch64]
-    image: alpine:3.21
-    deprecated: 26
-    os: alpine-linux
-  
   windows:
   - directory: windows/windowsservercore-ltsc2022
     architectures: [x64]

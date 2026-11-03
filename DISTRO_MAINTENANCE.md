@@ -255,7 +255,7 @@ When a distribution is approaching End-of-Life (upstream EOL), we deprecate it s
 
 - When the upstream distribution announces an EOL date
 - When the PMC determines a distribution should be phased out
-- When we want to stop generating images for a distro on future Java versions while continuing to support it for existing ones (e.g. dropping Alpine 3.21 for JDK 27 onwards)
+- When we want to stop generating images for a distro on future Java versions while continuing to support it for existing ones (e.g. dropping Alpine 3.23 for JDK 27 onwards)
 - Aim to announce deprecation through official channels at least six months before full removal
 
 ### 6.2 How to Deprecate
@@ -293,6 +293,8 @@ To remove a distribution:
 4. Submit PRs for both this repository and the docker-library/official-images repository
 
 Previous tagged versions remain available on Docker Hub for historical access and audit purposes but are not recommended for production use.
+
+Alpine 3.21 was removed after its [upstream EOL on 1 November 2026](https://alpinelinux.org/releases/). Alpine 3.24, the latest stable branch at the time of removal, was already supported.
 
 ## 8. Updating an Existing Distribution Version
 

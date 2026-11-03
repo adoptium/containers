@@ -100,24 +100,39 @@ Long cells wrap so the tables stay readable in terminal output.
 The report is written to stderr, keeping stdout clean for tools that request the
 manifest via `python3 dockerhub_doc_config_update.py /dev/stdout`.
 
+The report also warns about deprecated, removed, or version-excluded images that
+still exist in the upstream official manifest, grouped by Java version and distro.
+This includes distros removed entirely from the local configuration, such as
+Alpine 3.21. Required images with missing Dockerfiles or other blockers are not
+mistaken for deprecated entries. These warnings do not change release readiness.
+The PR creator can remove the retired entries independently, even when the Java
+release is `UP TO DATE` or `BLOCKED`.
+
 Publish each `READY` Java version independently: every required image and
 architecture for that version must be available at the same release, but other
 Java versions need not be ready. The report is advisory; the script still writes
 the full manifest, including pending architecture entries. Select only the ready
-versions for the upstream PR, leaving other upstream entries unchanged.
+versions for release updates, leaving other upstream entries unchanged except
+for explicitly retired image cleanup.
 
 ### Optional upstream PR creation
 
-To open one PR for **all unpublished `READY` Java versions**:
+To open one PR for **all unpublished `READY` Java versions and retired image cleanup**:
 
 ```bash
 python3 dockerhub_doc_config_update.py --create-pr
 ```
 
 No version selection is needed. `BLOCKED`, `UNKNOWN`, `UP TO DATE`, and `PR OPEN`
-versions are excluded. If Java 17 is the only unpublished ready version, the
-PR updates only Java 17. Without the flag, the script only generates the
-manifest and reports readiness, including when its output is `/dev/stdout`.
+versions are excluded from release updates. If Java 17 is the only unpublished
+ready version, the PR updates only Java 17's releases, but can also remove retired
+entries for other Java versions. If no releases are `READY`, retired upstream
+entries still result in a **cleanup-only PR**. Active entries retain their exact
+upstream content, regardless of local release or architecture blockers.
+Cleanup already covered by an open upstream PR is reported with its link and
+excluded. If neither release updates nor uncovered cleanup remain, no PR is opened.
+Without the flag, the script only generates the manifest and reports readiness
+and cleanup, including when its output is `/dev/stdout`.
 
 Preview the same PR without making changes:
 
@@ -137,14 +152,17 @@ You can run the script from a feature branch, including one with changes to
 the script, tests, or documentation. The distribution configuration and every
 selected Dockerfile and entrypoint must exactly match published
 `adoptium/containers` `main`; unmerged image or configuration changes are
-rejected. Publication entries use that published commit, never the tooling
+rejected. Cleanup-only PRs also require the configuration to match published
+`main`, but do not require changes to unselected images to be merged.
+Publication entries use that published commit, never the tooling
 branch's unmerged commit. The script clones Official Images into a temporary directory, creates or reuses
-your fork, and opens one PR containing only the selected versions' JDK/JRE
-entries. Unready or already-published upstream entries and global manifest metadata are preserved.
+your fork, and opens one PR containing the selected versions' JDK/JRE
+entries and retired-entry removals. All other unready or already-published
+upstream entries and global manifest metadata are preserved.
 Your current checkout is not used for the publication branch.
 
 Immediately before creating the branch, the script checks again for matching
-open publication PRs and refuses if the upstream manifest changed. Shared-tag
+open publication or cleanup PRs and refuses if the upstream manifest changed. Shared-tag
 conflicts with unselected versions (such as moving `latest` from another Java
 version) also stop publication rather than changing unrelated entries.
 Command failures are reported and return a nonzero exit status; if pushing
@@ -159,7 +177,7 @@ Alternatively, replace the [Manifest on Docker Hub](https://github.com/docker-li
 - Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 
 - Click **edit(pencil button)** 
 - Remove its content
-- Copy-paste the manifest with only the ready versions replaced from _eclipse-temurin_, preserving all other upstream entries
+- Copy-paste the manifest with only the ready versions replaced from _eclipse-temurin_, preserving all other upstream entries except explicitly retired image removals
 - At the bottom of that edit screen' Propose changes section
   - add **title** e.g [eclipse-temurin: XXXXX]
   - add **description** for the commit 

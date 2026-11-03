@@ -20,15 +20,20 @@
 # 3. After above PR is merged, git pull the latest changes.
 # 4. Run this command
 
+import argparse
+import difflib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import urllib.request
 from urllib.parse import urlencode
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import yaml
 
@@ -72,17 +77,49 @@ class PublicationPR:
     releases: set[str]
 
 
-def github_pages(url, items_key=None):
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Adoptium Dockerfile Updater"}
+@dataclass
+class PublicationPlan:
+    upstream_manifest: str | None
+    manifest: str
+    ready_releases: dict[int, str]
+    open_prs_available: bool = True
+
+
+def get_github_token() -> str | None:
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if token:
+        return token
+    if not shutil.which("gh"):
+        return None
+    result = subprocess.run(
+        ["gh", "auth", "token", "--hostname", "github.com"],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    print(
+        "Warning: GitHub CLI authentication unavailable; API requests are unauthenticated. "
+        "Run 'gh auth login' or set GH_TOKEN to avoid rate limits.",
+        file=sys.stderr,
+    )
+    return None
+
+
+def github_request(url):
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Adoptium Dockerfile Updater"}
+    token = get_github_token()
+    if token:
         headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def github_pages(url, items_key=None):
     page = 1
     while True:
         separator = "&" if "?" in url else "?"
-        request = urllib.request.Request(f"{url}{separator}per_page=100&page={page}", headers=headers)
-        with urllib.request.urlopen(request, timeout=30) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        data = github_request(f"{url}{separator}per_page=100&page={page}")
         if items_key and data.get("incomplete_results"):
             raise ValueError("GitHub returned incomplete PR search results")
         items = data[items_key] if items_key else data
@@ -211,6 +248,13 @@ def java_version_key(release):
     return parts + (0,) * max(0, 4 - len(parts)), int(build or 0)
 
 
+def matching_publication_prs(release, open_prs):
+    return [
+        pr for pr in open_prs
+        if any(java_version_key(tag) == java_version_key(release) for tag in pr.releases)
+    ]
+
+
 def print_table(headers, rows, max_widths):
     widths = [
         min(limit, max(len(row[index]) for row in [headers, *rows]))
@@ -237,7 +281,7 @@ def print_table(headers, rows, max_widths):
 
 def print_publish_summary(readiness, output_file, upstream_available, open_prs):
     print("\nUpstream publish readiness (JDK + JRE, all configured architectures):", file=sys.stderr)
-    ready_versions = []
+    ready_versions = {}
     open_versions = []
     summary_rows = []
     blocker_rows = []
@@ -260,12 +304,7 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         ready = bool(images) and not blocked
         blocked_count = sum(len(paths) for paths in blocked.values())
         updated = any(image.updated for image in images)
-        matching_prs = [
-            pr for pr in open_prs or []
-            if updated and latest and any(
-                java_version_key(release) == java_version_key(latest) for release in pr.releases
-            )
-        ]
+        matching_prs = matching_publication_prs(latest, open_prs or []) if updated and latest else []
         pr_labels = []
         for pr in matching_prs:
             label = f"#{pr.url.rsplit('/', 1)[-1]}"
@@ -282,7 +321,7 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
             open_versions.append(str(version))
         elif updated:
             status = "READY"
-            ready_versions.append(str(version))
+            ready_versions[version] = format_ojdk_version(latest)
         else:
             status = "UP TO DATE"
         summary_rows.append([
@@ -329,8 +368,15 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         print("Open upstream PRs could not be checked; check GitHub before opening a new PR.", file=sys.stderr)
     elif ready_versions:
         print(
-            f"Ready for upstream publish: Java {', '.join(ready_versions)}. "
+            f"Ready for upstream publish: Java {', '.join(map(str, ready_versions))}. "
             f"Publish only these versions from {output_file}; leave other upstream entries unchanged.",
+            file=sys.stderr,
+        )
+        print(
+            "To open an upstream PR for all READY versions:\n"
+            "  python3 dockerhub_doc_config_update.py --create-pr\n"
+            "Preview without making changes:\n"
+            "  python3 dockerhub_doc_config_update.py --dry-run",
             file=sys.stderr,
         )
     elif open_versions:
@@ -341,6 +387,7 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         )
     else:
         print("No updated Java versions are ready for upstream publish.", file=sys.stderr)
+    return ready_versions
 
 
 def get_manifest_entries(manifest):
@@ -350,6 +397,189 @@ def get_manifest_entries(manifest):
         if "Directory" in fields:
             entries[fields["Directory"]] = fields
     return entries
+
+
+def merge_publication_manifest(upstream: str, generated: str, versions: list[int]) -> str:
+    replacements: dict[int, list[str]] = {version: [] for version in versions}
+    for block in generated.split("\n\n"):
+        for directory in get_manifest_entries(block):
+            version = int(directory.split("/", 1)[0])
+            if version in replacements:
+                replacements[version].append(block.rstrip("\n"))
+    if any(not blocks for blocks in replacements.values()):
+        raise ValueError("A selected Java version has no generated manifest entries")
+
+    blocks = []
+    replaced = set()
+    preserved_entries = {}
+    for block in upstream.split("\n\n"):
+        entries = get_manifest_entries(block)
+        version = int(next(iter(entries)).split("/", 1)[0]) if entries else None
+        if version in replacements:
+            if version not in replaced:
+                blocks.extend(replacements[version])
+                replaced.add(version)
+        else:
+            blocks.append(block)
+            preserved_entries.update(entries)
+    for version in versions:
+        if version not in replaced:
+            blocks.extend(replacements[version])
+
+    def tags(entries):
+        return {
+            tag
+            for entry in entries.values()
+            for field in ("Tags", "SharedTags")
+            for tag in entry.get(field, "").split(", ")
+            if tag
+        }
+
+    selected_entries = get_manifest_entries(
+        "\n\n".join(block for version_blocks in replacements.values() for block in version_blocks)
+    )
+    conflicts = tags(selected_entries) & tags(preserved_entries)
+    if conflicts:
+        raise ValueError(
+            "Selected versions would conflict with preserved upstream tags: "
+            + ", ".join(sorted(conflicts))
+        )
+    return "\n\n".join(blocks).rstrip("\n") + "\n"
+
+
+def run_publication_command(*args: str, cwd: Path | None = None) -> str:
+    return subprocess.run(
+        args, cwd=cwd, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+
+def prepare_publication_source(plan: PublicationPlan) -> tuple[str, str]:
+    commit = github_request("https://api.github.com/repos/adoptium/containers/commits/main")
+    if not isinstance(commit, dict) or not isinstance(commit.get("sha"), str) or not commit["sha"]:
+        raise ValueError("GitHub did not return the published containers main commit")
+    published_commit = commit["sha"]
+    tree = github_request(
+        f"https://api.github.com/repos/adoptium/containers/git/trees/{published_commit}?recursive=1"
+    )
+    if not isinstance(tree, dict) or tree.get("truncated") or not isinstance(tree.get("tree"), list):
+        raise ValueError("GitHub did not return a complete published containers source tree")
+    published_files = {
+        entry["path"]: entry["sha"] for entry in tree["tree"] if entry.get("type") == "blob"
+    }
+    source_paths = {"config/temurin.yml"}
+    blocks = []
+    for block in plan.manifest.split("\n\n"):
+        entries = get_manifest_entries(block)
+        selected = [
+            directory for directory in entries
+            if int(directory.split("/", 1)[0]) in plan.ready_releases
+        ]
+        for directory in selected:
+            source_paths.add(f"{directory}/Dockerfile")
+            entrypoint = f"{directory}/entrypoint.sh"
+            if entrypoint in published_files or Path(entrypoint).exists():
+                source_paths.add(entrypoint)
+        if selected:
+            block = re.sub(r"(?m)^GitCommit: .+$", f"GitCommit: {published_commit}", block)
+        blocks.append(block)
+
+    paths = sorted(source_paths)
+    for path in paths:
+        if path not in published_files or not Path(path).is_file():
+            raise ValueError(f"Publication source is missing or not merged upstream: {path}")
+    hashes = run_publication_command("git", "hash-object", "--", *paths).splitlines()
+    if len(hashes) != len(paths):
+        raise ValueError("Git did not return a hash for every publication source file")
+    for path, blob in zip(paths, hashes):
+        if blob != published_files[path]:
+            raise ValueError(
+                f"Publication source differs from published upstream main: {path}. "
+                "Merge image and configuration changes before publishing."
+            )
+    return published_commit, "\n\n".join(blocks)
+
+
+def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str | None:
+    if not plan.upstream_manifest:
+        raise ValueError("Upstream comparison unavailable; cannot create a publication PR")
+    if not plan.open_prs_available:
+        raise ValueError("Open upstream PRs could not be checked; refusing to create a PR")
+    versions = list(plan.ready_releases)
+    if not versions:
+        print("No unpublished READY versions; no publication PR to create.", file=sys.stderr)
+        return None
+    published_commit, generated = prepare_publication_source(plan)
+    manifest = merge_publication_manifest(plan.upstream_manifest, generated, versions)
+    if manifest == plan.upstream_manifest:
+        raise ValueError("Selected versions do not change the upstream manifest")
+    releases = plan.ready_releases
+    branch = "eclipse-temurin-" + "-".join(releases.values())
+    title = "eclipse-temurin: " + ", ".join(f"Java {version} to {release}" for version, release in releases.items())
+    if dry_run:
+        print(f"Dry run: would open upstream PR '{title}' on branch {branch}", file=sys.stderr)
+        print(
+            "".join(difflib.unified_diff(
+                plan.upstream_manifest.splitlines(keepends=True), manifest.splitlines(keepends=True),
+                fromfile="a/library/eclipse-temurin", tofile="b/library/eclipse-temurin",
+            )),
+            end="", file=sys.stderr,
+        )
+        print("Dry run only; no files, branches, forks, or PRs were changed.", file=sys.stderr)
+        return None
+    with tempfile.TemporaryDirectory(prefix="temurin-publication-") as temporary:
+        checkout = Path(temporary) / "official-images"
+        run_publication_command(
+            "gh", "repo", "clone", "docker-library/official-images", str(checkout),
+            "--", "--depth=1", "--single-branch",
+        )
+        upstream_file = checkout / "library" / "eclipse-temurin"
+        if upstream_file.read_text() != plan.upstream_manifest:
+            raise ValueError("The upstream manifest changed; rerun the readiness check")
+        open_prs = fetch_open_publication_prs()
+        if open_prs is None:
+            raise ValueError("Open upstream PRs could not be checked; refusing to create a PR")
+        for release in releases.values():
+            matches = matching_publication_prs(release, open_prs)
+            if matches:
+                raise ValueError(f"Release {release} is already in an upstream PR: {matches[0].url}")
+
+        login = run_publication_command("gh", "api", "user", "--jq", ".login")
+        if not login:
+            raise ValueError("GitHub did not return an authenticated user")
+        run_publication_command(
+            "gh", "repo", "fork", "docker-library/official-images", "--clone=false",
+        )
+        run_publication_command("git", "checkout", "-b", branch, cwd=checkout)
+        upstream_file.write_text(manifest)
+        run_publication_command("git", "add", "--", "library/eclipse-temurin", cwd=checkout)
+        run_publication_command(
+            "git", "commit", "-m", title,
+            "-m", "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
+            cwd=checkout,
+        )
+        run_publication_command(
+            "git", "remote", "add", "publication", f"https://github.com/{login}/official-images.git",
+            cwd=checkout,
+        )
+        run_publication_command(
+            "git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential",
+            "push", "publication", branch, cwd=checkout,
+        )
+        url = run_publication_command(
+            "gh", "pr", "create", "--repo", "docker-library/official-images",
+            "--base", "master", "--head", f"{login}:{branch}", "--title", title,
+            "--body", (
+                f"Publish the READY Eclipse Temurin releases from adoptium/containers commit {published_commit}.\n\n"
+                + "\n".join(f"- Java {version}: `{release}` (JDK and JRE, all configured architectures)"
+                            for version, release in releases.items())
+                + "\n\nAll other Java versions retain their upstream manifest entries."
+            ),
+            cwd=checkout,
+        )
+        if not url.startswith("https://github.com/docker-library/official-images/pull/"):
+            raise ValueError("GitHub did not return a publication PR URL")
+        print(f"Created upstream publication PR: {url}", file=sys.stderr)
+        return url
 
 
 def find_manifest_block(official_manifest, tags_str):
@@ -408,7 +638,7 @@ def has_changed(gitcommit, official_gitcommit, dfdir):
         return True
 
 
-def generate_manifest(config, output_file):
+def generate_manifest(config, output_file, dry_run=False):
     gitcommit = get_git_commit()
     official_manifest = fetch_official_manifest()
     official_entries = get_manifest_entries(official_manifest)
@@ -580,23 +810,40 @@ def generate_manifest(config, output_file):
                         lines.append(f"Constraints: {constraints}")
                     lines.append("")
 
-    with open(output_file, "w") as f:
-        # Remove trailing empty lines before writing
-        while lines and lines[-1] == "":
-            lines.pop()
-        f.write("\n".join(lines))
-        f.write("\n")
+    while lines and lines[-1] == "":
+        lines.pop()
+    manifest = "\n".join(lines) + "\n"
+    if not dry_run:
+        with open(output_file, "w") as f:
+            f.write(manifest)
 
     updated = any(image.updated for images in readiness.values() for image in images)
     open_prs = fetch_open_publication_prs() if official_manifest and updated else []
-    print_publish_summary(readiness, output_file, official_manifest is not None, open_prs)
+    ready_releases = print_publish_summary(readiness, output_file, official_manifest is not None, open_prs)
+    return PublicationPlan(official_manifest, manifest, ready_releases, open_prs is not None)
 
 
 def main():
-    output_file = sys.argv[1] if len(sys.argv) > 1 else "eclipse-temurin"
-    config = load_config()
-    print_eol_warnings(config)
-    generate_manifest(config, output_file)
+    parser = argparse.ArgumentParser(description="Generate the Temurin manifest and report publication readiness.")
+    parser.add_argument("output_file", nargs="?", default="eclipse-temurin")
+    parser.add_argument(
+        "--create-pr", action="store_true",
+        help="open an upstream Official Images PR for all unpublished READY Java versions (requires git and authenticated gh)",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="preview the PR and manifest diff for all unpublished READY versions without writing files or creating a PR",
+    )
+    args = parser.parse_args()
+    try:
+        config = load_config()
+        print_eol_warnings(config)
+        plan = generate_manifest(config, args.output_file, dry_run=args.dry_run)
+        if args.create_pr or args.dry_run:
+            create_publication_pr(plan, dry_run=args.dry_run)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        details = error.stderr if isinstance(error, subprocess.CalledProcessError) else str(error)
+        parser.exit(1, f"Error: {details or str(error)}\n")
 
 
 if __name__ == "__main__":

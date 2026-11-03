@@ -92,7 +92,10 @@ added manifest tags matching the exact release, rather than just a Java major
 version in the PR title. Matching updates show `PR OPEN`, with the PR number and
 link, and are not suggested for another PR. A failed GitHub lookup is reported
 explicitly and makes otherwise-ready updates `UNKNOWN`. `GH_TOKEN` or
-`GITHUB_TOKEN` can be used for authenticated GitHub API requests.
+`GITHUB_TOKEN` can be used for authenticated GitHub API requests. If neither is
+set, the script automatically uses your existing GitHub CLI login (`gh auth
+login`). Without either form of authentication, requests remain anonymous and
+may hit GitHub's lower rate limit; a failed PR lookup still blocks publication.
 Long cells wrap so the tables stay readable in terminal output.
 The report is written to stderr, keeping stdout clean for tools that request the
 manifest via `python3 dockerhub_doc_config_update.py /dev/stdout`.
@@ -103,12 +106,60 @@ Java versions need not be ready. The report is advisory; the script still writes
 the full manifest, including pending architecture entries. Select only the ready
 versions for the upstream PR, leaving other upstream entries unchanged.
 
-Create a new PR to replace the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with the new contents of _eclipse-temurin_ - this can be done using a fork of the code or do it via the github UI as follows:
+### Optional upstream PR creation
+
+To open one PR for **all unpublished `READY` Java versions**:
+
+```bash
+python3 dockerhub_doc_config_update.py --create-pr
+```
+
+No version selection is needed. `BLOCKED`, `UNKNOWN`, `UP TO DATE`, and `PR OPEN`
+versions are excluded. If Java 17 is the only unpublished ready version, the
+PR updates only Java 17. Without the flag, the script only generates the
+manifest and reports readiness, including when its output is `/dev/stdout`.
+
+Preview the same PR without making changes:
+
+```bash
+python3 dockerhub_doc_config_update.py --dry-run
+# Equivalent:
+python3 dockerhub_doc_config_update.py --create-pr --dry-run
+```
+
+Dry runs show the proposed title, branch, and manifest diff on stderr. They do
+not write the local manifest, clone a repository, create a fork, push, or open
+a PR. They verify publication sources using read-only Git and GitHub API
+requests and do not require the GitHub CLI when an API token is provided.
+
+PR creation requires Git and an authenticated GitHub CLI (`gh auth login`).
+You can run the script from a feature branch, including one with changes to
+the script, tests, or documentation. The distribution configuration and every
+selected Dockerfile and entrypoint must exactly match published
+`adoptium/containers` `main`; unmerged image or configuration changes are
+rejected. Publication entries use that published commit, never the tooling
+branch's unmerged commit. The script clones Official Images into a temporary directory, creates or reuses
+your fork, and opens one PR containing only the selected versions' JDK/JRE
+entries. Unready or already-published upstream entries and global manifest metadata are preserved.
+Your current checkout is not used for the publication branch.
+
+Immediately before creating the branch, the script checks again for matching
+open publication PRs and refuses if the upstream manifest changed. Shared-tag
+conflicts with unselected versions (such as moving `latest` from another Java
+version) also stop publication rather than changing unrelated entries.
+Command failures are reported and return a nonzero exit status; if pushing
+succeeds but opening the PR fails, the publication branch remains in your fork.
+The generated full local manifest is still advisory and must not be submitted
+wholesale while other versions are unready.
+
+### Manual upstream PR creation
+
+Alternatively, replace the [Manifest on Docker Hub](https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin) with only the selected ready versions updated. This can be done using a fork of the code or via the GitHub UI as follows:
 
 - Go to https://github.com/docker-library/official-images/blob/master/library/eclipse-temurin web UI 
 - Click **edit(pencil button)** 
 - Remove its content
-- Copy-paste _eclipse-temurin_'s content
+- Copy-paste the manifest with only the ready versions replaced from _eclipse-temurin_, preserving all other upstream entries
 - At the bottom of that edit screen' Propose changes section
   - add **title** e.g [eclipse-temurin: XXXXX]
   - add **description** for the commit 

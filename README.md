@@ -92,7 +92,10 @@ added manifest tags matching the exact release, rather than just a Java major
 version in the PR title. Matching updates show `PR OPEN`, with the PR number and
 link, and are not suggested for another PR. A failed GitHub lookup is reported
 explicitly and makes otherwise-ready updates `UNKNOWN`. `GH_TOKEN` or
-`GITHUB_TOKEN` can be used for authenticated GitHub API requests.
+`GITHUB_TOKEN` can be used for authenticated GitHub API requests. If neither is
+set, the script automatically uses your existing GitHub CLI login (`gh auth
+login`). Without either form of authentication, requests remain anonymous and
+may hit GitHub's lower rate limit; a failed PR lookup still blocks publication.
 Long cells wrap so the tables stay readable in terminal output.
 The report is written to stderr, keeping stdout clean for tools that request the
 manifest via `python3 dockerhub_doc_config_update.py /dev/stdout`.
@@ -126,11 +129,16 @@ python3 dockerhub_doc_config_update.py --create-pr --dry-run
 
 Dry runs show the proposed title, branch, and manifest diff on stderr. They do
 not write the local manifest, clone a repository, create a fork, push, or open
-a PR, and do not require the GitHub CLI or a clean merged checkout.
+a PR. They verify publication sources using read-only Git and GitHub API
+requests and do not require the GitHub CLI when an API token is provided.
 
-PR creation requires Git, an authenticated GitHub CLI (`gh auth login`), and a
-clean checkout of the latest merged `adoptium/containers` `main` commit. The
-script clones Official Images into a temporary directory, creates or reuses
+PR creation requires Git and an authenticated GitHub CLI (`gh auth login`).
+You can run the script from a feature branch, including one with changes to
+the script, tests, or documentation. The distribution configuration and every
+selected Dockerfile and entrypoint must exactly match published
+`adoptium/containers` `main`; unmerged image or configuration changes are
+rejected. Publication entries use that published commit, never the tooling
+branch's unmerged commit. The script clones Official Images into a temporary directory, creates or reuses
 your fork, and opens one PR containing only the selected versions' JDK/JRE
 entries. Unready or already-published upstream entries and global manifest metadata are preserved.
 Your current checkout is not used for the publication branch.

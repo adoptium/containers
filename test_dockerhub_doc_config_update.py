@@ -12,6 +12,7 @@
 #
 
 import io
+import hashlib
 import json
 import os
 import subprocess
@@ -36,6 +37,7 @@ from dockerhub_doc_config_update import (
     get_dockerfile_arches,
     get_java_version,
     get_pending_arches,
+    get_github_token,
     generate_manifest,
     java_version_key,
     main,
@@ -43,6 +45,7 @@ from dockerhub_doc_config_update import (
     github_pages,
     PublicationPlan,
     PublicationPR,
+    prepare_publication_source,
     run_publication_command,
 )
 
@@ -838,6 +841,19 @@ class TestPublishReadiness(unittest.TestCase):
 
 class TestOpenPublicationPRs(unittest.TestCase):
 
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("shutil.which", return_value="/usr/local/bin/gh")
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    @patch("dockerhub_doc_config_update.urllib.request.urlopen")
+    def test_logged_in_gh_authenticates_requests_without_token_environment(self, urlopen, run, _which):
+        run.return_value = subprocess.CompletedProcess(
+            ["gh", "auth", "token"], 0, stdout="test-gh-token\n", stderr="",
+        )
+        urlopen.return_value.__enter__.return_value.read.return_value = b"[]"
+        self.assertEqual(list(github_pages("https://api.github.com/example")), [])
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-gh-token")
+
     @patch("dockerhub_doc_config_update.github_pages")
     def test_match_added_tags_not_titles_removed_tags_or_context(self, pages):
         pages.side_effect = [
@@ -882,8 +898,9 @@ class TestOpenPublicationPRs(unittest.TestCase):
             self.assertIsNone(fetch_open_publication_prs())
         self.assertIn("omitted the manifest diff", output.getvalue())
 
+    @patch("dockerhub_doc_config_update.get_github_token", return_value="test-api-token")
     @patch("dockerhub_doc_config_update.urllib.request.urlopen")
-    def test_github_results_are_paginated(self, urlopen):
+    def test_github_results_are_paginated(self, urlopen, _token):
         responses = []
         for data in [[{"number": n} for n in range(100)], [{"number": 100}]]:
             response = MagicMock()
@@ -893,13 +910,60 @@ class TestOpenPublicationPRs(unittest.TestCase):
         self.assertEqual(len(list(github_pages("https://api.github.com/example"))), 101)
         self.assertIn("page=2", urlopen.call_args.args[0].full_url)
 
+    @patch("dockerhub_doc_config_update.get_github_token", return_value="test-api-token")
     @patch("dockerhub_doc_config_update.urllib.request.urlopen")
-    def test_incomplete_search_results_cannot_claim_no_matching_pr(self, urlopen):
+    def test_incomplete_search_results_cannot_claim_no_matching_pr(self, urlopen, _token):
         urlopen.return_value.__enter__.return_value.read.return_value = json.dumps({
             "incomplete_results": True, "items": [],
         }).encode("utf-8")
         with self.assertRaisesRegex(ValueError, "incomplete PR search"):
             list(github_pages("https://api.github.com/search/issues?q=example", "items"))
+
+
+class TestGithubAuthentication(unittest.TestCase):
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    @patch.dict(os.environ, {"GH_TOKEN": "explicit-gh-token", "GITHUB_TOKEN": "other-token"}, clear=True)
+    def test_explicit_gh_token_takes_precedence_over_cli_and_github_token(self, run):
+        self.assertEqual(get_github_token(), "explicit-gh-token")
+        run.assert_not_called()
+
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    @patch.dict(os.environ, {"GITHUB_TOKEN": "explicit-github-token"}, clear=True)
+    def test_github_token_is_used_without_calling_cli(self, run):
+        self.assertEqual(get_github_token(), "explicit-github-token")
+        run.assert_not_called()
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("dockerhub_doc_config_update.shutil.which", return_value=None)
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    def test_cli_remains_optional_when_no_authentication_is_available(self, run, _which):
+        self.assertIsNone(get_github_token())
+        run.assert_not_called()
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("dockerhub_doc_config_update.shutil.which", return_value="/usr/local/bin/gh")
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    def test_failed_cli_authentication_is_explicit(self, run, _which):
+        run.return_value = subprocess.CompletedProcess(["gh"], 1, stdout="", stderr="not logged in")
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            self.assertIsNone(get_github_token())
+        self.assertIn("API requests are unauthenticated", stderr.getvalue())
+        self.assertIn("gh auth login", stderr.getvalue())
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("dockerhub_doc_config_update.shutil.which", return_value="/usr/local/bin/gh")
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    def test_cli_token_is_captured_without_printing_it(self, run, _which):
+        run.return_value = subprocess.CompletedProcess(["gh"], 0, stdout="test-cli-token\n", stderr="")
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(get_github_token(), "test-cli-token")
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(stderr.getvalue(), "")
+        run.assert_called_once_with(
+            ["gh", "auth", "token", "--hostname", "github.com"], capture_output=True, text=True,
+        )
 
 
 class TestPublicationManifest(unittest.TestCase):
@@ -966,6 +1030,87 @@ class TestPublicationManifest(unittest.TestCase):
             merge_publication_manifest(upstream, generated, [25])
 
 
+class TestPublicationSource(unittest.TestCase):
+    def setUp(self):
+        temporary = self.enterContext(tempfile.TemporaryDirectory())
+        original = os.getcwd()
+        os.chdir(temporary)
+        self.addCleanup(os.chdir, original)
+        self.paths = ["config/temurin.yml"]
+        for package in ("jdk", "jre"):
+            self.paths.extend([
+                f"17/{package}/ubuntu/noble/Dockerfile",
+                f"17/{package}/ubuntu/noble/entrypoint.sh",
+            ])
+        self.tree = []
+        for name in self.paths:
+            path = Path(name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            data = (name + "\n").encode()
+            path.write_bytes(data)
+            blob = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+            self.tree.append({"type": "blob", "path": name, "sha": blob})
+        self.plan = PublicationPlan("upstream", "\n\n".join([
+            TestPublicationManifest.entry(17),
+            TestPublicationManifest.entry(17, "jre"),
+            TestPublicationManifest.entry(25),
+        ]), {17: "17.0.21_9"})
+        self.requests = self.enterContext(patch(
+            "dockerhub_doc_config_update.github_request",
+            side_effect=[{"sha": "published-main"}, {"truncated": False, "tree": self.tree}],
+        ))
+
+    def test_tooling_branch_and_dirty_documentation_can_publish_merged_sources(self):
+        Path("README.md").write_text("uncommitted documentation")
+        Path("dockerhub_doc_config_update.py").write_text("uncommitted tooling")
+        commit, manifest = prepare_publication_source(self.plan)
+        self.assertEqual(commit, "published-main")
+        selected = manifest.split("\n\n")[:2]
+        self.assertTrue(all("GitCommit: published-main" in block for block in selected))
+        self.assertIn(TestPublicationManifest.entry(25), manifest)
+        self.assertNotIn("published-main", self.plan.manifest)
+
+    def test_dirty_or_unmerged_images_and_configuration_are_rejected(self):
+        for name in self.paths:
+            with self.subTest(path=name):
+                self.requests.side_effect = [{"sha": "published-main"}, {"tree": self.tree}]
+                original = Path(name).read_bytes()
+                Path(name).write_text("unmerged source changes")
+                with self.assertRaisesRegex(ValueError, "differs from published upstream main"):
+                    prepare_publication_source(self.plan)
+                Path(name).write_bytes(original)
+
+    def test_deleted_published_entrypoint_is_rejected(self):
+        Path("17/jre/ubuntu/noble/entrypoint.sh").unlink()
+        with self.assertRaisesRegex(ValueError, "missing or not merged upstream"):
+            prepare_publication_source(self.plan)
+
+    def test_new_unpublished_image_cannot_be_published(self):
+        self.tree[:] = [entry for entry in self.tree if entry["path"] != "17/jdk/ubuntu/noble/Dockerfile"]
+        with self.assertRaisesRegex(ValueError, "missing or not merged upstream"):
+            prepare_publication_source(self.plan)
+
+    def test_local_unpublished_entrypoint_cannot_be_added(self):
+        self.tree[:] = [entry for entry in self.tree if entry["path"] != "17/jre/ubuntu/noble/entrypoint.sh"]
+        with self.assertRaisesRegex(ValueError, "missing or not merged upstream"):
+            prepare_publication_source(self.plan)
+
+    def test_truncated_upstream_tree_is_not_accepted(self):
+        self.requests.side_effect = [{"sha": "published-main"}, {"truncated": True, "tree": self.tree}]
+        with self.assertRaisesRegex(ValueError, "complete published containers source tree"):
+            prepare_publication_source(self.plan)
+
+    def test_missing_published_commit_is_an_explicit_error(self):
+        self.requests.side_effect = [{}]
+        with self.assertRaisesRegex(ValueError, "published containers main commit"):
+            prepare_publication_source(self.plan)
+
+    @patch("dockerhub_doc_config_update.run_publication_command", return_value="one-hash")
+    def test_missing_source_hashes_are_not_accepted(self, _command):
+        with self.assertRaisesRegex(ValueError, "hash for every publication source file"):
+            prepare_publication_source(self.plan)
+
+
 class TestCreatePublicationPR(unittest.TestCase):
     def setUp(self):
         self.upstream = "\n\n".join([
@@ -984,23 +1129,20 @@ class TestCreatePublicationPR(unittest.TestCase):
         self.url = "https://github.com/docker-library/official-images/pull/123"
         self.commands = []
         self.cloned_manifest = self.upstream
-        self.dirty = ""
-        self.commit = "published"
         self.push_error = None
         self.runner = self.enterContext(patch(
             "dockerhub_doc_config_update.run_publication_command", side_effect=self.command,
         ))
-        self.enterContext(patch("dockerhub_doc_config_update.get_git_commit", return_value="published"))
+        self.prepare = self.enterContext(patch(
+            "dockerhub_doc_config_update.prepare_publication_source",
+            side_effect=lambda plan: ("published", plan.manifest),
+        ))
         self.open_prs = self.enterContext(patch(
             "dockerhub_doc_config_update.fetch_open_publication_prs", return_value=[],
         ))
 
     def command(self, *args, cwd=None):
         self.commands.append((args, cwd))
-        if args[:2] == ("git", "status"):
-            return self.dirty
-        if args[:3] == ("gh", "api", "repos/adoptium/containers/commits/main"):
-            return self.commit
         if args[:3] == ("gh", "api", "user"):
             return "publisher"
         if args[:3] == ("gh", "repo", "clone"):
@@ -1070,7 +1212,7 @@ class TestCreatePublicationPR(unittest.TestCase):
                     return ""
                 if args[:4] == ("git", "remote", "add", "publication"):
                     return run_publication_command(*args[:4], str(fork), cwd=cwd)
-                if args[0] == "gh" or args[:2] == ("git", "status"):
+                if args[0] == "gh":
                     return self.command(*args, cwd=cwd)
                 return run_publication_command(*args, cwd=cwd)
 
@@ -1128,16 +1270,21 @@ class TestCreatePublicationPR(unittest.TestCase):
         self.assertIn("no files, branches, forks, or PRs were changed", stderr.getvalue())
 
     def test_dirty_source_checkout_cannot_publish(self):
-        self.dirty = " M 17/jdk/ubuntu/noble/Dockerfile"
-        with self.assertRaisesRegex(ValueError, "clean checkout"):
+        self.prepare.side_effect = ValueError("Publication source differs from published upstream main: Dockerfile")
+        with self.assertRaisesRegex(ValueError, "differs from published upstream main"):
             create_publication_pr(self.plan)
-        self.assertEqual(len(self.commands), 1)
+        self.runner.assert_not_called()
 
-    def test_unmerged_source_commit_cannot_publish(self):
-        self.commit = "different-main-commit"
-        with self.assertRaisesRegex(ValueError, "latest merged"):
+    def test_unmerged_source_configuration_cannot_publish(self):
+        self.prepare.side_effect = ValueError("Publication source differs from published upstream main: config/temurin.yml")
+        with self.assertRaisesRegex(ValueError, "differs from published upstream main"):
             create_publication_pr(self.plan)
         self.assertFalse(any(args[:3] == ("gh", "repo", "clone") for args, _ in self.commands))
+
+    def test_dirty_tooling_changes_do_not_block_already_published_images(self):
+        self.enterContext(patch("dockerhub_doc_config_update.get_git_commit", return_value="tooling-feature-commit"))
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(create_publication_pr(self.plan), self.url)
 
     def test_changed_upstream_aborts_before_any_github_mutation(self):
         self.cloned_manifest += "\n# another update"

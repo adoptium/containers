@@ -25,6 +25,7 @@ import difflib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -84,17 +85,41 @@ class PublicationPlan:
     open_prs_available: bool = True
 
 
-def github_pages(url, items_key=None):
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Adoptium Dockerfile Updater"}
+def get_github_token() -> str | None:
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
     if token:
+        return token
+    if not shutil.which("gh"):
+        return None
+    result = subprocess.run(
+        ["gh", "auth", "token", "--hostname", "github.com"],
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    print(
+        "Warning: GitHub CLI authentication unavailable; API requests are unauthenticated. "
+        "Run 'gh auth login' or set GH_TOKEN to avoid rate limits.",
+        file=sys.stderr,
+    )
+    return None
+
+
+def github_request(url):
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "Adoptium Dockerfile Updater"}
+    token = get_github_token()
+    if token:
         headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def github_pages(url, items_key=None):
     page = 1
     while True:
         separator = "&" if "?" in url else "?"
-        request = urllib.request.Request(f"{url}{separator}per_page=100&page={page}", headers=headers)
-        with urllib.request.urlopen(request, timeout=30) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        data = github_request(f"{url}{separator}per_page=100&page={page}")
         if items_key and data.get("incomplete_results"):
             raise ValueError("GitHub returned incomplete PR search results")
         items = data[items_key] if items_key else data
@@ -428,6 +453,52 @@ def run_publication_command(*args: str, cwd: Path | None = None) -> str:
     ).stdout.strip()
 
 
+def prepare_publication_source(plan: PublicationPlan) -> tuple[str, str]:
+    commit = github_request("https://api.github.com/repos/adoptium/containers/commits/main")
+    if not isinstance(commit, dict) or not isinstance(commit.get("sha"), str) or not commit["sha"]:
+        raise ValueError("GitHub did not return the published containers main commit")
+    published_commit = commit["sha"]
+    tree = github_request(
+        f"https://api.github.com/repos/adoptium/containers/git/trees/{published_commit}?recursive=1"
+    )
+    if not isinstance(tree, dict) or tree.get("truncated") or not isinstance(tree.get("tree"), list):
+        raise ValueError("GitHub did not return a complete published containers source tree")
+    published_files = {
+        entry["path"]: entry["sha"] for entry in tree["tree"] if entry.get("type") == "blob"
+    }
+    source_paths = {"config/temurin.yml"}
+    blocks = []
+    for block in plan.manifest.split("\n\n"):
+        entries = get_manifest_entries(block)
+        selected = [
+            directory for directory in entries
+            if int(directory.split("/", 1)[0]) in plan.ready_releases
+        ]
+        for directory in selected:
+            source_paths.add(f"{directory}/Dockerfile")
+            entrypoint = f"{directory}/entrypoint.sh"
+            if entrypoint in published_files or Path(entrypoint).exists():
+                source_paths.add(entrypoint)
+        if selected:
+            block = re.sub(r"(?m)^GitCommit: .+$", f"GitCommit: {published_commit}", block)
+        blocks.append(block)
+
+    paths = sorted(source_paths)
+    for path in paths:
+        if path not in published_files or not Path(path).is_file():
+            raise ValueError(f"Publication source is missing or not merged upstream: {path}")
+    hashes = run_publication_command("git", "hash-object", "--", *paths).splitlines()
+    if len(hashes) != len(paths):
+        raise ValueError("Git did not return a hash for every publication source file")
+    for path, blob in zip(paths, hashes):
+        if blob != published_files[path]:
+            raise ValueError(
+                f"Publication source differs from published upstream main: {path}. "
+                "Merge image and configuration changes before publishing."
+            )
+    return published_commit, "\n\n".join(blocks)
+
+
 def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str | None:
     if not plan.upstream_manifest:
         raise ValueError("Upstream comparison unavailable; cannot create a publication PR")
@@ -437,7 +508,8 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
     if not versions:
         print("No unpublished READY versions; no publication PR to create.", file=sys.stderr)
         return None
-    manifest = merge_publication_manifest(plan.upstream_manifest, plan.manifest, versions)
+    published_commit, generated = prepare_publication_source(plan)
+    manifest = merge_publication_manifest(plan.upstream_manifest, generated, versions)
     if manifest == plan.upstream_manifest:
         raise ValueError("Selected versions do not change the upstream manifest")
     releases = plan.ready_releases
@@ -454,14 +526,6 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         )
         print("Dry run only; no files, branches, forks, or PRs were changed.", file=sys.stderr)
         return None
-    if run_publication_command("git", "status", "--porcelain", "--untracked-files=no"):
-        raise ValueError("Publication requires a clean checkout with no tracked changes")
-    published_commit = run_publication_command(
-        "gh", "api", "repos/adoptium/containers/commits/main", "--jq", ".sha",
-    )
-    if get_git_commit() != published_commit:
-        raise ValueError("Publication requires the latest merged adoptium/containers main commit")
-
     with tempfile.TemporaryDirectory(prefix="temurin-publication-") as temporary:
         checkout = Path(temporary) / "official-images"
         run_publication_command(

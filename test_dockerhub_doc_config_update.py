@@ -29,6 +29,7 @@ from dockerhub_doc_config_update import (
     find_manifest_block,
     fetch_official_manifest,
     fetch_open_publication_prs,
+    create_publication_pr,
     format_ojdk_version,
     get_block_gitcommit,
     get_distro_name,
@@ -37,8 +38,12 @@ from dockerhub_doc_config_update import (
     get_pending_arches,
     generate_manifest,
     java_version_key,
+    main,
+    merge_publication_manifest,
     github_pages,
+    PublicationPlan,
     PublicationPR,
+    run_publication_command,
 )
 
 
@@ -538,7 +543,7 @@ class TestPublishReadiness(unittest.TestCase):
         path.write_text("\n".join(lines))
         return path
 
-    def generate(self, official_manifest="", versions=None, open_prs=()):
+    def generate(self, official_manifest="", versions=None, open_prs=(), dry_run=False):
         output = io.StringIO()
         stdout = io.StringIO()
         with (
@@ -550,9 +555,9 @@ class TestPublishReadiness(unittest.TestCase):
             redirect_stderr(output),
             redirect_stdout(stdout),
         ):
-            generate_manifest(self.config, "manifest")
+            self.plan = generate_manifest(self.config, "manifest", dry_run=dry_run)
         self.assertEqual(stdout.getvalue(), "")
-        return output.getvalue(), Path("manifest").read_text()
+        return output.getvalue(), self.plan.manifest if dry_run else Path("manifest").read_text()
 
     def assert_readiness(self, summary, status, complete):
         rows = [
@@ -567,6 +572,9 @@ class TestPublishReadiness(unittest.TestCase):
         self.assertIn("Ready for upstream publish: Java 25.", summary)
         self.assertNotIn("readiness", manifest)
         self.assertNotIn("Publication blockers:", summary)
+        self.assertIn("python3 dockerhub_doc_config_update.py --create-pr", summary)
+        self.assertIn("python3 dockerhub_doc_config_update.py --dry-run", summary)
+        self.assertEqual(self.plan.ready_releases, {25: "25.0.2_10"})
 
     def test_pending_architecture_blocks_publish_without_removing_manifest_arch(self):
         self.write_dockerfile("jre", "ubuntu/noble", pending=("arm64",))
@@ -783,6 +791,8 @@ class TestPublishReadiness(unittest.TestCase):
         self.assertNotIn("Ready for upstream publish: Java 25.", summary)
         self.assertIn("Publication already in progress: Java 25.", summary)
         self.assertNotIn("No updated Java versions are ready", summary)
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertNotIn("--create-pr", summary)
 
     def test_open_pr_for_different_patch_release_does_not_match(self):
         _, manifest = self.generate()
@@ -800,6 +810,30 @@ class TestPublishReadiness(unittest.TestCase):
         )
         self.assert_readiness(summary, "UNKNOWN", "4/4")
         self.assertIn("Open upstream PRs could not be checked", summary)
+        self.assertEqual(self.plan.ready_releases, {})
+
+    def test_blocked_and_up_to_date_versions_are_not_offered_for_pr_creation(self):
+        _, manifest = self.generate()
+        self.generate(official_manifest=manifest)
+        self.assertEqual(self.plan.ready_releases, {})
+        self.write_dockerfile("jre", "ubuntu/noble", pending=("arm64",))
+        self.generate(official_manifest=manifest.replace("25.0.2_10", "25.0.1_8"))
+        self.assertEqual(self.plan.ready_releases, {})
+
+    def test_unavailable_upstream_is_not_offered_for_pr_creation(self):
+        self.generate(official_manifest=None)
+        self.assertEqual(self.plan.ready_releases, {})
+
+    def test_dry_run_does_not_overwrite_existing_manifest(self):
+        Path("manifest").write_text("existing manifest")
+        _, manifest = self.generate(dry_run=True)
+        self.assertEqual(Path("manifest").read_text(), "existing manifest")
+        self.assertIn("Directory: 25/jdk/", manifest)
+        self.assertIn("Directory: 25/jre/", manifest)
+
+    def test_dry_run_does_not_create_manifest_file(self):
+        self.generate(dry_run=True)
+        self.assertFalse(Path("manifest").exists())
 
 
 class TestOpenPublicationPRs(unittest.TestCase):
@@ -868,7 +902,350 @@ class TestOpenPublicationPRs(unittest.TestCase):
             list(github_pages("https://api.github.com/search/issues?q=example", "items"))
 
 
+class TestPublicationManifest(unittest.TestCase):
+    header = "# upstream header\n\nGitRepo: https://github.com/adoptium/containers.git\nGitFetch: refs/heads/main"
+
+    @staticmethod
+    def entry(version, package="jdk", release=None, distro="ubuntu/noble"):
+        release = release or f"{version}.0.1_1"
+        return (
+            f"Tags: {release}-{package}-noble, {version}-{package}-noble\n"
+            "Architectures: amd64, arm64v8\n"
+            f"GitCommit: commit-{release}\n"
+            f"Directory: {version}/{package}/{distro}"
+        )
+
+    def test_replaces_only_selected_versions_including_jre_and_new_distros(self):
+        preserved_8 = "# Java 8\n\n" + self.entry(8)
+        preserved_25 = "# Java 25\n\n" + self.entry(25) + "\n"
+        upstream = "\n\n".join([
+            self.header, preserved_8, "# Java 17",
+            self.entry(17), self.entry(17, "jre"),
+            self.entry(17, distro="alpine/3.21"), preserved_25,
+        ])
+        selected = [
+            self.entry(17, release="17.0.21_9"),
+            self.entry(17, "jre", "17.0.21_9"),
+            self.entry(17, release="17.0.21_9", distro="alpine/3.24"),
+        ]
+        generated = "\n\n".join(["# different generated header", self.entry(25, release="25.0.5_8"), *selected])
+        result = merge_publication_manifest(upstream, generated, [17])
+        self.assertEqual(result, "\n\n".join([
+            self.header, preserved_8, "# Java 17", *selected, preserved_25,
+        ]))
+        self.assertNotIn("alpine/3.21", result)
+        self.assertNotIn("different generated header", result)
+        self.assertNotIn("25.0.5_8", result)
+
+    def test_new_java_version_can_be_added_without_changing_existing_entries(self):
+        upstream = self.header + "\n\n" + self.entry(17) + "\n"
+        generated = self.entry(25) + "\n\n" + self.entry(25, "jre") + "\n"
+        result = merge_publication_manifest(upstream, generated, [25])
+        self.assertTrue(result.startswith(upstream))
+        self.assertIn("Directory: 25/jdk/", result)
+        self.assertIn("Directory: 25/jre/", result)
+
+    def test_multiple_selected_versions_are_replaced(self):
+        upstream = "\n\n".join([self.header, self.entry(8), self.entry(17), self.entry(25)]) + "\n"
+        generated = "\n\n".join([self.entry(17, release="17.0.21_9"), self.entry(25, release="25.0.5_8")])
+        result = merge_publication_manifest(upstream, generated, [17, 25])
+        self.assertIn(self.entry(8), result)
+        self.assertIn("17.0.21_9", result)
+        self.assertIn("25.0.5_8", result)
+        self.assertNotIn("17.0.1_1", result)
+        self.assertNotIn("25.0.1_1", result)
+
+    def test_missing_generated_version_is_an_error(self):
+        with self.assertRaisesRegex(ValueError, "no generated manifest entries"):
+            merge_publication_manifest(self.entry(17), self.entry(25), [17])
+
+    def test_shared_tag_conflict_does_not_modify_an_unselected_version(self):
+        upstream = self.entry(17) + "\nSharedTags: latest\n\n" + self.entry(25)
+        generated = self.entry(25, release="25.0.5_8") + "\nSharedTags: latest"
+        with self.assertRaisesRegex(ValueError, "preserved upstream tags: latest"):
+            merge_publication_manifest(upstream, generated, [25])
+
+
+class TestCreatePublicationPR(unittest.TestCase):
+    def setUp(self):
+        self.upstream = "\n\n".join([
+            TestPublicationManifest.header,
+            TestPublicationManifest.entry(8),
+            TestPublicationManifest.entry(17),
+            TestPublicationManifest.entry(17, "jre"),
+            TestPublicationManifest.entry(25),
+        ]) + "\n"
+        self.generated = "\n\n".join([
+            TestPublicationManifest.entry(17, release="17.0.21_9"),
+            TestPublicationManifest.entry(17, "jre", "17.0.21_9"),
+            TestPublicationManifest.entry(25, release="25.0.5_8"),
+        ]) + "\n"
+        self.plan = PublicationPlan(self.upstream, self.generated, {17: "17.0.21_9"})
+        self.url = "https://github.com/docker-library/official-images/pull/123"
+        self.commands = []
+        self.cloned_manifest = self.upstream
+        self.dirty = ""
+        self.commit = "published"
+        self.push_error = None
+        self.runner = self.enterContext(patch(
+            "dockerhub_doc_config_update.run_publication_command", side_effect=self.command,
+        ))
+        self.enterContext(patch("dockerhub_doc_config_update.get_git_commit", return_value="published"))
+        self.open_prs = self.enterContext(patch(
+            "dockerhub_doc_config_update.fetch_open_publication_prs", return_value=[],
+        ))
+
+    def command(self, *args, cwd=None):
+        self.commands.append((args, cwd))
+        if args[:2] == ("git", "status"):
+            return self.dirty
+        if args[:3] == ("gh", "api", "repos/adoptium/containers/commits/main"):
+            return self.commit
+        if args[:3] == ("gh", "api", "user"):
+            return "publisher"
+        if args[:3] == ("gh", "repo", "clone"):
+            self.checkout = Path(args[4])
+            path = self.checkout / "library" / "eclipse-temurin"
+            path.parent.mkdir(parents=True)
+            path.write_text(self.cloned_manifest)
+        if args[:2] == ("git", "commit"):
+            self.proposed = (cwd / "library" / "eclipse-temurin").read_text()
+        if "push" in args and self.push_error:
+            raise self.push_error
+        if args[:3] == ("gh", "pr", "create"):
+            return self.url
+        return ""
+
+    def test_creates_all_ready_releases_without_publishing_unready_versions(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(create_publication_pr(self.plan), self.url)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn(self.url, stderr.getvalue())
+        self.assertIn("17.0.21_9", self.proposed)
+        self.assertIn("Directory: 17/jre/", self.proposed)
+        self.assertIn(TestPublicationManifest.entry(8), self.proposed)
+        self.assertIn(TestPublicationManifest.entry(25), self.proposed)
+        self.assertNotIn("25.0.5_8", self.proposed)
+        self.assertFalse(self.checkout.exists())
+        self.open_prs.assert_called_once()
+        args, cwd = next(call for call in self.commands if call[0][:3] == ("gh", "pr", "create"))
+        self.assertIn("publisher:eclipse-temurin-17.0.21_9", args)
+        self.assertIn("master", args)
+        self.assertEqual(cwd, self.checkout)
+        commit_args, _ = next(call for call in self.commands if call[0][:2] == ("git", "commit"))
+        self.assertIn("Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>", commit_args)
+        self.assertTrue(all(cwd == self.checkout for args, cwd in self.commands if args[:2] == ("git", "checkout")))
+        self.assertFalse(any(args[:3] == ("gh", "auth", "setup-git") for args, _ in self.commands))
+
+    def test_all_ready_versions_are_automatically_included(self):
+        self.plan.ready_releases[25] = "25.0.5_8"
+        with redirect_stderr(io.StringIO()):
+            create_publication_pr(self.plan)
+        self.assertIn("17.0.21_9", self.proposed)
+        self.assertIn("25.0.5_8", self.proposed)
+
+    def test_publication_git_flow_pushes_only_ready_entries_to_an_isolated_fork(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            upstream = Path(temporary) / "upstream"
+            fork = Path(temporary) / "fork.git"
+            run_publication_command("git", "init", "-b", "master", str(upstream))
+            run_publication_command("git", "config", "user.name", "Test Publisher", cwd=upstream)
+            run_publication_command("git", "config", "user.email", "publisher@example.com", cwd=upstream)
+            run_publication_command("git", "config", "commit.gpgsign", "false", cwd=upstream)
+            manifest_file = upstream / "library" / "eclipse-temurin"
+            manifest_file.parent.mkdir()
+            manifest_file.write_text(self.upstream)
+            run_publication_command("git", "add", ".", cwd=upstream)
+            run_publication_command("git", "commit", "-m", "Initial manifest", cwd=upstream)
+            run_publication_command("git", "clone", "--bare", str(upstream), str(fork))
+
+            def integration_command(*args, cwd=None):
+                if args[:3] == ("gh", "repo", "clone"):
+                    checkout = Path(args[4])
+                    run_publication_command("git", "clone", str(upstream), str(checkout))
+                    run_publication_command("git", "config", "user.name", "Test Publisher", cwd=checkout)
+                    run_publication_command("git", "config", "user.email", "publisher@example.com", cwd=checkout)
+                    run_publication_command("git", "config", "commit.gpgsign", "false", cwd=checkout)
+                    return ""
+                if args[:4] == ("git", "remote", "add", "publication"):
+                    return run_publication_command(*args[:4], str(fork), cwd=cwd)
+                if args[0] == "gh" or args[:2] == ("git", "status"):
+                    return self.command(*args, cwd=cwd)
+                return run_publication_command(*args, cwd=cwd)
+
+            self.runner.side_effect = integration_command
+            with redirect_stderr(io.StringIO()):
+                self.assertEqual(create_publication_pr(self.plan), self.url)
+            refs = subprocess.run(
+                ["git", f"--git-dir={fork}", "for-each-ref", "--format=%(refname)"],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(refs.returncode, 0, refs.stderr)
+            self.assertIn("refs/heads/eclipse-temurin-17.0.21_9", refs.stdout, self.runner.call_args_list)
+            pushed = run_publication_command(
+                "git", f"--git-dir={fork}", "show", "eclipse-temurin-17.0.21_9:library/eclipse-temurin",
+            )
+            self.assertIn("17.0.21_9", pushed)
+            self.assertIn("Directory: 17/jre/", pushed)
+            self.assertIn(TestPublicationManifest.entry(8), pushed)
+            self.assertIn(TestPublicationManifest.entry(25), pushed)
+            self.assertNotIn("25.0.5_8", pushed)
+            self.assertEqual(manifest_file.read_text(), self.upstream)
+
+    def test_no_ready_versions_reports_no_op_without_publication_commands(self):
+        self.plan.ready_releases = {}
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            self.assertIsNone(create_publication_pr(self.plan))
+        self.assertIn("No unpublished READY versions", stderr.getvalue())
+        self.runner.assert_not_called()
+
+    def test_unknown_upstream_never_runs_publication_commands(self):
+        self.plan.upstream_manifest = None
+        with self.assertRaisesRegex(ValueError, "comparison unavailable"):
+            create_publication_pr(self.plan)
+        self.runner.assert_not_called()
+
+    def test_failed_initial_pr_lookup_is_not_a_successful_no_op(self):
+        self.plan.ready_releases = {}
+        self.plan.open_prs_available = False
+        with self.assertRaisesRegex(ValueError, "Open upstream PRs could not be checked"):
+            create_publication_pr(self.plan)
+        self.runner.assert_not_called()
+
+    def test_dry_run_previews_diff_without_commands_or_files(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertIsNone(create_publication_pr(self.plan, dry_run=True))
+        self.runner.assert_not_called()
+        self.open_prs.assert_not_called()
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Dry run: would open upstream PR", stderr.getvalue())
+        self.assertIn("--- a/library/eclipse-temurin", stderr.getvalue())
+        self.assertIn("+Tags: 17.0.21_9", stderr.getvalue())
+        self.assertNotIn("+Tags: 25.0.5_8", stderr.getvalue())
+        self.assertIn("no files, branches, forks, or PRs were changed", stderr.getvalue())
+
+    def test_dirty_source_checkout_cannot_publish(self):
+        self.dirty = " M 17/jdk/ubuntu/noble/Dockerfile"
+        with self.assertRaisesRegex(ValueError, "clean checkout"):
+            create_publication_pr(self.plan)
+        self.assertEqual(len(self.commands), 1)
+
+    def test_unmerged_source_commit_cannot_publish(self):
+        self.commit = "different-main-commit"
+        with self.assertRaisesRegex(ValueError, "latest merged"):
+            create_publication_pr(self.plan)
+        self.assertFalse(any(args[:3] == ("gh", "repo", "clone") for args, _ in self.commands))
+
+    def test_changed_upstream_aborts_before_any_github_mutation(self):
+        self.cloned_manifest += "\n# another update"
+        with self.assertRaisesRegex(ValueError, "upstream manifest changed"):
+            create_publication_pr(self.plan)
+        self.assert_no_github_mutation()
+        self.assertFalse(self.checkout.exists())
+
+    def test_pr_opened_after_readiness_check_is_not_duplicated(self):
+        self.open_prs.return_value = [PublicationPR(self.url, {"17.0.21+9"})]
+        with self.assertRaisesRegex(ValueError, "already in an upstream PR"):
+            create_publication_pr(self.plan)
+        self.assert_no_github_mutation()
+
+    def test_failed_fresh_pr_lookup_aborts_without_mutation(self):
+        self.open_prs.return_value = None
+        with self.assertRaisesRegex(ValueError, "could not be checked"):
+            create_publication_pr(self.plan)
+        self.assert_no_github_mutation()
+
+    def test_push_failure_never_attempts_to_open_pr(self):
+        self.push_error = subprocess.CalledProcessError(1, ["git", "push"], stderr="push rejected")
+        with self.assertRaises(subprocess.CalledProcessError):
+            create_publication_pr(self.plan)
+        self.assertFalse(any(args[:3] == ("gh", "pr", "create") for args, _ in self.commands))
+        self.assertFalse(self.checkout.exists())
+
+    def test_empty_pr_url_is_not_success(self):
+        self.url = ""
+        with self.assertRaisesRegex(ValueError, "did not return a publication PR URL"):
+            create_publication_pr(self.plan)
+
+    def assert_no_github_mutation(self):
+        self.assertFalse(any(args[:3] in (("gh", "repo", "fork"), ("gh", "pr", "create")) for args, _ in self.commands))
+        self.assertFalse(any("push" in args for args, _ in self.commands))
+
+    @patch("dockerhub_doc_config_update.subprocess.run")
+    def test_command_output_is_captured_and_failures_propagate(self, run):
+        run.return_value.stdout = "result\n"
+        self.assertEqual(run_publication_command("gh", "api", "user"), "result")
+        run.assert_called_once_with(
+            ("gh", "api", "user"), cwd=None, capture_output=True, text=True, check=True,
+        )
+        run.side_effect = subprocess.CalledProcessError(1, ["gh"], stderr="authentication required")
+        with self.assertRaises(subprocess.CalledProcessError):
+            run_publication_command("gh", "api", "user")
+
+
 class TestManifestCLI(unittest.TestCase):
+
+    def setUp(self):
+        self.config = self.enterContext(patch("dockerhub_doc_config_update.load_config", return_value={}))
+        self.enterContext(patch("dockerhub_doc_config_update.print_eol_warnings"))
+        self.generate = self.enterContext(patch(
+            "dockerhub_doc_config_update.generate_manifest",
+            return_value=PublicationPlan("upstream", "generated", {17: "17.0.21_9"}),
+        ))
+        self.create = self.enterContext(patch("dockerhub_doc_config_update.create_publication_pr"))
+
+    def test_default_run_does_not_create_a_pr(self):
+        with patch.object(sys, "argv", ["script"]):
+            main()
+        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=False)
+        self.create.assert_not_called()
+
+    def test_create_pr_needs_no_version_selection(self):
+        with patch.object(sys, "argv", ["script", "manifest", "--create-pr"]):
+            main()
+        self.generate.assert_called_once_with({}, "manifest", dry_run=False)
+        self.create.assert_called_once_with(self.generate.return_value, dry_run=False)
+
+    def test_version_arguments_are_not_accepted_by_create_pr(self):
+        with patch.object(sys, "argv", ["script", "--create-pr=17"]), redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as error:
+                main()
+        self.assertEqual(error.exception.code, 2)
+        self.generate.assert_not_called()
+        self.create.assert_not_called()
+
+    def test_dry_run_is_a_standalone_preview_option(self):
+        with patch.object(sys, "argv", ["script", "--dry-run"]):
+            main()
+        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=True)
+        self.create.assert_called_once_with(self.generate.return_value, dry_run=True)
+
+    def test_dry_run_overrides_create_pr_mutations(self):
+        with patch.object(sys, "argv", ["script", "--create-pr", "--dry-run"]):
+            main()
+        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=True)
+        self.create.assert_called_once_with(self.generate.return_value, dry_run=True)
+
+    def test_publication_command_failure_has_nonzero_exit_and_details(self):
+        self.create.side_effect = subprocess.CalledProcessError(1, ["gh"], stderr="authentication required")
+        stderr = io.StringIO()
+        with patch.object(sys, "argv", ["script", "--create-pr"]), redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as error:
+                main()
+        self.assertEqual(error.exception.code, 1)
+        self.assertIn("authentication required", stderr.getvalue())
+
+    def test_unavailable_pr_lookup_has_nonzero_exit_and_details(self):
+        self.create.side_effect = ValueError("Open upstream PRs could not be checked")
+        stderr = io.StringIO()
+        with patch.object(sys, "argv", ["script", "--create-pr"]), redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as error:
+                main()
+        self.assertEqual(error.exception.code, 1)
+        self.assertIn("Open upstream PRs could not be checked", stderr.getvalue())
 
     def test_stdout_manifest_needs_only_yaml_and_report_goes_to_stderr(self):
         code = textwrap.dedent("""\

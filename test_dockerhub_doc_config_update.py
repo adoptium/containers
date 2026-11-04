@@ -669,6 +669,107 @@ class TestPublishReadiness(unittest.TestCase):
         self.assert_readiness(summary, "READY", "2/2")
         self.assertNotIn("missing Dockerfile", summary)
 
+    def test_removed_distro_still_upstream_is_reported_without_changing_readiness(self):
+        _, upstream = self.generate()
+        upstream += "\n" + "\n\n".join(
+            f"Tags: 25.0.2_10-{package}-alpine-3.21\nDirectory: 25/{package}/alpine/3.21"
+            for package in ("jdk", "jre")
+        ) + "\n"
+        summary, manifest = self.generate(official_manifest=upstream)
+        self.assertIn("Deprecated or removed images still in the upstream official manifest:", summary)
+        self.assertEqual(summary.count("JDK+JRE alpine/3.21"), 1)
+        self.assert_readiness(summary, "UP TO DATE", "4/4")
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertNotIn("alpine/3.21", manifest)
+        self.assertEqual(self.plan.cleanup_directories, {
+            "25/jdk/alpine/3.21", "25/jre/alpine/3.21",
+        })
+        self.assertIn("Upstream cleanup ready: 2 retired image entries", summary)
+        self.assertIn("--create-pr", summary)
+
+    def test_deprecated_and_excluded_upstream_configs_are_reported(self):
+        _, upstream = self.generate()
+        for field, value in (("deprecated", 25), ("versions", [21])):
+            with self.subTest(field=field):
+                configuration = self.config["configurations"]["alpine-linux"][0]
+                configuration[field] = value
+                summary, _ = self.generate(official_manifest=upstream)
+                self.assertIn("Deprecated or removed images still in the upstream official manifest:", summary)
+                self.assertIn("JDK+JRE alpine/3.24", summary)
+                self.assert_readiness(summary, "UP TO DATE", "2/2")
+                del configuration[field]
+
+    def test_distro_below_deprecation_threshold_is_not_reported(self):
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 26
+        _, upstream = self.generate()
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assertNotIn("Deprecated or removed images", summary)
+        self.assert_readiness(summary, "UP TO DATE", "4/4")
+
+    def test_missing_local_dockerfile_is_not_reported_as_deprecated_upstream(self):
+        _, upstream = self.generate()
+        Path("25/jre/ubuntu/noble/Dockerfile").unlink()
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assertNotIn("Deprecated or removed images", summary)
+        self.assertIn("missing Dockerfile", summary)
+        self.assert_readiness(summary, "BLOCKED", "3/4")
+
+    def test_retired_upstream_entries_are_reported_in_dry_runs(self):
+        _, upstream = self.generate()
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 25
+        summary, _ = self.generate(official_manifest=upstream, dry_run=True)
+        self.assertIn("Deprecated or removed images still in the upstream official manifest:", summary)
+        self.assertIn("JDK+JRE alpine/3.24", summary)
+
+    def test_unavailable_upstream_does_not_claim_retired_entries_exist(self):
+        summary, _ = self.generate(official_manifest=None)
+        self.assertNotIn("Deprecated or removed images", summary)
+        self.assertIn("Upstream comparison unavailable", summary)
+
+    def test_cleanup_can_be_planned_while_required_images_are_blocked(self):
+        _, upstream = self.generate()
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 25
+        Path("25/jre/ubuntu/noble/Dockerfile").unlink()
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assert_readiness(summary, "BLOCKED", "1/2")
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertEqual(self.plan.cleanup_directories, {
+            "25/jdk/alpine/3.24", "25/jre/alpine/3.24",
+        })
+
+    def test_cleanup_already_in_open_pr_is_not_suggested_again(self):
+        _, upstream = self.generate()
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 25
+        url = "https://github.com/docker-library/official-images/pull/456"
+        summary, _ = self.generate(
+            official_manifest=upstream,
+            open_prs=[PublicationPR(url, set(), {
+                "25/jdk/alpine/3.24", "25/jre/alpine/3.24",
+            })],
+        )
+        self.assertEqual(self.plan.cleanup_directories, set())
+        self.assertIn(f"Upstream cleanup PR open: {url}", summary)
+        self.assertNotIn("Upstream cleanup ready:", summary)
+
+    def test_partial_cleanup_pr_leaves_other_retired_entries_available(self):
+        _, upstream = self.generate()
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 25
+        self.generate(
+            official_manifest=upstream,
+            open_prs=[PublicationPR("https://github.com/docker-library/official-images/pull/456",
+                                    set(), {"25/jdk/alpine/3.24"})],
+        )
+        self.assertEqual(self.plan.cleanup_directories, {"25/jre/alpine/3.24"})
+
+    def test_cleanup_requires_successful_pr_lookup_even_without_release_updates(self):
+        _, upstream = self.generate()
+        self.config["configurations"]["alpine-linux"][0]["deprecated"] = 25
+        summary, _ = self.generate(official_manifest=upstream, open_prs=None)
+        self.assertFalse(self.plan.open_prs_available)
+        self.assertEqual(self.plan.cleanup_directories, set())
+        self.assertIn("Upstream cleanup UNKNOWN", summary)
+        self.assertNotIn("Upstream cleanup ready:", summary)
+
     def test_no_dockerfile_architectures_blocks_publish(self):
         self.write_dockerfile("jdk", "ubuntu/noble", arches=())
         summary, _ = self.generate()
@@ -840,6 +941,28 @@ class TestPublishReadiness(unittest.TestCase):
 
 
 class TestOpenPublicationPRs(unittest.TestCase):
+
+    @patch("dockerhub_doc_config_update.github_pages")
+    def test_cleanup_only_pr_matches_removed_directories_not_replaced_entries(self, pages):
+        pages.side_effect = [
+            [{"number": 456, "html_url": "https://github.com/docker-library/official-images/pull/456"}],
+            [{
+                "filename": "library/eclipse-temurin",
+                "patch": (
+                    "-Tags: 25.0.2_10-jdk-alpine-3.21\n"
+                    "-Directory: 25/jdk/alpine/3.21\n"
+                    "-Directory: 25/jre/alpine/3.21\n"
+                    "-Directory: 25/jdk/ubuntu/noble\n"
+                    "+Directory: 25/jdk/ubuntu/noble\n"
+                ),
+            }],
+        ]
+        prs = fetch_open_publication_prs()
+        self.assertEqual(len(prs), 1)
+        self.assertEqual(prs[0].releases, set())
+        self.assertEqual(prs[0].removed_directories, {
+            "25/jdk/alpine/3.21", "25/jre/alpine/3.21",
+        })
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("shutil.which", return_value="/usr/local/bin/gh")
@@ -1019,6 +1142,38 @@ class TestPublicationManifest(unittest.TestCase):
         self.assertNotIn("17.0.1_1", result)
         self.assertNotIn("25.0.1_1", result)
 
+    def test_cleanup_only_removes_exact_entries_and_preserves_everything_else(self):
+        retired = [self.entry(17, distro="alpine/3.21"), self.entry(25, "jre", distro="alpine/3.21")]
+        preserved = "\n\n".join([self.header, self.entry(17), self.entry(25)]) + "\n"
+        upstream = preserved.rstrip("\n") + "\n\n" + "\n\n".join(retired) + "\n"
+        generated = self.entry(25, release="25.0.5_8")
+        result = merge_publication_manifest(
+            upstream, generated, [], {"17/jdk/alpine/3.21", "25/jre/alpine/3.21"},
+        )
+        self.assertEqual(result, preserved)
+        self.assertNotIn("25.0.5_8", result)
+
+    def test_ready_release_and_cleanup_of_unselected_version_can_share_a_pr(self):
+        upstream = "\n\n".join([
+            self.header, self.entry(17), self.entry(25),
+            self.entry(25, distro="alpine/3.21"),
+        ]) + "\n"
+        generated = self.entry(17, release="17.0.21_9")
+        result = merge_publication_manifest(upstream, generated, [17], {"25/jdk/alpine/3.21"})
+        self.assertIn("17.0.21_9", result)
+        self.assertIn(self.entry(25), result)
+        self.assertNotIn("alpine/3.21", result)
+
+    def test_cleanup_cannot_remove_a_generated_image(self):
+        manifest = self.entry(25)
+        with self.assertRaisesRegex(ValueError, "still have generated manifest entries"):
+            merge_publication_manifest(manifest, manifest, [], {"25/jdk/ubuntu/noble"})
+
+    def test_cleanup_target_must_exist_upstream(self):
+        manifest = self.entry(25)
+        with self.assertRaisesRegex(ValueError, "absent from upstream"):
+            merge_publication_manifest(manifest, manifest, [], {"25/jdk/alpine/3.21"})
+
     def test_missing_generated_version_is_an_error(self):
         with self.assertRaisesRegex(ValueError, "no generated manifest entries"):
             merge_publication_manifest(self.entry(17), self.entry(25), [17])
@@ -1069,6 +1224,21 @@ class TestPublicationSource(unittest.TestCase):
         self.assertTrue(all("GitCommit: published-main" in block for block in selected))
         self.assertIn(TestPublicationManifest.entry(25), manifest)
         self.assertNotIn("published-main", self.plan.manifest)
+
+    def test_cleanup_only_requires_merged_config_but_not_unselected_images(self):
+        self.plan.ready_releases = {}
+        self.plan.cleanup_directories = {"25/jdk/alpine/3.21"}
+        Path("17/jdk/ubuntu/noble/Dockerfile").write_text("unmerged image change")
+        commit, manifest = prepare_publication_source(self.plan)
+        self.assertEqual(commit, "published-main")
+        self.assertEqual(manifest, self.plan.manifest)
+
+    def test_cleanup_only_still_rejects_unmerged_configuration(self):
+        self.plan.ready_releases = {}
+        self.plan.cleanup_directories = {"25/jdk/alpine/3.21"}
+        Path("config/temurin.yml").write_text("unmerged config change")
+        with self.assertRaisesRegex(ValueError, "differs from published upstream main"):
+            prepare_publication_source(self.plan)
 
     def test_dirty_or_unmerged_images_and_configuration_are_rejected(self):
         for name in self.paths:
@@ -1186,6 +1356,64 @@ class TestCreatePublicationPR(unittest.TestCase):
             create_publication_pr(self.plan)
         self.assertIn("17.0.21_9", self.proposed)
         self.assertIn("25.0.5_8", self.proposed)
+
+    def add_cleanup(self):
+        directory = "25/jdk/alpine/3.21"
+        self.plan.cleanup_directories = {directory}
+        self.upstream += "\n" + TestPublicationManifest.entry(25, distro="alpine/3.21") + "\n"
+        self.plan.upstream_manifest = self.upstream
+        self.cloned_manifest = self.upstream
+        return directory
+
+    def test_creates_cleanup_only_pr_without_ready_releases(self):
+        directory = self.add_cleanup()
+        self.plan.ready_releases = {}
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(create_publication_pr(self.plan), self.url)
+        self.assertEqual(self.proposed, "\n\n".join([
+            TestPublicationManifest.header, TestPublicationManifest.entry(8),
+            TestPublicationManifest.entry(17), TestPublicationManifest.entry(17, "jre"),
+            TestPublicationManifest.entry(25),
+        ]) + "\n")
+        args, _ = next(call for call in self.commands if call[0][:3] == ("gh", "pr", "create"))
+        self.assertIn("eclipse-temurin: remove deprecated images", args)
+        self.assertIn(directory, args[args.index("--body") + 1])
+        self.assertTrue(args[args.index("--head") + 1].startswith("publisher:eclipse-temurin-cleanup-"))
+        self.prepare.assert_called_once_with(self.plan)
+
+    def test_release_updates_can_include_cleanup_for_other_versions(self):
+        self.add_cleanup()
+        with redirect_stderr(io.StringIO()):
+            create_publication_pr(self.plan)
+        self.assertIn("17.0.21_9", self.proposed)
+        self.assertIn(TestPublicationManifest.entry(25), self.proposed)
+        self.assertNotIn("alpine/3.21", self.proposed)
+        args, _ = next(call for call in self.commands if call[0][:3] == ("gh", "pr", "create"))
+        self.assertIn("remove deprecated images", args[args.index("--title") + 1])
+
+    def test_cleanup_dry_run_shows_only_deletions_without_mutation(self):
+        self.add_cleanup()
+        self.plan.ready_releases = {}
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            create_publication_pr(self.plan, dry_run=True)
+        self.assertIn("eclipse-temurin: remove deprecated images", stderr.getvalue())
+        self.assertIn("-Directory: 25/jdk/alpine/3.21", stderr.getvalue())
+        additions = [
+            line for line in stderr.getvalue().splitlines()
+            if line.startswith("+") and not line.startswith("+++")
+        ]
+        self.assertEqual(additions, [])
+        self.runner.assert_not_called()
+        self.open_prs.assert_not_called()
+
+    def test_cleanup_opened_after_planning_aborts_before_mutation(self):
+        directory = self.add_cleanup()
+        self.plan.ready_releases = {}
+        self.open_prs.return_value = [PublicationPR(self.url, set(), {directory})]
+        with self.assertRaisesRegex(ValueError, "Cleanup is already in an upstream PR"):
+            create_publication_pr(self.plan)
+        self.assert_no_github_mutation()
 
     def test_explicit_repository_fork_does_not_use_the_remote_flag(self):
         with redirect_stderr(io.StringIO()):

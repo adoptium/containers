@@ -22,6 +22,7 @@
 
 import argparse
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -75,6 +76,7 @@ def fetch_official_manifest():
 class PublicationPR:
     url: str
     releases: set[str]
+    removed_directories: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -83,6 +85,7 @@ class PublicationPlan:
     manifest: str
     ready_releases: dict[int, str]
     open_prs_available: bool = True
+    cleanup_directories: set[str] = field(default_factory=set)
 
 
 def get_github_token() -> str | None:
@@ -130,7 +133,7 @@ def github_pages(url, items_key=None):
 
 
 def fetch_open_publication_prs():
-    """Match open upstream PRs by release tags added to the Temurin manifest."""
+    """Match upstream PRs by added release tags and removed manifest directories."""
     query = urlencode({
         "q": "repo:docker-library/official-images is:pr is:open eclipse-temurin in:title,body",
     })
@@ -138,6 +141,8 @@ def fetch_open_publication_prs():
         prs = []
         for issue in github_pages(f"https://api.github.com/search/issues?{query}", "items"):
             releases = set()
+            removed_directories = set()
+            added_directories = set()
             for change in github_pages(f"{OFFICIAL_IMAGES_API}/pulls/{issue['number']}/files"):
                 if change["filename"] != "library/eclipse-temurin":
                     continue
@@ -149,8 +154,13 @@ def fetch_open_publication_prs():
                         match = re.match(r"^(.+?)-(?:jdk|jre)-", tag)
                         if match:
                             releases.add(match.group(1))
-            if releases:
-                prs.append(PublicationPR(issue["html_url"], releases))
+                    elif line.startswith("-Directory: "):
+                        removed_directories.add(line.removeprefix("-Directory: "))
+                    elif line.startswith("+Directory: "):
+                        added_directories.add(line.removeprefix("+Directory: "))
+            removed_directories -= added_directories
+            if releases or removed_directories:
+                prs.append(PublicationPR(issue["html_url"], releases, removed_directories))
         return prs
     except (OSError, ValueError) as error:
         print(f"Warning: cannot check open upstream publication PRs: {error}", file=sys.stderr)
@@ -373,7 +383,7 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
             file=sys.stderr,
         )
         print(
-            "To open an upstream PR for all READY versions:\n"
+            "To open an upstream PR for all READY versions and pending cleanup:\n"
             "  python3 dockerhub_doc_config_update.py --create-pr\n"
             "Preview without making changes:\n"
             "  python3 dockerhub_doc_config_update.py --dry-run",
@@ -390,6 +400,28 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
     return ready_versions
 
 
+def print_deprecated_upstream_images(directories):
+    retired = {}
+    for directory in sorted(directories, key=lambda path: (int(path.split("/", 1)[0]), path)):
+        version, package, distro = directory.split("/", 2)
+        retired.setdefault((version, distro), set()).add(package)
+    if not retired:
+        return
+    print(
+        "\nWarning: Deprecated or removed images still in the upstream official manifest:",
+        file=sys.stderr,
+    )
+    rows = [
+        [version, f"{'+'.join(sorted(packages)).upper()} {distro}"]
+        for (version, distro), packages in retired.items()
+    ]
+    print_table(["Java", "Affected upstream images"], rows, [4, 80])
+    print(
+        "These entries can be cleaned up independently of release readiness.",
+        file=sys.stderr,
+    )
+
+
 def get_manifest_entries(manifest):
     entries = {}
     for block in (manifest or "").split("\n\n"):
@@ -399,7 +431,17 @@ def get_manifest_entries(manifest):
     return entries
 
 
-def merge_publication_manifest(upstream: str, generated: str, versions: list[int]) -> str:
+def merge_publication_manifest(
+    upstream: str, generated: str, versions: list[int],
+    cleanup_directories: set[str] | None = None,
+) -> str:
+    cleanup_directories = cleanup_directories or set()
+    missing = cleanup_directories - get_manifest_entries(upstream).keys()
+    if missing:
+        raise ValueError("Cleanup targets are absent from upstream manifest: " + ", ".join(sorted(missing)))
+    active = cleanup_directories & get_manifest_entries(generated).keys()
+    if active:
+        raise ValueError("Cleanup targets still have generated manifest entries: " + ", ".join(sorted(active)))
     replacements: dict[int, list[str]] = {version: [] for version in versions}
     for block in generated.split("\n\n"):
         for directory in get_manifest_entries(block):
@@ -419,7 +461,7 @@ def merge_publication_manifest(upstream: str, generated: str, versions: list[int
             if version not in replaced:
                 blocks.extend(replacements[version])
                 replaced.add(version)
-        else:
+        elif not cleanup_directories.intersection(entries):
             blocks.append(block)
             preserved_entries.update(entries)
     for version in versions:
@@ -505,16 +547,23 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
     if not plan.open_prs_available:
         raise ValueError("Open upstream PRs could not be checked; refusing to create a PR")
     versions = list(plan.ready_releases)
-    if not versions:
-        print("No unpublished READY versions; no publication PR to create.", file=sys.stderr)
+    cleanup = plan.cleanup_directories
+    if not versions and not cleanup:
+        print("No unpublished READY versions or upstream cleanup; no publication PR to create.", file=sys.stderr)
         return None
     published_commit, generated = prepare_publication_source(plan)
-    manifest = merge_publication_manifest(plan.upstream_manifest, generated, versions)
+    manifest = merge_publication_manifest(plan.upstream_manifest, generated, versions, cleanup)
     if manifest == plan.upstream_manifest:
-        raise ValueError("Selected versions do not change the upstream manifest")
+        raise ValueError("Selected updates do not change the upstream manifest")
     releases = plan.ready_releases
-    branch = "eclipse-temurin-" + "-".join(releases.values())
-    title = "eclipse-temurin: " + ", ".join(f"Java {version} to {release}" for version, release in releases.items())
+    branch_parts = list(releases.values())
+    title = ", ".join(f"Java {version} to {release}" for version, release in releases.items())
+    if cleanup:
+        digest = hashlib.sha256("\n".join(sorted(cleanup)).encode("utf-8")).hexdigest()[:12]
+        branch_parts.append(f"cleanup-{digest}")
+        title = f"{title}; remove deprecated images" if title else "remove deprecated images"
+    branch = "eclipse-temurin-" + "-".join(branch_parts)
+    title = "eclipse-temurin: " + title
     if dry_run:
         print(f"Dry run: would open upstream PR '{title}' on branch {branch}", file=sys.stderr)
         print(
@@ -542,6 +591,10 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
             matches = matching_publication_prs(release, open_prs)
             if matches:
                 raise ValueError(f"Release {release} is already in an upstream PR: {matches[0].url}")
+        removed = get_manifest_entries(plan.upstream_manifest).keys() - get_manifest_entries(manifest).keys()
+        for pr in open_prs:
+            if removed & pr.removed_directories:
+                raise ValueError(f"Cleanup is already in an upstream PR: {pr.url}")
 
         login = run_publication_command("gh", "api", "user", "--jq", ".login")
         if not login:
@@ -565,15 +618,20 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
             "git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential",
             "push", "publication", branch, cwd=checkout,
         )
+        body = f"Update Eclipse Temurin from adoptium/containers commit {published_commit}.\n\n"
+        if releases:
+            body += "Publish READY releases:\n" + "\n".join(
+                f"- Java {version}: `{release}` (JDK and JRE, all configured architectures)"
+                for version, release in releases.items()
+            ) + "\n\n"
+        if cleanup:
+            body += "Remove deprecated, removed, or version-excluded image entries:\n"
+            body += "\n".join(f"- `{directory}`" for directory in sorted(cleanup)) + "\n\n"
+        body += "All other upstream manifest entries are preserved."
         url = run_publication_command(
             "gh", "pr", "create", "--repo", "docker-library/official-images",
             "--base", "master", "--head", f"{login}:{branch}", "--title", title,
-            "--body", (
-                f"Publish the READY Eclipse Temurin releases from adoptium/containers commit {published_commit}.\n\n"
-                + "\n".join(f"- Java {version}: `{release}` (JDK and JRE, all configured architectures)"
-                            for version, release in releases.items())
-                + "\n\nAll other Java versions retain their upstream manifest entries."
-            ),
+            "--body", body,
             cwd=checkout,
         )
         if not url.startswith("https://github.com/docker-library/official-images/pull/"):
@@ -817,22 +875,44 @@ def generate_manifest(config, output_file, dry_run=False):
         with open(output_file, "w") as f:
             f.write(manifest)
 
+    configured_directories = {
+        image.directory for images in readiness.values() for image in images
+    }
+    retired = official_entries.keys() - configured_directories
     updated = any(image.updated for images in readiness.values() for image in images)
-    open_prs = fetch_open_publication_prs() if official_manifest and updated else []
+    open_prs = fetch_open_publication_prs() if official_manifest and (updated or retired) else []
+    cleanup = set(retired)
+    for pr in open_prs or []:
+        cleanup -= pr.removed_directories
+    if open_prs is None:
+        cleanup.clear()
+    print_deprecated_upstream_images(retired)
     ready_releases = print_publish_summary(readiness, output_file, official_manifest is not None, open_prs)
-    return PublicationPlan(official_manifest, manifest, ready_releases, open_prs is not None)
+    for pr in open_prs or []:
+        if retired & pr.removed_directories:
+            print(f"Upstream cleanup PR open: {pr.url}", file=sys.stderr)
+    if cleanup:
+        print(
+            f"\nUpstream cleanup ready: {len(cleanup)} retired image entries. "
+            "Use --create-pr to remove them, or --dry-run to preview, "
+            "even if no Java versions are READY.",
+            file=sys.stderr,
+        )
+    elif retired and open_prs is None:
+        print("Upstream cleanup UNKNOWN: open upstream PRs could not be checked.", file=sys.stderr)
+    return PublicationPlan(official_manifest, manifest, ready_releases, open_prs is not None, cleanup)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate the Temurin manifest and report publication readiness.")
+    parser = argparse.ArgumentParser(description="Generate the Temurin manifest and report publication readiness and retired-image cleanup.")
     parser.add_argument("output_file", nargs="?", default="eclipse-temurin")
     parser.add_argument(
         "--create-pr", action="store_true",
-        help="open an upstream Official Images PR for all unpublished READY Java versions (requires git and authenticated gh)",
+        help="open an upstream PR for all unpublished READY Java versions and retired image cleanup (requires git and authenticated gh)",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
-        help="preview the PR and manifest diff for all unpublished READY versions without writing files or creating a PR",
+        help="preview READY release updates and retired image cleanup without writing files or creating a PR",
     )
     args = parser.parse_args()
     try:

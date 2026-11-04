@@ -63,9 +63,8 @@ RUN set -eux; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33%2B10/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.33_10.tar.gz'; \
          ;; \
        s390x) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.33+10.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='88c71157732799dee7ec2417d9bed9fdc60fe8a806993d0de09b4449ff26bf9b'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33%2B10/OpenJDK11U-jre_s390x_linux_hotspot_11.0.33_10.tar.gz'; \
          ;; \
        x86_64) \
          # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.33+10.

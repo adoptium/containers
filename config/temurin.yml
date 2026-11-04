@@ -28,6 +28,7 @@ configurations:
   - directory: ubuntu/resolute
     image: ubuntu:26.04
     # TODO add riscv64 back once upstream docker can build it
+    # https://github.com/docker-library/official-images/blob/23b9601e1eef72ad67e3f6372c1de31305865026/naughty-from.sh#L21-L37
     architectures: [aarch64, arm, ppc64le, s390x, x64]
     os: ubuntu
 

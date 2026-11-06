@@ -58,9 +58,8 @@ RUN set -eux; \
          BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.33_10.tar.gz'; \
          ;; \
        arm64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.33+10.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='60b0fb79bb678b6fae3e499c7b0a353e68633ed0ab69d1a6bafe6092ed1e59e4'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33%2B10/OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.33_10.tar.gz'; \
          ;; \
        armhf) \
          ESUM='61b540e26de94600b2034a07a75492790f873bffd8664f0960ce88cd9e15feca'; \

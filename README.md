@@ -77,13 +77,20 @@ checking JDK and JRE images against the configured architectures (including
 version-specific overrides). Missing Dockerfiles, missing architectures, pending
 upstream binary branches, and images still on an older release are reported as
 blockers. Deprecated and explicitly excluded configurations are not required.
+Java 8 has one exception: pending `arm32v7` binaries do not block publication.
+They are listed separately as deferred binaries and can be supplied in a
+follow-up. Their configured Dockerfile branches and manifest architecture entries
+must remain present; a missing branch still blocks publication. Other pending
+architectures, and pending `arm32v7` binaries for other Java versions, remain
+blockers.
 Release consistency is checked against the newest Java version found in the
 local Dockerfiles for that major version, not against live release assets.
 
 The summary is an aligned table of Java releases, readiness status, and complete
 image counts, followed by a table of grouped blockers and affected images.
 `READY` means that Java version has an update relative to the official upstream
-manifest and all its images are complete. `UP TO DATE` means the same releases
+manifest and all its images meet the publication requirements, allowing the
+Java 8 `arm32v7` deferral above. `UP TO DATE` means the same releases
 are already published; a different Git commit alone is not a new Java release.
 New distro entries also count as updates. `UNKNOWN` means the upstream manifest
 could not be fetched, so publication readiness cannot be confirmed.
@@ -109,7 +116,8 @@ The PR creator can remove the retired entries independently, even when the Java
 release is `UP TO DATE` or `BLOCKED`.
 
 Publish each `READY` Java version independently: every required image and
-architecture for that version must be available at the same release, but other
+architecture for that version must be available at the same release (except
+deferred Java 8 `arm32v7` binaries), but other
 Java versions need not be ready. The report is advisory; the script still writes
 the full manifest, including pending architecture entries. Select only the ready
 versions for release updates, leaving other upstream entries unchanged except
@@ -203,9 +211,9 @@ It should be understood that no actual "pushing" of any information to dockerhub
 releases, the remote dockerhub Manifest is updated with the information. Then dockerhub "pulls" the new container Dockerfiles and builds the new images for the updated Manifest, once
 completed those new images are then available in dockerhub.
 
-The "Release" process for updating dockerhub cannot start until all linux and windows binaries for all versions have been published, due to the Manifest setup.
+Each Java version can be released independently once its required Linux and Windows binaries are available. Java 8 `arm32v7` binaries may be deferred to a follow-up as described above.
 
 ### Release process:
-1. Have all linux and windows binaries been published for all versions?
+1. Have all required Linux and Windows binaries been published for the Java version being released, allowing the Java 8 `arm32v7` deferral?
 1. Verify that all the \<version\>/\<jdk|jre\>/\<alpine|ubi|ubuntu|windows\>/\<os_container_version\>/Dockerfile's have been updated by the auto-generated "Update Dockerfiles" PRs. Check there are not any left requiring "approval" to merge?
 1. Create and publish the dockerhub Manifest update PR following the instructions: [Update Official Docker Hub Manifest](#update-official-docker-hub-nanifest)

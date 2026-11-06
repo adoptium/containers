@@ -36,6 +36,7 @@ from dockerhub_doc_config_update import (
     get_distro_name,
     get_dockerfile_arches,
     get_java_version,
+    get_manifest_entries,
     get_pending_arches,
     get_github_token,
     generate_manifest,
@@ -531,9 +532,9 @@ class TestPublishReadiness(unittest.TestCase):
 
     def write_dockerfile(
         self, package, directory, release="jdk-25.0.2+10",
-        arches=("amd64", "arm64"), pending=(),
+        arches=("amd64", "arm64"), pending=(), version=25,
     ):
-        path = Path("25") / package / directory / "Dockerfile"
+        path = Path(str(version)) / package / directory / "Dockerfile"
         path.parent.mkdir(parents=True, exist_ok=True)
         lines = [f"ENV JAVA_VERSION={release}", 'RUN case "${ARCH}" in']
         for arch in arches:
@@ -588,6 +589,126 @@ class TestPublishReadiness(unittest.TestCase):
         self.assertIn("No updated Java versions are ready for upstream publish.", summary)
         self.assertIn("Architectures: amd64, arm64v8", manifest)
         self.assertIn("Directory: 25/jre/ubuntu/noble", manifest)
+
+    def configure_jdk8(self, pending=("armhf",)):
+        self.config["configurations"]["linux"][0]["architectures"] = ["x64", "arm"]
+        self.config["configurations"]["alpine-linux"][0]["architectures"] = ["x64"]
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(
+                package, "ubuntu/noble", release="jdk8u512-b09",
+                arches=("amd64", "armhf"), pending=pending, version=8,
+            )
+            self.write_dockerfile(
+                package, "alpine/3.24", release="jdk8u512-b09",
+                arches=("amd64",), version=8,
+            )
+
+    def test_jdk8_pending_arm32v7_is_ready_and_retained_for_follow_up(self):
+        self.configure_jdk8()
+        summary, manifest = self.generate(versions=[8])
+        self.assertEqual(self.plan.ready_releases, {8: "8u512-b09"})
+        self.assertIn("Deferred binaries", summary)
+        self.assertIn("arm32v7", summary)
+        self.assertIn("JDK+JRE ubuntu/noble", summary)
+        self.assertNotIn("Publication blockers:", summary)
+        self.assertIn("Architectures: amd64, arm32v7", manifest)
+        self.assertIn("Directory: 8/jdk/ubuntu/noble", manifest)
+        self.assertIn("Directory: 8/jre/ubuntu/noble", manifest)
+        self.assertNotIn("noble-arm32v7", manifest)
+
+    def test_jdk8_pending_arm32v7_in_only_jre_is_ready(self):
+        self.configure_jdk8()
+        self.write_dockerfile(
+            "jdk", "ubuntu/noble", release="jdk8u512-b09",
+            arches=("amd64", "armhf"), version=8,
+        )
+        summary, _ = self.generate(versions=[8])
+        self.assertEqual(self.plan.ready_releases, {8: "8u512-b09"})
+        self.assertIn("JRE ubuntu/noble", summary)
+        self.assertNotIn("JDK+JRE ubuntu/noble", summary)
+
+    def test_jdk8_other_pending_architectures_still_block(self):
+        self.configure_jdk8()
+        self.config["configurations"]["linux"][0]["architectures"].append("aarch64")
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(
+                package, "ubuntu/noble", release="jdk8u512-b09",
+                arches=("amd64", "armhf", "arm64"),
+                pending=("armhf", "arm64"), version=8,
+            )
+        summary, _ = self.generate(versions=[8])
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertIn("pending binaries: arm64v8", summary)
+        self.assertNotIn("pending binaries: arm32v7", summary)
+        self.assertIn("Deferred binaries", summary)
+
+    def test_jdk8_missing_arm32v7_branch_still_blocks(self):
+        self.configure_jdk8()
+        self.write_dockerfile(
+            "jdk", "ubuntu/noble", release="jdk8u512-b09",
+            arches=("amd64",), version=8,
+        )
+        summary, _ = self.generate(versions=[8])
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertIn("missing architectures: arm32v7", summary)
+
+    def test_jdk8_deferral_does_not_allow_missing_or_stale_jre(self):
+        for stale in (False, True):
+            with self.subTest(stale=stale):
+                self.configure_jdk8()
+                if stale:
+                    self.write_dockerfile(
+                        "jre", "ubuntu/noble", release="jdk8u504-b01",
+                        arches=("amd64", "armhf"), pending=("armhf",), version=8,
+                    )
+                else:
+                    Path("8/jre/ubuntu/noble/Dockerfile").unlink()
+                summary, _ = self.generate(versions=[8])
+                self.assertEqual(self.plan.ready_releases, {})
+                self.assertIn("stale release" if stale else "missing Dockerfile", summary)
+
+    def test_jdk8_deferred_arm32v7_can_be_selected_for_publication_pr(self):
+        self.configure_jdk8()
+        _, manifest = self.generate(versions=[8, 25])
+        upstream = manifest.replace("8u512-b09", "8u504-b01")
+        self.generate(official_manifest=upstream, versions=[8, 25])
+        self.assertEqual(self.plan.ready_releases, {8: "8u512-b09"})
+        output = io.StringIO()
+        with (
+            patch(
+                "dockerhub_doc_config_update.prepare_publication_source",
+                return_value=("published-main", self.plan.manifest),
+            ),
+            patch("dockerhub_doc_config_update.run_publication_command") as commands,
+            redirect_stderr(output),
+        ):
+            create_publication_pr(self.plan, dry_run=True)
+        commands.assert_not_called()
+        self.assertIn("Java 8 to 8u512-b09", output.getvalue())
+        self.assertNotIn("Java 25 to", output.getvalue())
+        merged = merge_publication_manifest(upstream, self.plan.manifest, [8])
+        self.assertIn("Architectures: amd64, arm32v7", merged)
+        for directory, entry in get_manifest_entries(upstream).items():
+            if directory.startswith("25/"):
+                self.assertEqual(get_manifest_entries(merged)[directory], entry)
+
+    def test_pending_arm32v7_still_blocks_other_java_versions(self):
+        self.config["configurations"]["linux"][0]["architectures"] = ["x64", "arm"]
+        for version in (11, 17, 25):
+            with self.subTest(version=version):
+                for package in ("jdk", "jre"):
+                    self.write_dockerfile(
+                        package, "ubuntu/noble", release=f"jdk-{version}.0.2+10",
+                        arches=("amd64", "armhf"), pending=("armhf",), version=version,
+                    )
+                    self.write_dockerfile(
+                        package, "alpine/3.24", release=f"jdk-{version}.0.2+10",
+                        version=version,
+                    )
+                summary, _ = self.generate(versions=[version])
+                self.assertEqual(self.plan.ready_releases, {})
+                self.assertIn("pending binaries: arm32v7", summary)
+                self.assertNotIn("Deferred binaries", summary)
 
     def test_missing_architecture_blocks_publish(self):
         self.write_dockerfile("jdk", "ubuntu/noble", arches=("amd64",))

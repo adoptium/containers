@@ -47,14 +47,14 @@ RUN set -eux; \
     ; \
     rm -rf /var/cache/apk/*
 
-ENV JAVA_VERSION=jdk8u504-b01
+ENV JAVA_VERSION=jdk8u512-b09
 
 RUN set -eux; \
     ARCH="$(apk --print-arch)"; \
     case "${ARCH}" in \
        x86_64) \
-         ESUM='0b8a29d654d4ea5cd2ee7bbcf3e89fe0f66596eb17870255e683a526757d2b8c'; \
-         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u504-b01/OpenJDK8U-jre_x64_alpine-linux_hotspot_8u504b01.tar.gz'; \
+         ESUM='12b6d25841b3e932a60dab34da43f4989a07f767444e3fe7c58d1187252753d9'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u512-b09/OpenJDK8U-jre_x64_alpine-linux_hotspot_8u512b09.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

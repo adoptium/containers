@@ -250,6 +250,7 @@ class ImageReadiness:
     java_version: str | None = None
     blockers: list[str] = field(default_factory=list)
     updated: bool = False
+    deferred_arches: list[str] = field(default_factory=list)
 
 
 def java_version_key(release):
@@ -289,12 +290,27 @@ def print_table(headers, rows, max_widths):
     print(separator, file=sys.stderr)
 
 
+def format_image_targets(paths):
+    packages_by_distro = {}
+    for path in paths:
+        _, package, distro = path.split("/", 2)
+        packages_by_distro.setdefault(distro, set()).add(package)
+    distros_by_packages = {}
+    for distro, packages in packages_by_distro.items():
+        distros_by_packages.setdefault(tuple(sorted(packages)), []).append(distro)
+    return "; ".join(
+        f"{'+'.join(packages).upper()} {', '.join(distros)}"
+        for packages, distros in distros_by_packages.items()
+    )
+
+
 def print_publish_summary(readiness, output_file, upstream_available, open_prs):
-    print("\nUpstream publish readiness (JDK + JRE, all configured architectures):", file=sys.stderr)
+    print("\nUpstream publish readiness (JDK + JRE, all required architectures):", file=sys.stderr)
     ready_versions = {}
     open_versions = []
     summary_rows = []
     blocker_rows = []
+    deferred_rows = []
     linked_prs = {}
     for version, images in readiness.items():
         releases = [image.java_version for image in images if image.java_version]
@@ -304,7 +320,10 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
             default=None,
         )
         blocked = {}
+        deferred = {}
         for image in images:
+            if image.deferred_arches:
+                deferred.setdefault(", ".join(image.deferred_arches), []).append(image.directory)
             reasons = list(image.blockers)
             if image.java_version and java_version_key(image.java_version) < java_version_key(latest):
                 reasons.append(f"stale release {image.java_version}; expected {latest}")
@@ -344,18 +363,9 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         if not images:
             blocker_rows.append([str(version), "No configured images", "-"])
         for reasons, paths in blocked.items():
-            packages_by_distro = {}
-            for path in paths:
-                _, package, distro = path.split("/", 2)
-                packages_by_distro.setdefault(distro, set()).add(package)
-            distros_by_packages = {}
-            for distro, packages in packages_by_distro.items():
-                distros_by_packages.setdefault(tuple(sorted(packages)), []).append(distro)
-            targets = "; ".join(
-                f"{'+'.join(packages).upper()} {', '.join(distros)}"
-                for packages, distros in distros_by_packages.items()
-            )
-            blocker_rows.append([str(version), reasons, targets])
+            blocker_rows.append([str(version), reasons, format_image_targets(paths)])
+        for arches, paths in deferred.items():
+            deferred_rows.append([str(version), arches, format_image_targets(paths)])
 
     if readiness:
         print_table(
@@ -367,6 +377,9 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
     if blocker_rows:
         print("\nPublication blockers:", file=sys.stderr)
         print_table(["Java", "Blocker", "Affected images"], blocker_rows, [4, 48, 54])
+    if deferred_rows:
+        print("\nDeferred binaries (non-blocking; publish in a follow-up):", file=sys.stderr)
+        print_table(["Java", "Architecture", "Affected images"], deferred_rows, [4, 16, 54])
     if linked_prs:
         print("\nOpen upstream PRs:", file=sys.stderr)
         for label, url in linked_prs.items():
@@ -621,7 +634,7 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         body = f"Update Eclipse Temurin from adoptium/containers commit {published_commit}.\n\n"
         if releases:
             body += "Publish READY releases:\n" + "\n".join(
-                f"- Java {version}: `{release}` (JDK and JRE, all configured architectures)"
+                f"- Java {version}: `{release}` (JDK and JRE, all required architectures)"
                 for version, release in releases.items()
             ) + "\n\n"
         if cleanup:
@@ -772,6 +785,9 @@ def generate_manifest(config, output_file, dry_run=False):
                         image.blockers.append(f"missing architectures: {', '.join(missing)}")
                     if os_family != "windows":
                         pending = get_pending_arches(dockerfile)
+                        if ver == 8 and "arm32v7" in pending:
+                            image.deferred_arches.append("arm32v7")
+                            pending.remove("arm32v7")
                         if pending:
                             image.blockers.append(f"pending binaries: {', '.join(pending)}")
                     if not arches:

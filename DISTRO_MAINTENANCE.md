@@ -14,7 +14,7 @@ All supported distros and their configuration are defined in [`config/temurin.ym
 |-----------|--------------|
 | Ubuntu | Resolute (26.04), Noble (24.04), Jammy (22.04) |
 | UBI (Red Hat) | UBI 10 Minimal, UBI 9 Minimal |
-| Alpine Linux | 3.23, 3.22, 3.21 |
+| Alpine Linux | 3.24, 3.23, 3.22 |
 | Windows | Server Core LTSC 2022/2025, Nano Server LTSC 2022/2025 |
 
 ### Support Commitments

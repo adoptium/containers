@@ -12,6 +12,10 @@
 # limitations under the License.
 #
 
+maintainers:
+  - "George Adams <george.adams@microsoft.com> (@gdams)"
+  - "Stewart Addison <sxa@redhat.com> (@sxa)"
+
 architecture_overrides:
   # We don't ship s390x for JDK8 as it has no JIT
   - versions: "==8"

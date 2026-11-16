@@ -70,13 +70,16 @@ git checkout main
 python3 dockerhub_doc_config_update.py
 ```
 
-This script will create a file called _eclipse-temurin_ by default.
+This script will create a file called _eclipse-temurin_ by default. Its
+`Maintainers` header comes from the `maintainers` list in
+[`config/temurin.yml`](config/temurin.yml).
 
 At the end it prints a publication-readiness summary for each Java version,
 checking JDK and JRE images against the configured architectures (including
 version-specific overrides). Missing Dockerfiles, missing architectures, pending
-upstream binary branches, and images still on an older release are reported as
-blockers. Deprecated and explicitly excluded configurations are not required.
+upstream binary branches, images still on an older release, and published
+Dockerfiles missing from local Git history are reported as blockers. Deprecated
+and explicitly excluded configurations are not required.
 Java 8 has one exception: pending `arm32v7` binaries do not block publication.
 They are listed separately as deferred binaries and can be supplied in a
 follow-up. Their configured Dockerfile branches and manifest architecture entries
@@ -92,12 +95,16 @@ image counts, followed by a table of grouped blockers and affected images.
 manifest and all its images meet the publication requirements, allowing the
 Java 8 `arm32v7` deferral above. `UP TO DATE` means the same releases
 are already published; a different Git commit alone is not a new Java release.
-New distro entries also count as updates. `UNKNOWN` means the upstream manifest
-could not be fetched, so publication readiness cannot be confirmed.
+New distro entries and newly available, previously deferred binaries also count
+as updates. A binaries-only follow-up changes `GitCommit` only for the affected
+image entries; other entries change only for independently selected releases or
+cleanup. `UNKNOWN` means the upstream manifest could not be fetched, so
+publication readiness cannot be confirmed.
 Open `eclipse-temurin` PRs in `docker-library/official-images` are checked for
-added manifest tags matching the exact release, rather than just a Java major
-version in the PR title. Matching updates show `PR OPEN`, with the PR number and
-link, and are not suggested for another PR. A failed GitHub lookup is reported
+added manifest tags matching the exact release and for commit-only updates to
+affected image directories, rather than just a Java major version in the PR title.
+Matching updates show `PR OPEN`, with the PR number and link, and are not
+suggested for another PR. A failed GitHub lookup is reported
 explicitly and makes otherwise-ready updates `UNKNOWN`. `GH_TOKEN` or
 `GITHUB_TOKEN` can be used for authenticated GitHub API requests. If neither is
 set, the script automatically uses your existing GitHub CLI login (`gh auth
@@ -150,10 +157,10 @@ python3 dockerhub_doc_config_update.py --dry-run
 python3 dockerhub_doc_config_update.py --create-pr --dry-run
 ```
 
-Dry runs show the proposed title, branch, and manifest diff on stderr. They do
-not write the local manifest, clone a repository, create a fork, push, or open
-a PR. They verify publication sources using read-only Git and GitHub API
-requests and do not require the GitHub CLI when an API token is provided.
+Dry runs show the proposed title, description, branch, and manifest diff on
+stderr. They do not write the local manifest, clone a repository, create a fork,
+push, or open a PR. They verify publication sources using read-only Git and
+GitHub API requests and do not require the GitHub CLI when an API token is provided.
 
 PR creation requires Git and an authenticated GitHub CLI (`gh auth login`).
 You can run the script from a feature branch, including one with changes to
@@ -162,10 +169,10 @@ selected Dockerfile and entrypoint must exactly match published
 `adoptium/containers` `main`; unmerged image or configuration changes are
 rejected. Cleanup-only PRs also require the configuration to match published
 `main`, but do not require changes to unselected images to be merged.
-Publication entries use that published commit, never the tooling
-branch's unmerged commit. The script clones Official Images into a temporary directory, creates or reuses
-your fork, and opens one PR containing the selected versions' JDK/JRE
-entries and retired-entry removals. All other unready or already-published
+Updated publication entries use that published commit, never the tooling
+branch's unmerged commit. The script clones Official Images into a temporary
+directory, creates or reuses your fork, and opens one PR containing the selected
+versions' JDK/JRE entries and retired-entry removals. All other unready or already-published
 upstream entries and global manifest metadata are preserved.
 Your current checkout is not used for the publication branch.
 

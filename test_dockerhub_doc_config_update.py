@@ -380,6 +380,10 @@ class TestGenerateManifest(unittest.TestCase):
             """))
 
         self.config = {
+            "maintainers": [
+                "Publisher One <one@example.com> (@one)",
+                "Publisher Two <two@example.com> (@two)",
+            ],
             "configurations": {
                 "linux": [{
                     "directory": "ubuntu/noble",
@@ -416,6 +420,12 @@ class TestGenerateManifest(unittest.TestCase):
 
         # Check header
         self.assertIn("# Eclipse Temurin OpenJDK images provided by the Eclipse Foundation.", content)
+        self.assertIn(
+            "Maintainers: Publisher One <one@example.com> (@one),\n"
+            "             Publisher Two <two@example.com> (@two)\n"
+            "GitRepo: ",
+            content,
+        )
         self.assertIn("GitRepo: https://github.com/adoptium/containers.git", content)
         self.assertIn("Builder: buildkit", content)
 
@@ -429,6 +439,38 @@ class TestGenerateManifest(unittest.TestCase):
         # GitCommit
         self.assertIn("GitCommit: abc123", content)
         self.assertIn("Directory: 25/jdk/ubuntu/noble", content)
+
+    @patch("dockerhub_doc_config_update.get_supported_versions", return_value=[25])
+    @patch("dockerhub_doc_config_update.get_latest_lts", return_value=25)
+    @patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123")
+    @patch("dockerhub_doc_config_update.fetch_official_manifest", return_value="")
+    def test_maintainer_header_handles_one_or_more_entries(self, _fetch, _git, _lts, _versions):
+        cases = [
+            (["First"], "Maintainers: First\nGitRepo: "),
+            (
+                ["First", "Second", "Third"],
+                "Maintainers: First,\n             Second,\n             Third\nGitRepo: ",
+            ),
+        ]
+        for maintainers, expected in cases:
+            with self.subTest(maintainers=maintainers), redirect_stderr(io.StringIO()):
+                self.config["maintainers"] = maintainers
+                plan = generate_manifest(self.config, self.output_file, dry_run=True)
+                self.assertIn(expected, plan.manifest)
+
+    @patch("dockerhub_doc_config_update.get_supported_versions", return_value=[25])
+    @patch("dockerhub_doc_config_update.get_latest_lts", return_value=25)
+    @patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123")
+    @patch("dockerhub_doc_config_update.fetch_official_manifest", return_value="")
+    def test_invalid_maintainers_are_rejected(self, _fetch, _git, _lts, _versions):
+        for maintainers in (None, [], "First", [None], [""], ["First\nSecond"]):
+            with self.subTest(maintainers=maintainers):
+                self.config["maintainers"] = maintainers
+                with redirect_stderr(io.StringIO()), self.assertRaisesRegex(ValueError, "maintainers"):
+                    generate_manifest(self.config, self.output_file, dry_run=True)
+        del self.config["maintainers"]
+        with redirect_stderr(io.StringIO()), self.assertRaisesRegex(ValueError, "maintainers"):
+            generate_manifest(self.config, self.output_file, dry_run=True)
 
     @patch("dockerhub_doc_config_update.get_supported_versions", return_value=[25])
     @patch("dockerhub_doc_config_update.get_latest_lts", return_value=25)
@@ -514,7 +556,11 @@ class TestPublishReadiness(unittest.TestCase):
         original_dir = os.getcwd()
         os.chdir(self.tmpdir.name)
         self.addCleanup(os.chdir, original_dir)
+        self.read_published_file = self.enterContext(patch(
+            "dockerhub_doc_config_update.read_git_file", return_value="",
+        ))
         self.config = {
+            "maintainers": ["Publisher One <one@example.com> (@one)"],
             "configurations": {
                 "linux": [{
                     "directory": "ubuntu/noble",
@@ -684,13 +730,130 @@ class TestPublishReadiness(unittest.TestCase):
         ):
             create_publication_pr(self.plan, dry_run=True)
         commands.assert_not_called()
-        self.assertIn("Java 8 to 8u512-b09", output.getvalue())
-        self.assertNotIn("Java 25 to", output.getvalue())
+        self.assertIn("8 to 8u512-b09", output.getvalue())
+        self.assertNotIn("25 to", output.getvalue())
+        self.assertNotIn("Java", output.getvalue().split("--- a/library/eclipse-temurin")[0])
+        self.assertIn("arm32v7 binaries are not released yet", output.getvalue())
+        self.assertIn("a follow-up PR will publish them", output.getvalue())
         merged = merge_publication_manifest(upstream, self.plan.manifest, [8])
         self.assertIn("Architectures: amd64, arm32v7", merged)
         for directory, entry in get_manifest_entries(upstream).items():
             if directory.startswith("25/"):
                 self.assertEqual(get_manifest_entries(merged)[directory], entry)
+
+    def test_jdk8_arm32v7_resolved_after_publication_is_ready(self):
+        self.configure_jdk8()
+        published_pending = Path("8/jdk/ubuntu/noble/Dockerfile").read_text()
+        _, upstream = self.generate(versions=[8])
+        upstream = upstream.replace("GitCommit: abc123", "GitCommit: first-publication")
+        self.configure_jdk8(pending=())
+        with patch(
+            "dockerhub_doc_config_update.read_git_file",
+            side_effect=lambda commit, path: published_pending if "ubuntu" in path else "",
+        ) as read_git_file:
+            summary, _ = self.generate(official_manifest=upstream, versions=[8])
+        read_git_file.assert_any_call("first-publication", "8/jdk/ubuntu/noble/Dockerfile")
+        self.assertEqual(self.plan.ready_releases, {8: "8u512-b09"})
+        self.assertEqual(self.plan.added_architectures, {8: ["arm32v7"]})
+        self.assertEqual(self.plan.follow_up_directories, {
+            8: {"8/jdk/ubuntu/noble", "8/jre/ubuntu/noble"},
+        })
+        self.assertNotIn("Deferred binaries", summary)
+        output = self.dry_run_publication_pr()
+        self.assertIn("'eclipse-temurin: 8 8u512-b09 add arm32v7'", output)
+        self.assertIn("branch eclipse-temurin-8u512-b09-arm32v7", output)
+        self.assertIn("now includes arm32v7 binaries", output)
+        self.assertIn("not available when this release was first published", output)
+        self.assertNotIn("Publish READY releases", output)
+        self.assertNotIn("Java", output.split("--- a/library/eclipse-temurin")[0])
+
+    def dry_run_publication_pr(self):
+        output = io.StringIO()
+        with (
+            patch(
+                "dockerhub_doc_config_update.prepare_publication_source",
+                return_value=("published-main", self.plan.manifest),
+            ),
+            patch("dockerhub_doc_config_update.run_publication_command") as commands,
+            redirect_stderr(output),
+        ):
+            create_publication_pr(self.plan, dry_run=True)
+        commands.assert_not_called()
+        return output.getvalue()
+
+    def test_jdk8_commit_only_follow_up_pr_is_not_suggested_again(self):
+        self.configure_jdk8()
+        published_pending = Path("8/jdk/ubuntu/noble/Dockerfile").read_text()
+        _, upstream = self.generate(versions=[8])
+        self.configure_jdk8(pending=())
+        url = "https://github.com/docker-library/official-images/pull/456"
+        with patch(
+            "dockerhub_doc_config_update.read_git_file",
+            side_effect=lambda commit, path: published_pending if "ubuntu" in path else "",
+        ):
+            summary, _ = self.generate(
+                official_manifest=upstream,
+                versions=[8],
+                open_prs=[PublicationPR(url, set(), updated_directories={"8/jdk/ubuntu/noble"})],
+            )
+        self.assertIn("PR OPEN", summary)
+        self.assertIn(url, summary)
+        self.assertEqual(self.plan.ready_releases, {})
+
+    def test_jdk8_follow_up_selects_only_the_image_with_a_resolved_binary(self):
+        self.configure_jdk8()
+        published_pending = Path("8/jdk/ubuntu/noble/Dockerfile").read_text()
+        _, upstream = self.generate(versions=[8])
+        self.configure_jdk8(pending=())
+        with patch(
+            "dockerhub_doc_config_update.read_git_file",
+            side_effect=lambda commit, path: published_pending if path == "8/jdk/ubuntu/noble/Dockerfile" else "",
+        ):
+            self.generate(official_manifest=upstream, versions=[8])
+        self.assertEqual(self.plan.follow_up_directories, {8: {"8/jdk/ubuntu/noble"}})
+
+    def test_jdk8_removed_architecture_is_not_mistaken_for_a_resolved_binary(self):
+        self.configure_jdk8()
+        published_pending = Path("8/jdk/ubuntu/noble/Dockerfile").read_text()
+        _, upstream = self.generate(versions=[8])
+        self.config["configurations"]["linux"][0]["architectures"] = ["x64"]
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(
+                package, "ubuntu/noble", release="jdk8u512-b09",
+                arches=("amd64",), version=8,
+            )
+        with patch(
+            "dockerhub_doc_config_update.read_git_file",
+            side_effect=lambda commit, path: published_pending if "ubuntu" in path else "",
+        ):
+            self.generate(official_manifest=upstream, versions=[8])
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertEqual(self.plan.follow_up_directories, {})
+
+    def test_missing_published_history_blocks_only_the_unverifiable_version(self):
+        self.configure_jdk8(pending=())
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(package, "ubuntu/noble", arches=("amd64", "armhf"))
+        _, upstream = self.generate(versions=[8, 25])
+        upstream = upstream.replace("25.0.2_10", "25.0.1_8")
+        self.read_published_file.side_effect = (
+            lambda commit, path: None if path.startswith("8/") else ""
+        )
+        summary, _ = self.generate(official_manifest=upstream, versions=[8, 25])
+        self.assertIn("cannot read published Dockerfile", summary)
+        self.assertEqual(self.plan.ready_releases, {25: "25.0.2_10"})
+
+    def test_jdk8_arm32v7_still_deferred_after_publication_is_up_to_date(self):
+        self.configure_jdk8()
+        published_pending = Path("8/jdk/ubuntu/noble/Dockerfile").read_text()
+        _, upstream = self.generate(versions=[8])
+        with patch(
+            "dockerhub_doc_config_update.read_git_file",
+            side_effect=lambda commit, path: published_pending if "ubuntu" in path else "",
+        ):
+            summary, _ = self.generate(official_manifest=upstream, versions=[8])
+        self.assertEqual(self.plan.ready_releases, {})
+        self.assertIn("UP TO DATE", summary)
 
     def test_pending_arm32v7_still_blocks_other_java_versions(self):
         self.config["configurations"]["linux"][0]["architectures"] = ["x64", "arm"]
@@ -1064,6 +1227,41 @@ class TestPublishReadiness(unittest.TestCase):
 class TestOpenPublicationPRs(unittest.TestCase):
 
     @patch("dockerhub_doc_config_update.github_pages")
+    def test_commit_only_follow_up_is_matched_by_changed_directory(self, pages):
+        pages.side_effect = [
+            [{"number": 456, "html_url": "https://github.com/docker-library/official-images/pull/456"}],
+            [{
+                "filename": "library/eclipse-temurin",
+                "patch": (
+                    "@@ -1,8 +1,8 @@\n"
+                    " Tags: 8u512-b09-jdk-alpine-3.24\n"
+                    " GitCommit: previous\n"
+                    " Directory: 8/jdk/alpine/3.24\n"
+                    " Tags: 8u512-b09-jdk-noble\n"
+                    " Architectures: amd64, arm32v7\n"
+                    "-GitCommit: previous\n"
+                    "+GitCommit: current\n"
+                    " Directory: 8/jdk/ubuntu/noble\n"
+                ),
+            }],
+        ]
+        prs = fetch_open_publication_prs()
+        self.assertEqual(len(prs), 1)
+        self.assertEqual(prs[0].releases, set())
+        self.assertEqual(prs[0].updated_directories, {"8/jdk/ubuntu/noble"})
+
+    @patch("dockerhub_doc_config_update.github_pages")
+    def test_commit_only_change_without_directory_is_reported_as_unknown(self, pages):
+        pages.side_effect = [
+            [{"number": 456, "html_url": "https://github.com/docker-library/official-images/pull/456"}],
+            [{"filename": "library/eclipse-temurin", "patch": "-GitCommit: old\n+GitCommit: new\n"}],
+        ]
+        output = io.StringIO()
+        with redirect_stderr(output):
+            self.assertIsNone(fetch_open_publication_prs())
+        self.assertIn("omitted the directory for a changed commit", output.getvalue())
+
+    @patch("dockerhub_doc_config_update.github_pages")
     def test_cleanup_only_pr_matches_removed_directories_not_replaced_entries(self, pages):
         pages.side_effect = [
             [{"number": 456, "html_url": "https://github.com/docker-library/official-images/pull/456"}],
@@ -1108,6 +1306,9 @@ class TestOpenPublicationPRs(unittest.TestCase):
                     " Tags: 17.0.21_9-jdk-noble\n"
                     "-Tags: 26.0.2.1_1-jdk-noble\n"
                     "+Tags: 25.0.5_8-jdk-noble, 25-jdk-noble\n"
+                    "-GitCommit: previous\n"
+                    "+GitCommit: current\n"
+                    " Directory: 25/jdk/ubuntu/noble\n"
                     "+Tags: 25.0.5_8-jre-noble, 25-jre-noble\n"
                 ),
             }],
@@ -1115,6 +1316,7 @@ class TestOpenPublicationPRs(unittest.TestCase):
         prs = fetch_open_publication_prs()
         self.assertEqual(len(prs), 1)
         self.assertEqual(prs[0].releases, {"25.0.5_8"})
+        self.assertEqual(prs[0].updated_directories, set())
 
     @patch("dockerhub_doc_config_update.github_pages")
     def test_unrelated_file_does_not_match(self, pages):
@@ -1262,6 +1464,60 @@ class TestPublicationManifest(unittest.TestCase):
         self.assertIn("25.0.5_8", result)
         self.assertNotIn("17.0.1_1", result)
         self.assertNotIn("25.0.1_1", result)
+
+    def test_follow_up_only_changes_gitcommits_for_affected_directories(self):
+        release = "8u512-b09"
+        upstream = "\n\n".join([
+            self.header,
+            self.entry(8, release=release),
+            self.entry(8, release=release, distro="alpine/3.24"),
+            self.entry(8, "jre", release),
+            self.entry(8, "jre", release, distro="ubi/ubi9-minimal"),
+            self.entry(17),
+        ]) + "\n\n\n"
+        generated = "\n\n".join([
+            self.entry(8, release=release).replace("amd64, arm64v8", "amd64, arm32v7"),
+            self.entry(8, "jre", release).replace("amd64, arm64v8", "amd64, arm32v7"),
+            self.entry(8, release=release, distro="alpine/3.24"),
+        ]).replace(f"GitCommit: commit-{release}", "GitCommit: published-main")
+        targets = {"8/jdk/ubuntu/noble", "8/jre/ubuntu/noble"}
+        expected = upstream
+        for directory in targets:
+            expected = expected.replace(
+                f"GitCommit: commit-{release}\nDirectory: {directory}",
+                f"GitCommit: published-main\nDirectory: {directory}",
+            )
+        result = merge_publication_manifest(
+            upstream, generated, [8], follow_up_directories={8: targets},
+        )
+        self.assertEqual(result, expected)
+
+    def test_follow_up_can_share_pr_with_full_release_update(self):
+        release = "8u512-b09"
+        original_jdk = self.entry(8, release=release)
+        original_jre = self.entry(8, "jre", release)
+        updated_jdk = original_jdk.replace(f"commit-{release}", "published-main")
+        updated_17 = self.entry(17, release="17.0.21_9")
+        updated_17_jre = self.entry(17, "jre", "17.0.21_9")
+        upstream = "\n\n".join([
+            self.header, original_jdk, original_jre, self.entry(17),
+            self.entry(17, "jre"), self.entry(25),
+        ]) + "\n"
+        generated = "\n\n".join([updated_jdk, updated_17, updated_17_jre])
+        result = merge_publication_manifest(
+            upstream, generated, [8, 17],
+            follow_up_directories={8: {"8/jdk/ubuntu/noble"}},
+        )
+        self.assertEqual(result, "\n\n".join([
+            self.header, updated_jdk, original_jre, updated_17, updated_17_jre, self.entry(25),
+        ]) + "\n")
+
+    def test_follow_up_missing_upstream_directory_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "absent from upstream"):
+            merge_publication_manifest(
+                self.entry(8), self.entry(8, "jre"), [8],
+                follow_up_directories={8: {"8/jre/ubuntu/noble"}},
+            )
 
     def test_cleanup_only_removes_exact_entries_and_preserves_everything_else(self):
         retired = [self.entry(17, distro="alpine/3.21"), self.entry(25, "jre", distro="alpine/3.21")]
@@ -1465,9 +1721,15 @@ class TestCreatePublicationPR(unittest.TestCase):
         args, cwd = next(call for call in self.commands if call[0][:3] == ("gh", "pr", "create"))
         self.assertIn("publisher:eclipse-temurin-17.0.21_9", args)
         self.assertIn("master", args)
+        title = args[args.index("--title") + 1]
+        body = args[args.index("--body") + 1]
+        self.assertEqual(title, "eclipse-temurin: 17 to 17.0.21_9")
+        self.assertIn("Temurin 17: `17.0.21_9`", body)
+        self.assertNotIn("java", title.lower())
+        self.assertNotIn("java", body.lower())
         self.assertEqual(cwd, self.checkout)
         commit_args, _ = next(call for call in self.commands if call[0][:2] == ("git", "commit"))
-        self.assertIn("Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>", commit_args)
+        self.assertFalse(any("Co-authored-by:" in arg for arg in commit_args))
         self.assertTrue(all(cwd == self.checkout for args, cwd in self.commands if args[:2] == ("git", "checkout")))
         self.assertFalse(any(args[:3] == ("gh", "auth", "setup-git") for args, _ in self.commands))
 
@@ -1585,6 +1847,10 @@ class TestCreatePublicationPR(unittest.TestCase):
             pushed = run_publication_command(
                 "git", f"--git-dir={fork}", "show", "eclipse-temurin-17.0.21_9:library/eclipse-temurin",
             )
+            message = run_publication_command(
+                "git", f"--git-dir={fork}", "log", "-1", "--format=%B", "eclipse-temurin-17.0.21_9",
+            )
+            self.assertNotIn("Co-authored-by:", message)
             self.assertIn("17.0.21_9", pushed)
             self.assertIn("Directory: 17/jre/", pushed)
             self.assertIn(TestPublicationManifest.entry(8), pushed)
@@ -1652,6 +1918,20 @@ class TestCreatePublicationPR(unittest.TestCase):
 
     def test_pr_opened_after_readiness_check_is_not_duplicated(self):
         self.open_prs.return_value = [PublicationPR(self.url, {"17.0.21+9"})]
+        with self.assertRaisesRegex(ValueError, "already in an upstream PR"):
+            create_publication_pr(self.plan)
+        self.assert_no_github_mutation()
+
+    def test_commit_only_follow_up_opened_after_planning_is_not_duplicated(self):
+        directory = "8/jdk/ubuntu/noble"
+        self.plan.ready_releases = {8: "8.0.1_1"}
+        self.plan.added_architectures = {8: ["arm32v7"]}
+        self.plan.follow_up_directories = {8: {directory}}
+        self.plan.manifest = self.upstream.replace(
+            f"GitCommit: commit-8.0.1_1\nDirectory: {directory}",
+            f"GitCommit: published\nDirectory: {directory}",
+        )
+        self.open_prs.return_value = [PublicationPR(self.url, set(), updated_directories={directory})]
         with self.assertRaisesRegex(ValueError, "already in an upstream PR"):
             create_publication_pr(self.plan)
         self.assert_no_github_mutation()

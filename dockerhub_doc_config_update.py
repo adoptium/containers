@@ -77,6 +77,7 @@ class PublicationPR:
     url: str
     releases: set[str]
     removed_directories: set[str] = field(default_factory=set)
+    updated_directories: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -86,6 +87,9 @@ class PublicationPlan:
     ready_releases: dict[int, str]
     open_prs_available: bool = True
     cleanup_directories: set[str] = field(default_factory=set)
+    added_architectures: dict[int, list[str]] = field(default_factory=dict)
+    deferred_architectures: dict[int, list[str]] = field(default_factory=dict)
+    follow_up_directories: dict[int, set[str]] = field(default_factory=dict)
 
 
 def get_github_token() -> str | None:
@@ -133,7 +137,7 @@ def github_pages(url, items_key=None):
 
 
 def fetch_open_publication_prs():
-    """Match upstream PRs by added release tags and removed manifest directories."""
+    """Match upstream PRs by release tags, changed commits, and removed directories."""
     query = urlencode({
         "q": "repo:docker-library/official-images is:pr is:open eclipse-temurin in:title,body",
     })
@@ -143,24 +147,47 @@ def fetch_open_publication_prs():
             releases = set()
             removed_directories = set()
             added_directories = set()
+            updated_directories = set()
             for change in github_pages(f"{OFFICIAL_IMAGES_API}/pulls/{issue['number']}/files"):
                 if change["filename"] != "library/eclipse-temurin":
                     continue
                 if "patch" not in change:
                     raise ValueError(f"GitHub omitted the manifest diff for {issue['html_url']}")
+                changed_commit = False
+                changed_tags = False
                 for line in change["patch"].splitlines():
-                    if line.startswith("+Tags: "):
+                    if line.startswith(("@@", " Tags: ")):
+                        if changed_commit and not changed_tags:
+                            raise ValueError(f"GitHub omitted the directory for a changed commit in {issue['html_url']}")
+                        changed_commit = False
+                        changed_tags = False
+                    elif line.startswith("+Tags: "):
+                        changed_tags = True
                         tag = line.removeprefix("+Tags: ").split(", ", 1)[0]
                         match = re.match(r"^(.+?)-(?:jdk|jre)-", tag)
                         if match:
                             releases.add(match.group(1))
+                    elif line.startswith("-Tags: "):
+                        changed_tags = True
+                    elif line.startswith("+GitCommit: "):
+                        changed_commit = True
                     elif line.startswith("-Directory: "):
                         removed_directories.add(line.removeprefix("-Directory: "))
-                    elif line.startswith("+Directory: "):
-                        added_directories.add(line.removeprefix("+Directory: "))
+                    elif line.startswith((" Directory: ", "+Directory: ")):
+                        directory = line.split(": ", 1)[1]
+                        if line.startswith("+"):
+                            added_directories.add(directory)
+                        if changed_commit and not changed_tags:
+                            updated_directories.add(directory)
+                        changed_commit = False
+                        changed_tags = False
+                if changed_commit and not changed_tags:
+                    raise ValueError(f"GitHub omitted the directory for a changed commit in {issue['html_url']}")
             removed_directories -= added_directories
-            if releases or removed_directories:
-                prs.append(PublicationPR(issue["html_url"], releases, removed_directories))
+            if releases or removed_directories or updated_directories:
+                prs.append(PublicationPR(
+                    issue["html_url"], releases, removed_directories, updated_directories,
+                ))
         return prs
     except (OSError, ValueError) as error:
         print(f"Warning: cannot check open upstream publication PRs: {error}", file=sys.stderr)
@@ -228,20 +255,37 @@ def get_dockerfile_arches(dockerfile_path):
     return sorted(set(arches))
 
 
-def get_pending_arches(dockerfile_path):
-    """Find architectures whose generated branches have no upstream binary yet."""
+def parse_pending_arches(lines):
     pending = set()
     arch = None
-    with open(dockerfile_path) as f:
-        for line in f:
-            match = DOCKERFILE_ARCH_RE.match(line)
-            if match:
-                arch = DOCKERFILE_ARCH_MAP.get(match.group(1))
-            elif line.strip().startswith((";;", "*)", "esac")):
-                arch = None
-            elif arch and PENDING_ARCH_MARKER in line:
-                pending.add(arch)
+    for line in lines:
+        match = DOCKERFILE_ARCH_RE.match(line)
+        if match:
+            arch = DOCKERFILE_ARCH_MAP.get(match.group(1))
+        elif line.strip().startswith((";;", "*)", "esac")):
+            arch = None
+        elif arch and PENDING_ARCH_MARKER in line:
+            pending.add(arch)
     return sorted(pending)
+
+
+def get_pending_arches(dockerfile_path):
+    """Find architectures whose generated branches have no upstream binary yet."""
+    with open(dockerfile_path) as f:
+        return parse_pending_arches(f)
+
+
+def read_git_file(commit, path):
+    result = subprocess.run(
+        ["git", "show", f"{commit}:{path}"], capture_output=True, text=True,
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def get_published_pending_arches(commit, dockerfile_path):
+    """Find architectures that were still pending in the published upstream commit."""
+    content = read_git_file(commit, dockerfile_path) if commit else None
+    return parse_pending_arches(content.splitlines()) if content is not None else None
 
 
 @dataclass
@@ -251,6 +295,7 @@ class ImageReadiness:
     blockers: list[str] = field(default_factory=list)
     updated: bool = False
     deferred_arches: list[str] = field(default_factory=list)
+    added_arches: list[str] = field(default_factory=list)
 
 
 def java_version_key(release):
@@ -259,10 +304,12 @@ def java_version_key(release):
     return parts + (0,) * max(0, 4 - len(parts)), int(build or 0)
 
 
-def matching_publication_prs(release, open_prs):
+def matching_publication_prs(release, open_prs, directories=None):
+    directories = directories or set()
     return [
         pr for pr in open_prs
-        if any(java_version_key(tag) == java_version_key(release) for tag in pr.releases)
+        if directories & pr.updated_directories
+        or any(java_version_key(tag) == java_version_key(release) for tag in pr.releases)
     ]
 
 
@@ -333,7 +380,11 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         ready = bool(images) and not blocked
         blocked_count = sum(len(paths) for paths in blocked.values())
         updated = any(image.updated for image in images)
-        matching_prs = matching_publication_prs(latest, open_prs or []) if updated and latest else []
+        affected = {image.directory for image in images if image.added_arches}
+        matching_prs = (
+            matching_publication_prs(latest, open_prs or [], affected)
+            if updated and latest else []
+        )
         pr_labels = []
         for pr in matching_prs:
             label = f"#{pr.url.rsplit('/', 1)[-1]}"
@@ -447,15 +498,34 @@ def get_manifest_entries(manifest):
 def merge_publication_manifest(
     upstream: str, generated: str, versions: list[int],
     cleanup_directories: set[str] | None = None,
+    follow_up_directories: dict[int, set[str]] | None = None,
 ) -> str:
     cleanup_directories = cleanup_directories or set()
-    missing = cleanup_directories - get_manifest_entries(upstream).keys()
+    follow_up_directories = follow_up_directories or {}
+    upstream_entries = get_manifest_entries(upstream)
+    generated_entries = get_manifest_entries(generated)
+    missing = cleanup_directories - upstream_entries.keys()
     if missing:
         raise ValueError("Cleanup targets are absent from upstream manifest: " + ", ".join(sorted(missing)))
-    active = cleanup_directories & get_manifest_entries(generated).keys()
+    active = cleanup_directories & generated_entries.keys()
     if active:
         raise ValueError("Cleanup targets still have generated manifest entries: " + ", ".join(sorted(active)))
-    replacements: dict[int, list[str]] = {version: [] for version in versions}
+    for version, directories in follow_up_directories.items():
+        if (
+            version not in versions or not directories
+            or any(not directory.startswith(f"{version}/") for directory in directories)
+        ):
+            raise ValueError(f"Invalid follow-up directories for Java {version}")
+    follow_up_targets = {directory for directories in follow_up_directories.values() for directory in directories}
+    missing = follow_up_targets - upstream_entries.keys()
+    if missing:
+        raise ValueError("Follow-up targets are absent from upstream manifest: " + ", ".join(sorted(missing)))
+    missing = follow_up_targets - generated_entries.keys()
+    if missing:
+        raise ValueError("Follow-up targets are absent from generated manifest: " + ", ".join(sorted(missing)))
+    replacements: dict[int, list[str]] = {
+        version: [] for version in versions if version not in follow_up_directories
+    }
     for block in generated.split("\n\n"):
         for directory in get_manifest_entries(block):
             version = int(directory.split("/", 1)[0])
@@ -474,10 +544,20 @@ def merge_publication_manifest(
             if version not in replaced:
                 blocks.extend(replacements[version])
                 replaced.add(version)
+        elif follow_up_targets.intersection(entries):
+            directory = next(iter(entries))
+            commit = generated_entries[directory].get("GitCommit")
+            if not commit or not entries[directory].get("GitCommit"):
+                raise ValueError(f"Follow-up target has no GitCommit: {directory}")
+            block, count = re.subn(r"(?m)^GitCommit: .+$", f"GitCommit: {commit}", block)
+            if count != 1:
+                raise ValueError(f"Follow-up target must have exactly one GitCommit: {directory}")
+            blocks.append(block)
+            preserved_entries.update(entries)
         elif not cleanup_directories.intersection(entries):
             blocks.append(block)
             preserved_entries.update(entries)
-    for version in versions:
+    for version in replacements:
         if version not in replaced:
             blocks.extend(replacements[version])
 
@@ -499,7 +579,10 @@ def merge_publication_manifest(
             "Selected versions would conflict with preserved upstream tags: "
             + ", ".join(sorted(conflicts))
         )
-    return "\n\n".join(blocks).rstrip("\n") + "\n"
+    merged = "\n\n".join(blocks)
+    if follow_up_targets and not replacements and not cleanup_directories:
+        return merged
+    return merged.rstrip("\n") + "\n"
 
 
 def run_publication_command(*args: str, cwd: Path | None = None) -> str:
@@ -565,20 +648,62 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         print("No unpublished READY versions or upstream cleanup; no publication PR to create.", file=sys.stderr)
         return None
     published_commit, generated = prepare_publication_source(plan)
-    manifest = merge_publication_manifest(plan.upstream_manifest, generated, versions, cleanup)
+    follow_ups = {
+        version: plan.follow_up_directories.get(version, set())
+        for version in plan.added_architectures
+    }
+    manifest = merge_publication_manifest(
+        plan.upstream_manifest, generated, versions, cleanup, follow_ups,
+    )
     if manifest == plan.upstream_manifest:
         raise ValueError("Selected updates do not change the upstream manifest")
     releases = plan.ready_releases
-    branch_parts = list(releases.values())
-    title = ", ".join(f"Java {version} to {release}" for version, release in releases.items())
+    added = plan.added_architectures
+    branch_parts = [
+        "-".join([release, *added.get(version, [])]) for version, release in releases.items()
+    ]
+    title = ", ".join(
+        f"{version} {release} add {', '.join(added[version])}" if version in added
+        else f"{version} to {release}"
+        for version, release in releases.items()
+    )
     if cleanup:
         digest = hashlib.sha256("\n".join(sorted(cleanup)).encode("utf-8")).hexdigest()[:12]
         branch_parts.append(f"cleanup-{digest}")
         title = f"{title}; remove deprecated images" if title else "remove deprecated images"
     branch = "eclipse-temurin-" + "-".join(branch_parts)
     title = "eclipse-temurin: " + title
+    body = f"Update Eclipse Temurin from adoptium/containers commit {published_commit}.\n\n"
+    new_releases = {v: r for v, r in releases.items() if v not in added}
+    if new_releases:
+        body += "Publish READY releases:\n"
+        for version, release in new_releases.items():
+            deferred = plan.deferred_architectures.get(version)
+            if deferred:
+                body += (
+                    f"- Temurin {version}: `{release}` (JDK and JRE). {', '.join(deferred)} "
+                    "binaries are not released yet, so those builds cannot install Temurin; "
+                    "a follow-up PR will publish them once the binaries are available.\n"
+                )
+            else:
+                body += f"- Temurin {version}: `{release}` (JDK and JRE, all required architectures)\n"
+        body += "\n"
+    follow_ups = {v: r for v, r in releases.items() if v in added}
+    if follow_ups:
+        body += "Follow-up for releases already published upstream:\n" + "\n".join(
+            f"- Temurin {version}: `{release}` now includes {', '.join(added[version])} binaries. "
+            "They were not available when this release was first published, so the corresponding "
+            "builds could not install Temurin. This PR "
+            "points the affected entries at the commit that adds the binaries."
+            for version, release in follow_ups.items()
+        ) + "\n\n"
+    if cleanup:
+        body += "Remove deprecated, removed, or version-excluded image entries:\n"
+        body += "\n".join(f"- `{directory}`" for directory in sorted(cleanup)) + "\n\n"
+    body += "All other upstream manifest entries are preserved."
     if dry_run:
         print(f"Dry run: would open upstream PR '{title}' on branch {branch}", file=sys.stderr)
+        print(f"PR description:\n{body}\n", file=sys.stderr)
         print(
             "".join(difflib.unified_diff(
                 plan.upstream_manifest.splitlines(keepends=True), manifest.splitlines(keepends=True),
@@ -600,8 +725,10 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         open_prs = fetch_open_publication_prs()
         if open_prs is None:
             raise ValueError("Open upstream PRs could not be checked; refusing to create a PR")
-        for release in releases.values():
-            matches = matching_publication_prs(release, open_prs)
+        for version, release in releases.items():
+            matches = matching_publication_prs(
+                release, open_prs, plan.follow_up_directories.get(version),
+            )
             if matches:
                 raise ValueError(f"Release {release} is already in an upstream PR: {matches[0].url}")
         removed = get_manifest_entries(plan.upstream_manifest).keys() - get_manifest_entries(manifest).keys()
@@ -619,9 +746,7 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         upstream_file.write_text(manifest)
         run_publication_command("git", "add", "--", "library/eclipse-temurin", cwd=checkout)
         run_publication_command(
-            "git", "commit", "-m", title,
-            "-m", "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>",
-            cwd=checkout,
+            "git", "commit", "-m", title, cwd=checkout,
         )
         run_publication_command(
             "git", "remote", "add", "publication", f"https://github.com/{login}/official-images.git",
@@ -631,16 +756,6 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
             "git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential",
             "push", "publication", branch, cwd=checkout,
         )
-        body = f"Update Eclipse Temurin from adoptium/containers commit {published_commit}.\n\n"
-        if releases:
-            body += "Publish READY releases:\n" + "\n".join(
-                f"- Java {version}: `{release}` (JDK and JRE, all required architectures)"
-                for version, release in releases.items()
-            ) + "\n\n"
-        if cleanup:
-            body += "Remove deprecated, removed, or version-excluded image entries:\n"
-            body += "\n".join(f"- `{directory}`" for directory in sorted(cleanup)) + "\n\n"
-        body += "All other upstream manifest entries are preserved."
         url = run_publication_command(
             "gh", "pr", "create", "--repo", "docker-library/official-images",
             "--base", "master", "--head", f"{login}:{branch}", "--title", title,
@@ -710,6 +825,17 @@ def has_changed(gitcommit, official_gitcommit, dfdir):
 
 
 def generate_manifest(config, output_file, dry_run=False):
+    maintainers = config.get("maintainers")
+    if (
+        not isinstance(maintainers, list) or not maintainers
+        or any(
+            not isinstance(maintainer, str) or not maintainer.strip()
+            or "\n" in maintainer or "\r" in maintainer
+            for maintainer in maintainers
+        )
+    ):
+        raise ValueError("config/temurin.yml must define maintainers as a non-empty list of single-line strings")
+
     gitcommit = get_git_commit()
     official_manifest = fetch_official_manifest()
     official_entries = get_manifest_entries(official_manifest)
@@ -726,8 +852,8 @@ def generate_manifest(config, output_file, dry_run=False):
     # Header
     lines.append("# Eclipse Temurin OpenJDK images provided by the Eclipse Foundation.")
     lines.append("")
-    lines.append("Maintainers: George Adams <george.adams@microsoft.com> (@gdams),")
-    lines.append("             Stewart Addison <sxa@redhat.com> (@sxa)")
+    maintainer_prefix = "Maintainers: "
+    lines.append(maintainer_prefix + (",\n" + " " * len(maintainer_prefix)).join(maintainers))
     lines.append("GitRepo: https://github.com/adoptium/containers.git")
     lines.append("GitFetch: refs/heads/main")
     lines.append("Builder: buildkit")
@@ -783,6 +909,7 @@ def generate_manifest(config, output_file, dry_run=False):
                         image.blockers.append("no configured architectures")
                     if missing:
                         image.blockers.append(f"missing architectures: {', '.join(missing)}")
+                    pending = []
                     if os_family != "windows":
                         pending = get_pending_arches(dockerfile)
                         if ver == 8 and "arm32v7" in pending:
@@ -821,6 +948,19 @@ def generate_manifest(config, output_file, dry_run=False):
                             image.updated = local_key > published_key
                             if local_key < published_key:
                                 image.blockers.append(f"older than upstream release {published_version}")
+                            elif not image.updated and os_family != "windows":
+                                # Same release, but binaries pending in the published commit may now exist.
+                                still_pending = set(pending) | set(image.deferred_arches)
+                                published_pending = get_published_pending_arches(
+                                    upstream_entry.get("GitCommit"), dockerfile,
+                                )
+                                if published_pending is None:
+                                    image.blockers.append("cannot read published Dockerfile at upstream GitCommit")
+                                else:
+                                    image.added_arches = sorted(
+                                        (set(published_pending) & set(arches)) - still_pending
+                                    )
+                                    image.updated = bool(image.added_arches)
                     ver_tag = f"{ver}-{pkg}-{distro}"
                     all_tags = f"{full_ver_tag}, {ver_tag}"
 
@@ -916,7 +1056,24 @@ def generate_manifest(config, output_file, dry_run=False):
         )
     elif retired and open_prs is None:
         print("Upstream cleanup UNKNOWN: open upstream PRs could not be checked.", file=sys.stderr)
-    return PublicationPlan(official_manifest, manifest, ready_releases, open_prs is not None, cleanup)
+    added_architectures = {}
+    deferred_architectures = {}
+    follow_up_directories = {}
+    for version in ready_releases:
+        images = readiness[version]
+        affected = {image.directory for image in images if image.added_arches}
+        if affected:
+            follow_up_directories[version] = affected
+        # A follow-up only adds binaries to a release that is already published upstream.
+        if all(image.added_arches for image in images if image.updated):
+            added_architectures[version] = sorted({a for image in images for a in image.added_arches})
+        deferred = sorted({a for image in images for a in image.deferred_arches})
+        if deferred:
+            deferred_architectures[version] = deferred
+    return PublicationPlan(
+        official_manifest, manifest, ready_releases, open_prs is not None, cleanup,
+        added_architectures, deferred_architectures, follow_up_directories,
+    )
 
 
 def main():

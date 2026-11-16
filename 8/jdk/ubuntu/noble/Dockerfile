@@ -27,6 +27,7 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 
 RUN set -eux; \
     apt-get update; \
+    arch="$(dpkg --print-architecture)"; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
         curl \
@@ -43,6 +44,8 @@ RUN set -eux; \
         tzdata \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         locales \
+        # Java 8 on 32-bit ARM needs libatomic.so.1
+        $(if [ "$arch" = armhf ]; then echo libatomic1; fi) \
     ; \
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; \
     locale-gen en_US.UTF-8; \
@@ -64,10 +67,6 @@ RUN set -eux; \
        armhf) \
          ESUM='ff18c5421f350fa59b956f763720431c8f861094ec76c06f83a3dfdf502a6bd1'; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u512-b09/OpenJDK8U-jdk_arm_linux_hotspot_8u512b09.tar.gz'; \
-         # Fixes libatomic.so.1: cannot open shared object file
-         apt-get update; \
-         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libatomic1; \
-         rm -rf /var/lib/apt/lists/*; \
          ;; \
        ppc64el) \
          ESUM='8a1e67cdb014b924ddd4775cef3089b065aea2a73e9d540e938586319c73a4e1'; \

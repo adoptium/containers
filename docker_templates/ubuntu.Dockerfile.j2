@@ -6,6 +6,9 @@ FROM {{ base_image }}
 
 RUN set -eux; \
     apt-get update; \
+    {% if version|int == 8 -%}
+    arch="$(dpkg --print-architecture)"; \
+    {% endif -%}
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         {% if version|int < 22 -%}
         # curl required for historical reasons, see https://github.com/adoptium/containers/issues/255
@@ -27,6 +30,10 @@ RUN set -eux; \
         tzdata \
         # locales ensures proper character encoding and locale-specific behaviors using en_US.UTF-8
         locales \
+        {%- if version|int == 8 %}
+        # Java 8 on 32-bit ARM needs libatomic.so.1
+        $(if [ "$arch" = armhf ]; then echo libatomic1; fi) \
+        {%- endif %}
     ; \
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; \
     locale-gen en_US.UTF-8; \

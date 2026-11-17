@@ -11,6 +11,9 @@
 # limitations under the License.
 #
 
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, mock_open, patch
@@ -27,29 +30,85 @@ class TestJinjaRendering(unittest.TestCase):
         # Setup the Jinja2 environment
         self.env = Environment(loader=FileSystemLoader("docker_templates"))
 
-    def test_armhf_ubuntu8_rendering(self):
-        template_name = "ubuntu.Dockerfile.j2"
-        template = self.env.get_template(template_name)
-
-        arch_data = {}
-
-        arch_data["armhf"] = {
-            "download_url": "http://fake-url.com",
-            "checksum": "fake-checksum",
+    def test_ubuntu8_installs_libatomic_only_on_armhf(self):
+        template = self.env.get_template("ubuntu.Dockerfile.j2")
+        architectures = ("armhf", "amd64", "arm64", "ppc64el")
+        arch_data = {
+            arch: {"download_url": "http://fake-url.com", "checksum": "fake-checksum"}
+            for arch in architectures
         }
+        with tempfile.TemporaryDirectory() as bin_dir:
+            for name, script in {
+                "dpkg": (
+                    "#!/bin/sh\n"
+                    '[ "$1" = --print-architecture ] || exit 1\n'
+                    '[ "$TEST_ARCH" != fail ] || exit 42\n'
+                    'printf "%s\\n" "$TEST_ARCH"\n'
+                ),
+                "apt-get": (
+                    "#!/bin/sh\n"
+                    'printf "apt-get"\n'
+                    'printf " %s" "$@"\n'
+                    'printf "\\n"\n'
+                ),
+            }.items():
+                command = Path(bin_dir) / name
+                command.write_text(script)
+                command.chmod(0o755)
+            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
 
-        # The context/variables to render the template
-        context = {
-            "architecture": "armhf",
-            "os": "ubuntu",
-            "version": "8",
-            "arch_data": arch_data,
-        }
-        rendered_template = template.render(**context)
+            for image_type in ("jdk", "jre"):
+                rendered = template.render(
+                    os="ubuntu", version=8, image_type=image_type, arch_data=arch_data
+                )
+                package_run = rendered.split("\nRUN ", 1)[1].split("\n    ; \\\n", 1)[0]
+                package_run = "\n".join(
+                    line for line in package_run.splitlines()
+                    if not line.lstrip().startswith("#")
+                ) + "\n    ;\n"
 
-        # Expected string/partial in the rendered output
-        expected_string = "# Fixes libatomic.so.1: cannot open shared object file"
-        self.assertIn(expected_string, rendered_template)
+                for arch in architectures:
+                    with self.subTest(image_type=image_type, arch=arch):
+                        result = subprocess.run(
+                            ["sh", "-c", package_run],
+                            env={**env, "TEST_ARCH": arch},
+                            check=True, capture_output=True, text=True,
+                        )
+                        commands = result.stdout.splitlines()
+                        self.assertEqual(commands[0], "apt-get update")
+                        self.assertEqual(len(commands), 2)
+                        install = commands[1].split()
+                        self.assertEqual(install[:4], [
+                            "apt-get", "install", "-y", "--no-install-recommends"
+                        ])
+                        self.assertEqual("libatomic1" in install, arch == "armhf")
+                        self.assertEqual(
+                            install[-1], "libatomic1" if arch == "armhf" else "locales"
+                        )
+                        self.assertTrue({
+                            "curl", "wget", "gnupg", "fontconfig", "ca-certificates",
+                            "p11-kit", "tzdata", "locales",
+                        }.issubset(install))
+
+                with self.subTest(image_type=image_type, arch="dpkg failure"):
+                    result = subprocess.run(
+                        ["sh", "-c", package_run],
+                        env={**env, "TEST_ARCH": "fail"},
+                        capture_output=True, text=True,
+                    )
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn("apt-get install", result.stdout)
+
+                self.assertEqual(rendered.count("apt-get update;"), 1)
+
+    def test_other_ubuntu_versions_do_not_install_libatomic(self):
+        template = self.env.get_template("ubuntu.Dockerfile.j2")
+        for version in (11, 17, 25):
+            with self.subTest(version=version):
+                rendered = template.render(
+                    os="ubuntu", version=version, image_type="jdk", arch_data={}
+                )
+                self.assertNotIn("libatomic1", rendered)
 
     def test_version_checker(self):
         template_name = "partials/version-check.j2"

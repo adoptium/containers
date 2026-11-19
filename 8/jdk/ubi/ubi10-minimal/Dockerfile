@@ -63,9 +63,8 @@ RUN set -eux; \
          BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u514-b01/OpenJDK8U-jdk_ppc64le_linux_hotspot_8u514b01.tar.gz'; \
          ;; \
        x86_64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk8u514-b01.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='27eda854481d20806d918b30cdd417c6bed4fd15882e24f3595dc8ae7fb5d095'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u514-b01/OpenJDK8U-jdk_x64_linux_hotspot_8u514b01.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

@@ -58,9 +58,8 @@ RUN set -eux; \
          exit 1; \
          ;; \
        ppc64el) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-25.0.5.1+2.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='cd4e122c3d32cf0d4a19cf283ab06a99a0bf6694b7d11444c0ea046aaa17faa7'; \
+         BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5.1%2B2/OpenJDK25U-jre_ppc64le_linux_hotspot_25.0.5.1_2.tar.gz'; \
          ;; \
        s390x) \
          ESUM='4bc1628ef796f26aa31b98698fb1d0a222b20e1c264665d4761646902855acca'; \

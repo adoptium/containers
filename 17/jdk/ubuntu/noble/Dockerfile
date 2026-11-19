@@ -81,9 +81,8 @@ RUN set -eux; \
          exit 1; \
          ;; \
        s390x) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-17.0.21.1+2.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='5eb485f9c907d87aab0523cf8c08a68648ebafe102d0076fed87ce5cf95ee1e2'; \
+         BINARY_URL='https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.21.1%2B2/OpenJDK17U-jdk_s390x_linux_hotspot_17.0.21.1_2.tar.gz'; \
          ;; \
        *) \
          echo "Unsupported arch: ${ARCH}"; \

@@ -9,9 +9,6 @@ permissions: read-all
 
 jobs:
   update_dockerfile:
-    permissions:
-      contents: write
-      pull-requests: write    
     if: startsWith(github.repository, 'adoptium/')
     runs-on: ubuntu-latest
     steps:

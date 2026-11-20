@@ -47,8 +47,11 @@ from dockerhub_doc_config_update import (
     github_pages,
     PublicationPlan,
     PublicationPR,
+    PublicationPRHead,
+    PublicationPRUpdate,
     prepare_publication_source,
     run_publication_command,
+    update_publication_prs,
 )
 
 
@@ -594,7 +597,10 @@ class TestPublishReadiness(unittest.TestCase):
         path.write_text("\n".join(lines))
         return path
 
-    def generate(self, official_manifest="", versions=None, open_prs=(), dry_run=False, force_versions=frozenset()):
+    def generate(
+        self, official_manifest="", versions=None, open_prs=(), dry_run=False,
+        force_versions=frozenset(), pr_heads=None,
+    ):
         output = io.StringIO()
         stdout = io.StringIO()
         with (
@@ -603,6 +609,10 @@ class TestPublishReadiness(unittest.TestCase):
             patch("dockerhub_doc_config_update.get_git_commit", return_value="abc123"),
             patch("dockerhub_doc_config_update.fetch_official_manifest", return_value=official_manifest),
             patch("dockerhub_doc_config_update.fetch_open_publication_prs", return_value=open_prs),
+            patch(
+                "dockerhub_doc_config_update.fetch_publication_pr_head",
+                side_effect=lambda pr: (pr_heads or {}).get(pr.url),
+            ),
             redirect_stderr(output),
             redirect_stdout(stdout),
         ):
@@ -1256,6 +1266,56 @@ class TestPublishReadiness(unittest.TestCase):
         self.assertEqual(self.plan.ready_releases, {})
         self.assertNotIn("--create-pr", summary)
 
+    def open_partial_pr(self):
+        """An open PR that force-published 25.0.2_10 while JRE noble arm64 was pending."""
+        self.write_dockerfile("jre", "ubuntu/noble", pending=("arm64",))
+        pr_pending = Path("25/jre/ubuntu/noble/Dockerfile").read_text()
+        _, pr_manifest = self.generate(force_versions={25})
+        pr_manifest = pr_manifest.replace("GitCommit: abc123", "GitCommit: pr-commit")
+        upstream = pr_manifest.replace("25.0.2_10", "25.0.1_8").replace("pr-commit", "published")
+        self.read_published_file.side_effect = lambda commit, path: (
+            pr_pending if (commit, path) == ("pr-commit", "25/jre/ubuntu/noble/Dockerfile") else ""
+        )
+        url = "https://github.com/docker-library/official-images/pull/123"
+        head = PublicationPRHead("publisher/official-images", "eclipse-temurin-25.0.2_10", "head-sha", pr_manifest)
+        return upstream, url, head
+
+    def generate_with_open_pr(self, upstream, url, head):
+        return self.generate(
+            official_manifest=upstream, open_prs=[PublicationPR(url, {"25.0.2_10"})], pr_heads={url: head},
+        )
+
+    def test_binaries_pending_in_open_pr_are_deferred_not_blocking(self):
+        summary, _ = self.generate_with_open_pr(*self.open_partial_pr())
+        self.assert_readiness(summary, "PR OPEN", "4/4")
+        self.assertNotIn("pending binaries", summary)
+        self.assertIn("Deferred binaries", summary)
+        self.assertIn("Publication already in progress: Java 25.", summary)
+        self.assertEqual(self.plan.pr_updates, [])
+
+    def test_binary_released_after_pr_opened_updates_that_pr(self):
+        upstream, url, head = self.open_partial_pr()
+        self.write_dockerfile("jre", "ubuntu/noble")
+        summary, _ = self.generate_with_open_pr(upstream, url, head)
+        self.assert_readiness(summary, "PR UPDATE", "4/4")
+        self.assertIn("Open upstream PRs need updates: Java 25.", summary)
+        self.assertEqual(self.plan.ready_releases, {})
+        [update] = self.plan.pr_updates
+        self.assertEqual(update.head, head)
+        self.assertEqual(update.releases, {25: "25.0.2_10"})
+        self.assertEqual(update.added_architectures, {25: ["arm64v8"]})
+        self.assertEqual(update.directories, {25: {"25/jre/ubuntu/noble"}})
+        self.assertEqual(update.deferred_architectures, {})
+
+    def test_binary_newly_pending_since_pr_opened_still_blocks(self):
+        upstream, url, head = self.open_partial_pr()
+        self.write_dockerfile("jre", "ubuntu/noble")
+        self.write_dockerfile("jdk", "ubuntu/noble", pending=("arm64",))
+        summary, _ = self.generate_with_open_pr(upstream, url, head)
+        self.assert_readiness(summary, "BLOCKED", "3/4")
+        self.assertIn("pending binaries: arm64v8", summary)
+        self.assertEqual(self.plan.pr_updates, [])
+
     def test_open_pr_for_different_patch_release_does_not_match(self):
         _, manifest = self.generate()
         summary, _ = self.generate(
@@ -1730,6 +1790,108 @@ class TestPublicationSource(unittest.TestCase):
     def test_missing_source_hashes_are_not_accepted(self, _command):
         with self.assertRaisesRegex(ValueError, "hash for every publication source file"):
             prepare_publication_source(self.plan)
+
+
+class TestUpdatePublicationPR(unittest.TestCase):
+    def setUp(self):
+        entry = TestPublicationManifest.entry
+        self.pr_manifest = "\n\n".join([
+            TestPublicationManifest.header, entry(25, release="25.0.2_10"), entry(25, "jre", "25.0.2_10"),
+        ]) + "\n"
+        jre = entry(25, "jre", "25.0.2_10")
+        generated = self.pr_manifest.replace(jre, jre.replace("commit-25.0.2_10", "published"))
+        self.url = "https://github.com/docker-library/official-images/pull/123"
+        self.head = PublicationPRHead(
+            "publisher/official-images", "eclipse-temurin-25.0.2_10", "head-sha", self.pr_manifest,
+        )
+        self.update = PublicationPRUpdate(
+            PublicationPR(self.url, {"25.0.2_10"}), self.head, {25: "25.0.2_10"},
+            {25: ["arm64v8"]}, {25: {"25/jre/ubuntu/noble"}}, {25: ["riscv64"]},
+        )
+        self.plan = PublicationPlan(self.pr_manifest, generated, {}, pr_updates=[self.update])
+        self.commands = []
+        self.pr_state = "open head-sha"
+        self.runner = self.enterContext(patch(
+            "dockerhub_doc_config_update.run_publication_command", side_effect=self.command,
+        ))
+        self.enterContext(patch(
+            "dockerhub_doc_config_update.prepare_publication_source",
+            side_effect=lambda plan, versions=None: ("published", plan.manifest),
+        ))
+
+    def command(self, *args, cwd=None):
+        self.commands.append(args)
+        if args[:3] == ("gh", "api", "user"):
+            return "publisher"
+        if args[:2] == ("gh", "api"):
+            return self.pr_state
+        if args[:2] == ("git", "clone"):
+            path = Path(args[-1]) / "library" / "eclipse-temurin"
+            path.parent.mkdir(parents=True)
+            path.write_text(self.pr_manifest)
+        if args[:2] == ("git", "rev-parse"):
+            return "head-sha"
+        if args[:2] == ("git", "commit"):
+            self.pushed = (cwd / "library" / "eclipse-temurin").read_text()
+        return ""
+
+    def run_update(self, **kwargs):
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            result = update_publication_prs(self.plan, **kwargs)
+        return result, stderr.getvalue()
+
+    def test_pushes_commit_to_pr_branch_and_refreshes_description(self):
+        result, _ = self.run_update()
+        self.assertEqual(result, [self.url])
+        jre = TestPublicationManifest.entry(25, "jre", "25.0.2_10")
+        self.assertEqual(self.pushed, self.pr_manifest.replace(jre, jre.replace("commit-25.0.2_10", "published")))
+        commit = next(args for args in self.commands if args[:2] == ("git", "commit"))
+        self.assertEqual(commit[-1], "eclipse-temurin: 25 25.0.2_10 add arm64v8")
+        push = next(index for index, args in enumerate(self.commands) if "push" in args)
+        self.assertEqual(
+            self.commands[push][-2:],
+            ("https://github.com/publisher/official-images.git", "HEAD:refs/heads/eclipse-temurin-25.0.2_10"),
+        )
+        self.assertNotIn("--force", self.commands[push])
+        edit = next(index for index, args in enumerate(self.commands) if args[:3] == ("gh", "pr", "edit"))
+        self.assertGreater(edit, push)
+        args = self.commands[edit]
+        self.assertEqual(args[3], "123")
+        self.assertEqual(args[args.index("--title") + 1], "eclipse-temurin: 25 to 25.0.2_10")
+        body = args[args.index("--body") + 1]
+        self.assertIn("Update Eclipse Temurin from adoptium/containers commit published.", body)
+        self.assertIn("riscv64 binaries are not released yet", body)
+        self.assertIn("arm64v8 binaries became available after this PR was opened", body)
+
+    def test_dry_run_previews_commit_diff_without_commands(self):
+        _, output = self.run_update(dry_run=True)
+        self.runner.assert_not_called()
+        self.assertIn(f"Dry run: would update upstream PR {self.url}", output)
+        self.assertIn("publisher/official-images:eclipse-temurin-25.0.2_10", output)
+        changes = [
+            line for line in output.split("+++ b/library/eclipse-temurin")[1].splitlines()
+            if line.startswith(("+", "-"))
+        ]
+        self.assertEqual(changes, ["-GitCommit: commit-25.0.2_10", "+GitCommit: published"])
+
+    def test_declined_confirmation_does_not_push(self):
+        result, output = self.run_update(confirm=lambda prompt: False)
+        self.assertEqual(result, [])
+        self.assertIn("Proposed update to upstream PR", output)
+        self.runner.assert_not_called()
+
+    def test_pr_changed_since_readiness_check_is_not_overwritten(self):
+        self.pr_state = "open newer-sha"
+        with self.assertRaisesRegex(ValueError, "changed since the readiness check"):
+            self.run_update()
+        self.assertFalse(any("push" in args or args[:3] == ("gh", "pr", "edit") for args in self.commands))
+
+    def test_pr_branch_in_another_fork_is_not_pushed(self):
+        self.update.head.repository = "someone-else/official-images"
+        with self.assertRaisesRegex(ValueError, "not publisher's fork"):
+            self.run_update()
+        self.assertFalse(any("push" in args or args[:3] == ("gh", "pr", "edit") for args in self.commands))
 
 
 class TestCreatePublicationPR(unittest.TestCase):

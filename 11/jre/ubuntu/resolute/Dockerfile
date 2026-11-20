@@ -54,9 +54,8 @@ RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "${ARCH}" in \
        amd64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.33.1+1.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='e32167b352a56497b0ac401409321c00948e0a4131d9d1f92abf0f901e7bf62d'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33.1%2B1/OpenJDK11U-jre_x64_linux_hotspot_11.0.33.1_1.tar.gz'; \
          ;; \
        arm64) \
          # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.33.1+1.

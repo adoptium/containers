@@ -22,12 +22,12 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2025
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV JAVA_VERSION=jdk-21.0.13+9
+ENV JAVA_VERSION=jdk-21.0.13.1+2
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_windows_hotspot_21.0.13_9.msi ...'); \
-    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13%2B9/OpenJDK21U-jre_x64_windows_hotspot_21.0.13_9.msi ; \
-    Write-Host ('Verifying sha256 (6a85618938fb3a1419455447a9250e15480da1d31fc5b399eb15212a905d50dc) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '6a85618938fb3a1419455447a9250e15480da1d31fc5b399eb15212a905d50dc') { \
+RUN Write-Host ('Downloading https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13.1%2B2/OpenJDK21U-jre_x64_windows_hotspot_21.0.13.1_2.msi ...'); \
+    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13.1%2B2/OpenJDK21U-jre_x64_windows_hotspot_21.0.13.1_2.msi ; \
+    Write-Host ('Verifying sha256 (edd761b200d7896fc40382bc14c3e077c3d4d3011682157d4db6f487e2bce081) ...'); \
+    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne 'edd761b200d7896fc40382bc14c3e077c3d4d3011682157d4db6f487e2bce081') { \
         Write-Host 'FAILED!'; \
         exit 1; \
     }; \

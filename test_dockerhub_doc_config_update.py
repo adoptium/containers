@@ -27,6 +27,7 @@ from urllib.error import URLError
 
 from adoptium_api import get_latest_lts, get_supported_versions
 from dockerhub_doc_config_update import (
+    confirm_publication,
     find_manifest_block,
     fetch_official_manifest,
     fetch_open_publication_prs,
@@ -593,7 +594,7 @@ class TestPublishReadiness(unittest.TestCase):
         path.write_text("\n".join(lines))
         return path
 
-    def generate(self, official_manifest="", versions=None, open_prs=(), dry_run=False):
+    def generate(self, official_manifest="", versions=None, open_prs=(), dry_run=False, force_versions=frozenset()):
         output = io.StringIO()
         stdout = io.StringIO()
         with (
@@ -605,7 +606,9 @@ class TestPublishReadiness(unittest.TestCase):
             redirect_stderr(output),
             redirect_stdout(stdout),
         ):
-            self.plan = generate_manifest(self.config, "manifest", dry_run=dry_run)
+            self.plan = generate_manifest(
+                self.config, "manifest", dry_run=dry_run, force_versions=force_versions,
+            )
         self.assertEqual(stdout.getvalue(), "")
         return output.getvalue(), self.plan.manifest if dry_run else Path("manifest").read_text()
 
@@ -635,6 +638,77 @@ class TestPublishReadiness(unittest.TestCase):
         self.assertIn("No updated Java versions are ready for upstream publish.", summary)
         self.assertIn("Architectures: amd64, arm64v8", manifest)
         self.assertIn("Directory: 25/jre/ubuntu/noble", manifest)
+
+    def test_forced_pending_architecture_is_ready_with_missing_binary_plan(self):
+        self.write_dockerfile("jre", "ubuntu/noble", pending=("arm64",))
+        summary, manifest = self.generate(force_versions={25})
+        self.assert_readiness(summary, "READY", "4/4")
+        self.assertEqual(self.plan.ready_releases, {25: "25.0.2_10"})
+        self.assertEqual(self.plan.deferred_architectures, {25: ["arm64v8"]})
+        plan = summary.split("Forced partial publication plan")[1]
+        self.assertIn("arm64v8", plan)
+        self.assertIn("JRE ubuntu/noble", plan)
+        self.assertIn("Architectures: amd64, arm64v8", manifest)
+
+    def test_force_does_not_bypass_missing_case_branch_or_unsupported_versions(self):
+        self.write_dockerfile("jre", "ubuntu/noble", arches=("amd64",))
+        with self.assertRaisesRegex(ValueError, "Java 25 is BLOCKED"):
+            self.generate(force_versions={25})
+        with self.assertRaisesRegex(ValueError, "unsupported Java versions: 27"):
+            self.generate(force_versions={25, 27})
+
+    def test_force_requires_at_least_one_available_binary(self):
+        self.write_dockerfile("jre", "ubuntu/noble", pending=("amd64", "arm64"))
+        with self.assertRaisesRegex(ValueError, "Java 25 is BLOCKED"):
+            self.generate(force_versions={25})
+
+    def test_partially_published_release_is_up_to_date_and_follow_up_ready_later(self):
+        self.write_dockerfile("jre", "ubuntu/noble", pending=("arm64",))
+        published_pending = Path("25/jre/ubuntu/noble/Dockerfile").read_text()
+        _, upstream = self.generate(force_versions={25})
+        upstream = upstream.replace("GitCommit: abc123", "GitCommit: partial-publication")
+        self.read_published_file.side_effect = (
+            lambda commit, path: published_pending if path == "25/jre/ubuntu/noble/Dockerfile" else ""
+        )
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assert_readiness(summary, "UP TO DATE", "4/4")
+        self.assertNotIn("pending binaries", summary)
+        self.write_dockerfile("jre", "ubuntu/noble")
+        self.generate(official_manifest=upstream)
+        self.assertEqual(self.plan.ready_releases, {25: "25.0.2_10"})
+        self.assertEqual(self.plan.added_architectures, {25: ["arm64v8"]})
+
+    def test_forced_version_holds_back_images_already_published_at_older_release(self):
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(package, "alpine/3.24", release="jdk-25.0.1+8")
+            self.write_dockerfile(package, "ubuntu/noble", release="jdk-25.0.1+8")
+        _, upstream = self.generate()
+        upstream = upstream.replace("GitCommit: abc123", "GitCommit: published")
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(package, "ubuntu/noble")
+
+        summary, _ = self.generate(official_manifest=upstream)
+        self.assertIn("stale release jdk-25.0.1+8", summary)
+        self.assertEqual(self.plan.ready_releases, {})
+
+        summary, _ = self.generate(official_manifest=upstream, force_versions={25})
+        self.assertEqual(self.plan.ready_releases, {25: "25.0.2_10"})
+        held = {"25/jdk/alpine/3.24", "25/jre/alpine/3.24"}
+        self.assertEqual(self.plan.held_back_directories, {25: held})
+        self.assertIn("held at 25.0.1_8", summary.split("Forced partial publication plan")[1])
+        merged = merge_publication_manifest(
+            upstream, self.plan.manifest, [25], held_back_directories=held,
+        )
+        merged_entries, upstream_entries = get_manifest_entries(merged), get_manifest_entries(upstream)
+        for directory in held:
+            self.assertEqual(merged_entries[directory], upstream_entries[directory])
+        self.assertIn("25.0.2_10-jdk-noble", merged_entries["25/jdk/ubuntu/noble"]["Tags"])
+
+    def test_force_does_not_hold_back_stale_images_missing_upstream(self):
+        for package in ("jdk", "jre"):
+            self.write_dockerfile(package, "alpine/3.24", release="jdk-25.0.1+8")
+        with self.assertRaisesRegex(ValueError, "Java 25 is BLOCKED"):
+            self.generate(force_versions={25})
 
     def configure_jdk8(self, pending=("armhf",)):
         self.config["configurations"]["linux"][0]["architectures"] = ["x64", "arm"]
@@ -1718,6 +1792,30 @@ class TestCreatePublicationPR(unittest.TestCase):
         self.assertNotIn("25.0.5_8", self.proposed)
         self.assertFalse(self.checkout.exists())
         self.open_prs.assert_called_once()
+
+    def test_confirmation_previews_and_only_creates_pr_after_yes(self):
+        prompts = []
+        for answer, expected in (("n\n", None), ("", None), ("y\n", self.url)):
+            with self.subTest(answer=answer):
+                self.commands.clear()
+                stderr = io.StringIO()
+                with (
+                    patch("sys.stdin", io.StringIO(answer)), redirect_stderr(stderr),
+                ):
+                    result = create_publication_pr(
+                        self.plan,
+                        confirm=lambda prompt: prompts.append(prompt) or confirm_publication(prompt),
+                    )
+                self.assertEqual(result, expected)
+                self.assertIn("Proposed upstream PR 'eclipse-temurin: 17 to 17.0.21_9'", stderr.getvalue())
+                self.assertIn("+++ b/library/eclipse-temurin", stderr.getvalue())
+                self.assertIn("Open this upstream PR? [y/N]", stderr.getvalue())
+                if expected is None:
+                    self.assertEqual(self.commands, [])
+                    self.assertIn("Aborted", stderr.getvalue())
+                else:
+                    self.assertIn(("gh", "pr", "create"), [args[:3] for args, _ in self.commands])
+        self.assertEqual(len(prompts), 3)
         args, cwd = next(call for call in self.commands if call[0][:3] == ("gh", "pr", "create"))
         self.assertIn("publisher:eclipse-temurin-17.0.21_9", args)
         self.assertIn("master", args)
@@ -1984,14 +2082,14 @@ class TestManifestCLI(unittest.TestCase):
     def test_default_run_does_not_create_a_pr(self):
         with patch.object(sys, "argv", ["script"]):
             main()
-        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=False)
+        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=False, force_versions=set())
         self.create.assert_not_called()
 
     def test_create_pr_needs_no_version_selection(self):
         with patch.object(sys, "argv", ["script", "manifest", "--create-pr"]):
             main()
-        self.generate.assert_called_once_with({}, "manifest", dry_run=False)
-        self.create.assert_called_once_with(self.generate.return_value, dry_run=False)
+        self.generate.assert_called_once_with({}, "manifest", dry_run=False, force_versions=set())
+        self.create.assert_called_once_with(self.generate.return_value, dry_run=False, confirm=None)
 
     def test_version_arguments_are_not_accepted_by_create_pr(self):
         with patch.object(sys, "argv", ["script", "--create-pr=17"]), redirect_stderr(io.StringIO()):
@@ -2004,14 +2102,36 @@ class TestManifestCLI(unittest.TestCase):
     def test_dry_run_is_a_standalone_preview_option(self):
         with patch.object(sys, "argv", ["script", "--dry-run"]):
             main()
-        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=True)
-        self.create.assert_called_once_with(self.generate.return_value, dry_run=True)
+        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=True, force_versions=set())
+        self.create.assert_called_once_with(self.generate.return_value, dry_run=True, confirm=None)
 
     def test_dry_run_overrides_create_pr_mutations(self):
         with patch.object(sys, "argv", ["script", "--create-pr", "--dry-run"]):
             main()
-        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=True)
-        self.create.assert_called_once_with(self.generate.return_value, dry_run=True)
+        self.generate.assert_called_once_with({}, "eclipse-temurin", dry_run=True, force_versions=set())
+        self.create.assert_called_once_with(self.generate.return_value, dry_run=True, confirm=None)
+
+    def test_force_selects_versions_and_requires_confirmation(self):
+        with patch.object(sys, "argv", ["script", "--force", "17, 21,25,27"]):
+            main()
+        self.generate.assert_called_once_with(
+            {}, "eclipse-temurin", dry_run=False, force_versions={17, 21, 25, 27},
+        )
+        self.create.assert_called_once_with(
+            self.generate.return_value, dry_run=False, confirm=confirm_publication,
+        )
+
+    def test_invalid_force_versions_are_rejected(self):
+        for value in ("17,,21", "latest"):
+            with self.subTest(value=value):
+                with (
+                    patch.object(sys, "argv", ["script", "--force", value]),
+                    redirect_stderr(io.StringIO()),
+                    self.assertRaises(SystemExit) as error,
+                ):
+                    main()
+                self.assertEqual(error.exception.code, 2)
+        self.generate.assert_not_called()
 
     def test_publication_command_failure_has_nonzero_exit_and_details(self):
         self.create.side_effect = subprocess.CalledProcessError(1, ["gh"], stderr="authentication required")

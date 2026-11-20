@@ -106,7 +106,7 @@ Open `eclipse-temurin` PRs in `docker-library/official-images` are checked for
 added manifest tags matching the exact release and for commit-only updates to
 affected image directories, rather than just a Java major version in the PR title.
 Matching updates show `PR OPEN`, with the PR number and link, and are not
-suggested for another PR. A failed GitHub lookup is reported
+suggested for another PR (see below for updating an open PR when binaries land). A failed GitHub lookup is reported
 explicitly and makes otherwise-ready updates `UNKNOWN`. `GH_TOKEN` or
 `GITHUB_TOKEN` can be used for authenticated GitHub API requests. If neither is
 set, the script automatically uses your existing GitHub CLI login (`gh auth
@@ -199,6 +199,18 @@ exits with an error before prompting. Forced versions that are `UP TO DATE` or
 Once a release has been published with pending binaries, those still-pending
 architectures no longer block that release. When the binaries become available,
 the release is reported as `READY` for a binaries-only follow-up PR.
+
+The same applies while the publication PR is still open: binaries that were
+pending in the open PR are deferred rather than blocking, so the release stays
+`PR OPEN` without passing `--force` again. When any of those binaries become
+available before the PR merges, the release is reported as `PR UPDATE`.
+`--create-pr` (or `--force`, after confirmation) then pushes a commit to the
+existing PR branch that points only the affected entries at the published
+commit with the new binaries, and refreshes the PR title and description.
+`--dry-run` previews the commit diff and description. The update is only pushed
+to PRs whose branch is in your own fork, and aborts if the PR head changed after
+the readiness check. Newly pending binaries that were not pending in the open PR
+still block.
 You can run the script from a feature branch, including one with changes to
 the script, tests, or documentation. The distribution configuration and every
 selected Dockerfile and entrypoint must exactly match published

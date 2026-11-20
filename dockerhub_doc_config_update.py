@@ -21,6 +21,7 @@
 # 4. Run this command
 
 import argparse
+import base64
 import difflib
 import hashlib
 import json
@@ -81,6 +82,26 @@ class PublicationPR:
 
 
 @dataclass
+class PublicationPRHead:
+    repository: str
+    branch: str
+    sha: str
+    manifest: str
+
+
+@dataclass
+class PublicationPRUpdate:
+    """Binaries that became available after an open publication PR was created."""
+    pr: PublicationPR
+    head: PublicationPRHead
+    releases: dict[int, str]
+    added_architectures: dict[int, list[str]]
+    directories: dict[int, set[str]]
+    deferred_architectures: dict[int, list[str]] = field(default_factory=dict)
+    held_back_directories: dict[int, set[str]] = field(default_factory=dict)
+
+
+@dataclass
 class PublicationPlan:
     upstream_manifest: str | None
     manifest: str
@@ -91,6 +112,7 @@ class PublicationPlan:
     deferred_architectures: dict[int, list[str]] = field(default_factory=dict)
     follow_up_directories: dict[int, set[str]] = field(default_factory=dict)
     held_back_directories: dict[int, set[str]] = field(default_factory=dict)
+    pr_updates: list[PublicationPRUpdate] = field(default_factory=list)
 
 
 def get_github_token() -> str | None:
@@ -192,6 +214,24 @@ def fetch_open_publication_prs():
         return prs
     except (OSError, ValueError) as error:
         print(f"Warning: cannot check open upstream publication PRs: {error}", file=sys.stderr)
+        return None
+
+
+def fetch_publication_pr_head(pr):
+    """Fetch the head branch and manifest of an open upstream publication PR."""
+    number = pr.url.rstrip("/").rsplit("/", 1)[-1]
+    try:
+        head = github_request(f"{OFFICIAL_IMAGES_API}/pulls/{number}")["head"]
+        repository = head["repo"]["full_name"]
+        content = github_request(
+            f"https://api.github.com/repos/{repository}/contents/library/eclipse-temurin?ref={head['sha']}"
+        )
+        if content.get("encoding") != "base64":
+            raise ValueError("GitHub did not return the PR manifest content")
+        manifest = base64.b64decode(content["content"]).decode("utf-8")
+        return PublicationPRHead(repository, head["ref"], head["sha"], manifest)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f"Warning: cannot read the head of open upstream PR {pr.url}: {error}", file=sys.stderr)
         return None
 
 
@@ -299,6 +339,9 @@ class ImageReadiness:
     held_back: bool = False
     deferred_arches: list[str] = field(default_factory=list)
     added_arches: list[str] = field(default_factory=list)
+    arches: list[str] = field(default_factory=list)
+    pending_arches: list[str] = field(default_factory=list)
+    pr_added_arches: list[str] = field(default_factory=list)
 
 
 def java_version_key(release):
@@ -314,6 +357,85 @@ def matching_publication_prs(release, open_prs, directories=None):
         if directories & pr.updated_directories
         or any(java_version_key(tag) == java_version_key(release) for tag in pr.releases)
     ]
+
+
+def get_entry_release(entry):
+    tag = entry.get("Tags", "").split(", ", 1)[0]
+    match = re.match(r"^(.+?)-(?:jdk|jre)-", tag)
+    return match.group(1) if match else None
+
+
+def covered_by_open_pr(images, entries, latest):
+    """Check that an open PR publishes every image at the local release or keeps it held back."""
+    for image in images:
+        entry = entries.get(image.directory)
+        release = get_entry_release(entry) if entry else None
+        if not image.java_version or release is None:
+            return False
+        local_key = java_version_key(image.java_version)
+        if local_key == java_version_key(latest):
+            if java_version_key(release) != local_key:
+                return False
+        elif not (image.published and java_version_key(release) == local_key):
+            return False
+    return True
+
+
+def apply_open_pr_baselines(readiness, open_prs):
+    """Use open publication PRs as the baseline for binaries that were pending when they were opened."""
+    candidates = {}
+    for version, images in readiness.items():
+        latest = max(
+            (image.java_version for image in images if image.java_version),
+            key=java_version_key, default=None,
+        )
+        if not latest or not any(image.updated for image in images):
+            continue
+        prs = [
+            pr for pr in open_prs
+            if any(java_version_key(tag) == java_version_key(latest) for tag in pr.releases)
+        ]
+        if len(prs) == 1:
+            candidates[version] = (prs[0], latest)
+
+    baselines = {}
+    for url in {pr.url for pr, _ in candidates.values()}:
+        versions = {version for version, (pr, _) in candidates.items() if pr.url == url}
+        pr = candidates[next(iter(versions))][0]
+        pr_versions = {int(re.match(r"\d+", tag).group()) for tag in pr.releases if re.match(r"\d+", tag)}
+        # The PR description is regenerated, so every release in it must be accounted for.
+        if pr_versions != versions:
+            continue
+        head = fetch_publication_pr_head(pr)
+        if head is None:
+            continue
+        entries = get_manifest_entries(head.manifest)
+        if not all(covered_by_open_pr(readiness[v], entries, candidates[v][1]) for v in versions):
+            continue
+        for version in versions:
+            latest_key = java_version_key(candidates[version][1])
+            for image in readiness[version]:
+                if java_version_key(image.java_version) < latest_key:
+                    image.held_back = True
+                    continue
+                if not image.arches:
+                    continue
+                pr_pending = get_published_pending_arches(
+                    entries[image.directory].get("GitCommit"), f"{image.directory}/Dockerfile",
+                )
+                if pr_pending is None:
+                    image.blockers.append("cannot read Dockerfile at open PR GitCommit")
+                    continue
+                still_pending = set(image.pending_arches) | set(image.deferred_arches)
+                # Binaries already pending when the PR was opened are follow-ups, not blockers.
+                carried = set(image.pending_arches) & set(pr_pending)
+                image.deferred_arches = sorted(set(image.deferred_arches) | carried)
+                image.pending_arches = sorted(set(image.pending_arches) - carried)
+                image.pr_added_arches = sorted((set(pr_pending) & set(image.arches)) - still_pending)
+                if not set(image.arches) - set(image.deferred_arches) and "no available binaries" not in image.blockers:
+                    image.blockers.append("no available binaries")
+            baselines[version] = (pr, head)
+    return baselines
 
 
 def print_table(headers, rows, max_widths):
@@ -354,12 +476,13 @@ def format_image_targets(paths):
     )
 
 
-def print_publish_summary(readiness, output_file, upstream_available, open_prs):
+def print_publish_summary(readiness, output_file, upstream_available, open_prs, pr_baselines=None):
+    pr_baselines = pr_baselines or {}
     print("\nUpstream publish readiness (JDK + JRE, all required architectures):", file=sys.stderr)
     ready_versions = {}
     statuses = {}
     open_versions = []
-    summary_rows = []
+    summary_rows = {}
     blocker_rows = []
     deferred_rows = []
     linked_prs = {}
@@ -403,21 +526,25 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         elif updated and open_prs is None:
             status = "UNKNOWN"
         elif matching_prs:
-            status = "PR OPEN"
-            open_versions.append(str(version))
+            if version in pr_baselines and any(
+                image.pr_added_arches for image in images if not image.held_back
+            ):
+                status = "PR UPDATE"
+            else:
+                status = "PR OPEN"
         elif updated:
             status = "READY"
             ready_versions[version] = format_ojdk_version(latest)
         else:
             status = "UP TO DATE"
         statuses[version] = status
-        summary_rows.append([
+        summary_rows[version] = [
             str(version),
             format_ojdk_version(latest) if latest else "-",
             status,
             f"{len(images) - blocked_count}/{len(images)}",
             ", ".join(pr_labels) or "-",
-        ])
+        ]
         if not images:
             blocker_rows.append([str(version), "No configured images", "-"])
         for reasons, paths in blocked.items():
@@ -425,10 +552,23 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         for arches, paths in deferred.items():
             deferred_rows.append([str(version), arches, format_image_targets(paths)])
 
+    update_versions = []
+    for version, status in statuses.items():
+        if status == "PR UPDATE":
+            url = pr_baselines[version][0].url
+            group = [v for v, (pr, _) in pr_baselines.items() if pr.url == url]
+            # Only update a PR when every release in it can still be published.
+            if any(statuses[v] not in ("PR OPEN", "PR UPDATE") for v in group):
+                status = statuses[version] = summary_rows[version][2] = "PR OPEN"
+        if status == "PR UPDATE":
+            update_versions.append(str(version))
+        elif status == "PR OPEN":
+            open_versions.append(str(version))
+
     if readiness:
         print_table(
             ["Java", "Release", "Status", "Complete", "Upstream PR"],
-            summary_rows, [4, 18, 10, 8, 18],
+            list(summary_rows.values()), [4, 18, 10, 8, 18],
         )
     else:
         print("  No supported Java versions to assess", file=sys.stderr)
@@ -447,14 +587,22 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         print("Upstream comparison unavailable; publication readiness cannot be confirmed.", file=sys.stderr)
     elif open_prs is None:
         print("Open upstream PRs could not be checked; check GitHub before opening a new PR.", file=sys.stderr)
-    elif ready_versions:
+    elif ready_versions or update_versions:
+        if ready_versions:
+            print(
+                f"Ready for upstream publish: Java {', '.join(map(str, ready_versions))}. "
+                f"Publish only these versions from {output_file}; leave other upstream entries unchanged.",
+                file=sys.stderr,
+            )
+        if update_versions:
+            print(
+                f"Open upstream PRs need updates: Java {', '.join(update_versions)}. "
+                "Binaries pending when those PRs were opened are now available.",
+                file=sys.stderr,
+            )
         print(
-            f"Ready for upstream publish: Java {', '.join(map(str, ready_versions))}. "
-            f"Publish only these versions from {output_file}; leave other upstream entries unchanged.",
-            file=sys.stderr,
-        )
-        print(
-            "To open an upstream PR for all READY versions and pending cleanup:\n"
+            "To open an upstream PR for all READY versions and pending cleanup, "
+            "and push newly available binaries to open PRs:\n"
             "  python3 dockerhub_doc_config_update.py --create-pr\n"
             "Preview without making changes:\n"
             "  python3 dockerhub_doc_config_update.py --dry-run",
@@ -667,7 +815,8 @@ def run_publication_command(*args: str, cwd: Path | None = None) -> str:
     ).stdout.strip()
 
 
-def prepare_publication_source(plan: PublicationPlan) -> tuple[str, str]:
+def prepare_publication_source(plan: PublicationPlan, versions=None) -> tuple[str, str]:
+    versions = plan.ready_releases if versions is None else versions
     commit = github_request("https://api.github.com/repos/adoptium/containers/commits/main")
     if not isinstance(commit, dict) or not isinstance(commit.get("sha"), str) or not commit["sha"]:
         raise ValueError("GitHub did not return the published containers main commit")
@@ -686,7 +835,7 @@ def prepare_publication_source(plan: PublicationPlan) -> tuple[str, str]:
         entries = get_manifest_entries(block)
         selected = [
             directory for directory in entries
-            if int(directory.split("/", 1)[0]) in plan.ready_releases
+            if int(directory.split("/", 1)[0]) in versions
         ]
         for directory in selected:
             source_paths.add(f"{directory}/Dockerfile")
@@ -711,6 +860,152 @@ def prepare_publication_source(plan: PublicationPlan) -> tuple[str, str]:
                 "Merge image and configuration changes before publishing."
             )
     return published_commit, "\n\n".join(blocks)
+
+
+def describe_publication(
+    published_commit, releases, added, deferred_architectures, held_back_directories, cleanup,
+    added_since_opened=None,
+):
+    """Build the upstream PR title and description."""
+    added_since_opened = added_since_opened or {}
+    title = ", ".join(
+        f"{version} {release} add {', '.join(added[version])}" if version in added
+        else f"{version} to {release}"
+        for version, release in releases.items()
+    )
+    if cleanup:
+        title = f"{title}; remove deprecated images" if title else "remove deprecated images"
+    title = "eclipse-temurin: " + title
+    body = f"Update Eclipse Temurin from adoptium/containers commit {published_commit}.\n\n"
+    new_releases = {v: r for v, r in releases.items() if v not in added}
+    if new_releases:
+        body += "Publish READY releases:\n"
+        for version, release in new_releases.items():
+            deferred = deferred_architectures.get(version)
+            if deferred:
+                body += (
+                    f"- Temurin {version}: `{release}` (JDK and JRE). {', '.join(deferred)} "
+                    "binaries are not released yet, so those builds cannot install Temurin; "
+                    "a follow-up PR will publish them once the binaries are available.\n"
+                )
+            else:
+                body += f"- Temurin {version}: `{release}` (JDK and JRE, all required architectures)\n"
+            held = held_back_directories.get(version)
+            if held:
+                body += (
+                    f"  - Not yet updated to `{release}`, so these images keep their current "
+                    f"upstream entries: {format_image_targets(held)}\n"
+                )
+            arches = added_since_opened.get(version)
+            if arches:
+                body += (
+                    f"  - {', '.join(arches)} binaries became available after this PR was opened; "
+                    "the affected entries now point at the commit that adds them.\n"
+                )
+        body += "\n"
+    follow_ups = {v: r for v, r in releases.items() if v in added}
+    if follow_ups:
+        body += "Follow-up for releases already published upstream:\n" + "\n".join(
+            f"- Temurin {version}: `{release}` now includes {', '.join(added[version])} binaries. "
+            "They were not available when this release was first published, so the corresponding "
+            "builds could not install Temurin. This PR "
+            "points the affected entries at the commit that adds the binaries."
+            for version, release in follow_ups.items()
+        ) + "\n\n"
+    if cleanup:
+        body += "Remove deprecated, removed, or version-excluded image entries:\n"
+        body += "\n".join(f"- `{directory}`" for directory in sorted(cleanup)) + "\n\n"
+    body += "All other upstream manifest entries are preserved."
+    return title, body
+
+
+def update_publication_prs(plan: PublicationPlan, dry_run: bool = False, confirm=None) -> list[str]:
+    """Push newly available binaries to open publication PRs and refresh their descriptions."""
+    urls = []
+    for update in plan.pr_updates:
+        published_commit, generated = prepare_publication_source(plan, set(update.directories))
+        manifest = merge_publication_manifest(
+            update.head.manifest, generated, list(update.directories),
+            follow_up_directories=update.directories,
+        )
+        if manifest == update.head.manifest:
+            print(f"Upstream PR {update.pr.url} already includes the available binaries.", file=sys.stderr)
+            continue
+        title, body = describe_publication(
+            published_commit, update.releases, {}, update.deferred_architectures,
+            update.held_back_directories, update.pr.removed_directories, update.added_architectures,
+        )
+        message = "eclipse-temurin: " + ", ".join(
+            f"{version} {update.releases[version]} add {', '.join(arches)}"
+            for version, arches in update.added_architectures.items()
+        )
+        if dry_run or confirm:
+            heading = "Dry run: would update" if dry_run else "Proposed update to"
+            print(
+                f"{heading} upstream PR {update.pr.url} on branch "
+                f"{update.head.repository}:{update.head.branch} with commit '{message}'",
+                file=sys.stderr,
+            )
+            print(f"PR title: {title}", file=sys.stderr)
+            print(f"PR description:\n{body}\n", file=sys.stderr)
+            print(
+                "".join(difflib.unified_diff(
+                    update.head.manifest.splitlines(keepends=True), manifest.splitlines(keepends=True),
+                    fromfile="a/library/eclipse-temurin", tofile="b/library/eclipse-temurin",
+                )),
+                end="", file=sys.stderr,
+            )
+        if dry_run:
+            print("Dry run only; no branches or PRs were changed.", file=sys.stderr)
+            continue
+        if confirm and not confirm("Push this update to the upstream PR? [y/N] "):
+            print("Aborted; the upstream PR was not changed.", file=sys.stderr)
+            continue
+        push_publication_pr_update(update, manifest, message, title, body)
+        urls.append(update.pr.url)
+    return urls
+
+
+def push_publication_pr_update(update: PublicationPRUpdate, manifest, message, title, body):
+    url = update.pr.url
+    number = url.rstrip("/").rsplit("/", 1)[-1]
+    head = update.head
+    login = run_publication_command("gh", "api", "user", "--jq", ".login")
+    if not login:
+        raise ValueError("GitHub did not return an authenticated user")
+    if head.repository.split("/", 1)[0] != login:
+        raise ValueError(f"Cannot push to {url}: its branch is in {head.repository}, not {login}'s fork")
+    state = run_publication_command(
+        "gh", "api", f"repos/docker-library/official-images/pulls/{number}",
+        "--jq", '.state + " " + .head.sha',
+    )
+    if state != f"open {head.sha}":
+        raise ValueError(f"Upstream PR {url} changed since the readiness check; rerun")
+    remote = f"https://github.com/{head.repository}.git"
+    with tempfile.TemporaryDirectory(prefix="temurin-publication-") as temporary:
+        checkout = Path(temporary) / "official-images"
+        run_publication_command(
+            "git", "clone", "--depth=1", "--single-branch", "--branch", head.branch, remote, str(checkout),
+        )
+        manifest_file = checkout / "library" / "eclipse-temurin"
+        if (
+            run_publication_command("git", "rev-parse", "HEAD", cwd=checkout) != head.sha
+            or manifest_file.read_text() != head.manifest
+        ):
+            raise ValueError(f"Upstream PR {url} changed since the readiness check; rerun")
+        manifest_file.write_text(manifest)
+        run_publication_command("git", "add", "--", "library/eclipse-temurin", cwd=checkout)
+        run_publication_command("git", "commit", "-m", message, cwd=checkout)
+        # A plain push only fast-forwards, so concurrent branch changes are never overwritten.
+        run_publication_command(
+            "git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential",
+            "push", remote, f"HEAD:refs/heads/{head.branch}", cwd=checkout,
+        )
+    run_publication_command(
+        "gh", "pr", "edit", number, "--repo", "docker-library/official-images",
+        "--title", title, "--body", body,
+    )
+    print(f"Updated upstream publication PR: {url}", file=sys.stderr)
 
 
 def create_publication_pr(plan: PublicationPlan, dry_run: bool = False, confirm=None) -> str | None:
@@ -743,51 +1038,14 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False, confirm=
     branch_parts = [
         "-".join([release, *added.get(version, [])]) for version, release in releases.items()
     ]
-    title = ", ".join(
-        f"{version} {release} add {', '.join(added[version])}" if version in added
-        else f"{version} to {release}"
-        for version, release in releases.items()
-    )
     if cleanup:
         digest = hashlib.sha256("\n".join(sorted(cleanup)).encode("utf-8")).hexdigest()[:12]
         branch_parts.append(f"cleanup-{digest}")
-        title = f"{title}; remove deprecated images" if title else "remove deprecated images"
     branch = "eclipse-temurin-" + "-".join(branch_parts)
-    title = "eclipse-temurin: " + title
-    body = f"Update Eclipse Temurin from adoptium/containers commit {published_commit}.\n\n"
-    new_releases = {v: r for v, r in releases.items() if v not in added}
-    if new_releases:
-        body += "Publish READY releases:\n"
-        for version, release in new_releases.items():
-            deferred = plan.deferred_architectures.get(version)
-            if deferred:
-                body += (
-                    f"- Temurin {version}: `{release}` (JDK and JRE). {', '.join(deferred)} "
-                    "binaries are not released yet, so those builds cannot install Temurin; "
-                    "a follow-up PR will publish them once the binaries are available.\n"
-                )
-            else:
-                body += f"- Temurin {version}: `{release}` (JDK and JRE, all required architectures)\n"
-            held = plan.held_back_directories.get(version)
-            if held:
-                body += (
-                    f"  - Not yet updated to `{release}`, so these images keep their current "
-                    f"upstream entries: {format_image_targets(held)}\n"
-                )
-        body += "\n"
-    follow_ups = {v: r for v, r in releases.items() if v in added}
-    if follow_ups:
-        body += "Follow-up for releases already published upstream:\n" + "\n".join(
-            f"- Temurin {version}: `{release}` now includes {', '.join(added[version])} binaries. "
-            "They were not available when this release was first published, so the corresponding "
-            "builds could not install Temurin. This PR "
-            "points the affected entries at the commit that adds the binaries."
-            for version, release in follow_ups.items()
-        ) + "\n\n"
-    if cleanup:
-        body += "Remove deprecated, removed, or version-excluded image entries:\n"
-        body += "\n".join(f"- `{directory}`" for directory in sorted(cleanup)) + "\n\n"
-    body += "All other upstream manifest entries are preserved."
+    title, body = describe_publication(
+        published_commit, releases, added, plan.deferred_architectures,
+        plan.held_back_directories, cleanup,
+    )
     if dry_run or confirm:
         heading = "Dry run: would open" if dry_run else "Proposed"
         print(f"{heading} upstream PR '{title}' on branch {branch}", file=sys.stderr)
@@ -1067,8 +1325,9 @@ def generate_manifest(config, output_file, dry_run=False, force_versions=frozens
                                         (set(published_pending) & set(arches)) - still_pending
                                     )
                                     image.updated = bool(image.added_arches)
-                    if pending:
-                        image.blockers.append(f"pending binaries: {', '.join(pending)}")
+                    image.pending_arches = pending
+                    if os_family != "windows":
+                        image.arches = arches
                     ver_tag = f"{ver}-{pkg}-{distro}"
                     all_tags = f"{full_ver_tag}, {ver_tag}"
 
@@ -1159,8 +1418,13 @@ def generate_manifest(config, output_file, dry_run=False, force_versions=frozens
             image.held_back = bool(
                 image.published and java_version_key(image.java_version) < java_version_key(latest)
             )
+    pr_baselines = apply_open_pr_baselines(readiness, open_prs or [])
+    for images in readiness.values():
+        for image in images:
+            if image.pending_arches:
+                image.blockers.append(f"pending binaries: {', '.join(image.pending_arches)}")
     ready_releases, statuses = print_publish_summary(
-        readiness, output_file, official_manifest is not None, open_prs,
+        readiness, output_file, official_manifest is not None, open_prs, pr_baselines,
     )
     for pr in open_prs or []:
         if retired & pr.removed_directories:
@@ -1194,9 +1458,32 @@ def generate_manifest(config, output_file, dry_run=False, force_versions=frozens
         deferred = sorted({a for image in images for a in image.deferred_arches})
         if deferred:
             deferred_architectures[version] = deferred
+    pr_updates = {}
+    for version, status in statuses.items():
+        if status != "PR UPDATE":
+            continue
+        pr, head = pr_baselines[version]
+        update = pr_updates.setdefault(pr.url, PublicationPRUpdate(pr, head, {}, {}, {}))
+        for pr_version, (other, _) in pr_baselines.items():
+            if other.url != pr.url:
+                continue
+            images = [image for image in readiness[pr_version] if not image.held_back]
+            update.releases[pr_version] = format_ojdk_version(
+                max((image.java_version for image in images), key=java_version_key)
+            )
+            deferred = sorted({a for image in images for a in image.deferred_arches})
+            if deferred:
+                update.deferred_architectures[pr_version] = deferred
+            held = {image.directory for image in readiness[pr_version] if image.held_back}
+            if held:
+                update.held_back_directories[pr_version] = held
+        images = [image for image in readiness[version] if not image.held_back]
+        update.added_architectures[version] = sorted({a for image in images for a in image.pr_added_arches})
+        update.directories[version] = {image.directory for image in images if image.pr_added_arches}
     return PublicationPlan(
         official_manifest, manifest, ready_releases, open_prs is not None, cleanup,
         added_architectures, deferred_architectures, follow_up_directories, held_back_directories,
+        list(pr_updates.values()),
     )
 
 
@@ -1233,10 +1520,9 @@ def main():
             config, args.output_file, dry_run=args.dry_run, force_versions=args.force,
         )
         if args.create_pr or args.dry_run or args.force:
-            create_publication_pr(
-                plan, dry_run=args.dry_run,
-                confirm=confirm_publication if args.force else None,
-            )
+            confirm = confirm_publication if args.force else None
+            update_publication_prs(plan, dry_run=args.dry_run, confirm=confirm)
+            create_publication_pr(plan, dry_run=args.dry_run, confirm=confirm)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         details = error.stderr if isinstance(error, subprocess.CalledProcessError) else str(error)
         parser.exit(1, f"Error: {details or str(error)}\n")

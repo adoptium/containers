@@ -85,7 +85,9 @@ They are listed separately as deferred binaries and can be supplied in a
 follow-up. Their configured Dockerfile branches and manifest architecture entries
 must remain present; a missing branch still blocks publication. Other pending
 architectures, and pending `arm32v7` binaries for other Java versions, remain
-blockers.
+blockers unless explicitly forced (see [Forcing a partial
+publication](#forcing-a-partial-publication)) or already pending when the same
+release was published upstream.
 Release consistency is checked against the newest Java version found in the
 local Dockerfiles for that major version, not against live release assets.
 
@@ -163,6 +165,40 @@ push, or open a PR. They verify publication sources using read-only Git and
 GitHub API requests and do not require the GitHub CLI when an API token is provided.
 
 PR creation requires Git and an authenticated GitHub CLI (`gh auth login`).
+
+### Forcing a partial publication
+
+To publish Java versions while some architecture binaries are still pending
+upstream, pass the versions to `--force`:
+
+```bash
+python3 dockerhub_doc_config_update.py --force 17,21,25,27
+```
+
+For the listed versions, architectures whose Dockerfile `case` branch carries the
+pending-binary TODO marker are treated as deferred, like Java 8 `arm32v7`. Their
+manifest architecture entries are retained, and the PR description notes that a
+follow-up will publish them. Images already published upstream at an older
+release of the same Java version, such as Windows images whose binaries lag the
+Linux release, are held back: their upstream entries are kept unchanged, and the
+PR description lists them. Floating tags such as `27-jdk` and `27` then span both
+releases until those images are updated. All other blockers still apply: an
+architecture missing from the `case` block, missing images, stale images not yet
+published upstream, and images with no available binaries cannot be forced.
+Unsupported versions are rejected.
+
+The script prints a forced publication plan listing the missing binaries and
+held-back images for each forced version, then the proposed PR title,
+description, and manifest diff. It asks `Open this upstream PR? [y/N]` before
+cloning, forking, pushing, or opening the PR; any answer other than `y` or `yes`
+aborts. The PR also includes all other `READY` versions and pending cleanup, as
+with `--create-pr`. If any forced version is `BLOCKED` or `UNKNOWN`, the script
+exits with an error before prompting. Forced versions that are `UP TO DATE` or
+`PR OPEN` are skipped with a notice. Add `--dry-run` to preview without prompting.
+
+Once a release has been published with pending binaries, those still-pending
+architectures no longer block that release. When the binaries become available,
+the release is reported as `READY` for a binaries-only follow-up PR.
 You can run the script from a feature branch, including one with changes to
 the script, tests, or documentation. The distribution configuration and every
 selected Dockerfile and entrypoint must exactly match published

@@ -90,6 +90,7 @@ class PublicationPlan:
     added_architectures: dict[int, list[str]] = field(default_factory=dict)
     deferred_architectures: dict[int, list[str]] = field(default_factory=dict)
     follow_up_directories: dict[int, set[str]] = field(default_factory=dict)
+    held_back_directories: dict[int, set[str]] = field(default_factory=dict)
 
 
 def get_github_token() -> str | None:
@@ -294,6 +295,8 @@ class ImageReadiness:
     java_version: str | None = None
     blockers: list[str] = field(default_factory=list)
     updated: bool = False
+    published: bool = False
+    held_back: bool = False
     deferred_arches: list[str] = field(default_factory=list)
     added_arches: list[str] = field(default_factory=list)
 
@@ -354,6 +357,7 @@ def format_image_targets(paths):
 def print_publish_summary(readiness, output_file, upstream_available, open_prs):
     print("\nUpstream publish readiness (JDK + JRE, all required architectures):", file=sys.stderr)
     ready_versions = {}
+    statuses = {}
     open_versions = []
     summary_rows = []
     blocker_rows = []
@@ -369,6 +373,8 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         blocked = {}
         deferred = {}
         for image in images:
+            if image.held_back:
+                continue
             if image.deferred_arches:
                 deferred.setdefault(", ".join(image.deferred_arches), []).append(image.directory)
             reasons = list(image.blockers)
@@ -404,6 +410,7 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
             ready_versions[version] = format_ojdk_version(latest)
         else:
             status = "UP TO DATE"
+        statuses[version] = status
         summary_rows.append([
             str(version),
             format_ojdk_version(latest) if latest else "-",
@@ -461,7 +468,64 @@ def print_publish_summary(readiness, output_file, upstream_available, open_prs):
         )
     else:
         print("No updated Java versions are ready for upstream publish.", file=sys.stderr)
-    return ready_versions
+    return ready_versions, statuses
+
+
+def check_forced_versions(readiness, force_versions, statuses):
+    """Print the binaries still missing for forced versions and reject unpublishable ones."""
+    rows = []
+    for version in sorted(force_versions):
+        images = readiness[version]
+        release = max(
+            (image.java_version for image in images if image.java_version),
+            key=java_version_key, default=None,
+        )
+        missing = {}
+        held = {}
+        for image in images:
+            if image.held_back:
+                key = f"held at {format_ojdk_version(image.java_version)}"
+                held.setdefault(key, []).append(image.directory)
+                continue
+            for arch in image.deferred_arches:
+                missing.setdefault(arch, []).append(image.directory)
+        cells = [str(version), format_ojdk_version(release) if release else "-", statuses[version]]
+        if not missing and not held:
+            rows.append([*cells, "none", "-"])
+        for arch, paths in sorted(missing.items()) + sorted(held.items()):
+            rows.append([*cells, arch, format_image_targets(paths)])
+    print(
+        "\nForced partial publication plan (missing binaries have pending Dockerfile case branches; "
+        "their manifest architectures are retained for a follow-up. Images held at an older, "
+        "already-published release keep their current upstream entries):",
+        file=sys.stderr,
+    )
+    print_table(
+        ["Java", "Release", "Status", "Missing binary", "Affected images"],
+        rows, [4, 18, 10, 18, 54],
+    )
+    for version in sorted(force_versions):
+        if statuses[version] in ("UP TO DATE", "PR OPEN"):
+            print(f"Java {version} is {statuses[version]}; nothing to force-publish.", file=sys.stderr)
+    unpublishable = [
+        f"Java {version} is {statuses[version]}" for version in sorted(force_versions)
+        if statuses[version] in ("BLOCKED", "UNKNOWN")
+    ]
+    if unpublishable:
+        raise ValueError(
+            "Cannot force-publish: " + "; ".join(unpublishable) + ". "
+            "--force only defers architectures whose Dockerfile case branch is marked pending; "
+            "resolve the other publication blockers reported above."
+        )
+
+
+def confirm_publication(prompt: str) -> bool:
+    # The prompt goes to stderr so stdout stays clean for manifest output.
+    print(prompt, end="", file=sys.stderr, flush=True)
+    answer = sys.stdin.readline()
+    if not answer:
+        print(file=sys.stderr)
+    return answer.strip().lower() in ("y", "yes")
 
 
 def print_deprecated_upstream_images(directories):
@@ -499,11 +563,21 @@ def merge_publication_manifest(
     upstream: str, generated: str, versions: list[int],
     cleanup_directories: set[str] | None = None,
     follow_up_directories: dict[int, set[str]] | None = None,
+    held_back_directories: set[str] | None = None,
 ) -> str:
     cleanup_directories = cleanup_directories or set()
     follow_up_directories = follow_up_directories or {}
+    held_back_directories = held_back_directories or set()
     upstream_entries = get_manifest_entries(upstream)
     generated_entries = get_manifest_entries(generated)
+    missing = held_back_directories - upstream_entries.keys()
+    if missing:
+        raise ValueError("Held-back images are absent from upstream manifest: " + ", ".join(sorted(missing)))
+    upstream_blocks = {
+        directory: block.strip("\n")
+        for block in upstream.split("\n\n")
+        for directory in get_manifest_entries(block)
+    }
     missing = cleanup_directories - upstream_entries.keys()
     if missing:
         raise ValueError("Cleanup targets are absent from upstream manifest: " + ", ".join(sorted(missing)))
@@ -530,6 +604,8 @@ def merge_publication_manifest(
         for directory in get_manifest_entries(block):
             version = int(directory.split("/", 1)[0])
             if version in replacements:
+                if directory in held_back_directories:
+                    block = upstream_blocks[directory]
                 replacements[version].append(block.rstrip("\n"))
     if any(not blocks for blocks in replacements.values()):
         raise ValueError("A selected Java version has no generated manifest entries")
@@ -637,7 +713,7 @@ def prepare_publication_source(plan: PublicationPlan) -> tuple[str, str]:
     return published_commit, "\n\n".join(blocks)
 
 
-def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str | None:
+def create_publication_pr(plan: PublicationPlan, dry_run: bool = False, confirm=None) -> str | None:
     if not plan.upstream_manifest:
         raise ValueError("Upstream comparison unavailable; cannot create a publication PR")
     if not plan.open_prs_available:
@@ -652,8 +728,13 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         version: plan.follow_up_directories.get(version, set())
         for version in plan.added_architectures
     }
+    held_back = {
+        directory
+        for version in versions
+        for directory in plan.held_back_directories.get(version, set())
+    }
     manifest = merge_publication_manifest(
-        plan.upstream_manifest, generated, versions, cleanup, follow_ups,
+        plan.upstream_manifest, generated, versions, cleanup, follow_ups, held_back,
     )
     if manifest == plan.upstream_manifest:
         raise ValueError("Selected updates do not change the upstream manifest")
@@ -687,6 +768,12 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
                 )
             else:
                 body += f"- Temurin {version}: `{release}` (JDK and JRE, all required architectures)\n"
+            held = plan.held_back_directories.get(version)
+            if held:
+                body += (
+                    f"  - Not yet updated to `{release}`, so these images keep their current "
+                    f"upstream entries: {format_image_targets(held)}\n"
+                )
         body += "\n"
     follow_ups = {v: r for v, r in releases.items() if v in added}
     if follow_ups:
@@ -701,8 +788,9 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
         body += "Remove deprecated, removed, or version-excluded image entries:\n"
         body += "\n".join(f"- `{directory}`" for directory in sorted(cleanup)) + "\n\n"
     body += "All other upstream manifest entries are preserved."
-    if dry_run:
-        print(f"Dry run: would open upstream PR '{title}' on branch {branch}", file=sys.stderr)
+    if dry_run or confirm:
+        heading = "Dry run: would open" if dry_run else "Proposed"
+        print(f"{heading} upstream PR '{title}' on branch {branch}", file=sys.stderr)
         print(f"PR description:\n{body}\n", file=sys.stderr)
         print(
             "".join(difflib.unified_diff(
@@ -711,7 +799,11 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False) -> str |
             )),
             end="", file=sys.stderr,
         )
+    if dry_run:
         print("Dry run only; no files, branches, forks, or PRs were changed.", file=sys.stderr)
+        return None
+    if confirm and not confirm("Open this upstream PR? [y/N] "):
+        print("Aborted; no branches, forks, or PRs were changed.", file=sys.stderr)
         return None
     with tempfile.TemporaryDirectory(prefix="temurin-publication-") as temporary:
         checkout = Path(temporary) / "official-images"
@@ -824,7 +916,7 @@ def has_changed(gitcommit, official_gitcommit, dfdir):
         return True
 
 
-def generate_manifest(config, output_file, dry_run=False):
+def generate_manifest(config, output_file, dry_run=False, force_versions=frozenset()):
     maintainers = config.get("maintainers")
     if (
         not isinstance(maintainers, list) or not maintainers
@@ -841,6 +933,12 @@ def generate_manifest(config, output_file, dry_run=False):
     official_entries = get_manifest_entries(official_manifest)
 
     versions = get_supported_versions()
+    unsupported = sorted(set(force_versions) - set(versions))
+    if unsupported:
+        raise ValueError(
+            f"Cannot force unsupported Java versions: {', '.join(map(str, unsupported))}. "
+            f"Supported versions: {', '.join(map(str, versions))}"
+        )
     readiness = {version: [] for version in versions}
     latest_version = get_latest_lts()
     # Default images are the first entry in each OS family
@@ -915,8 +1013,11 @@ def generate_manifest(config, output_file, dry_run=False):
                         if ver == 8 and "arm32v7" in pending:
                             image.deferred_arches.append("arm32v7")
                             pending.remove("arm32v7")
-                        if pending:
-                            image.blockers.append(f"pending binaries: {', '.join(pending)}")
+                        if ver in force_versions:
+                            image.deferred_arches = sorted(set(image.deferred_arches) | set(pending))
+                            pending = []
+                        if arches and not set(arches) - set(image.deferred_arches):
+                            image.blockers.append("no available binaries")
                     if not arches:
                         image.blockers.append("no Dockerfile architectures")
                         continue
@@ -946,6 +1047,7 @@ def generate_manifest(config, output_file, dry_run=False):
                             local_key = java_version_key(ojdk_version)
                             published_key = java_version_key(published_version)
                             image.updated = local_key > published_key
+                            image.published = local_key == published_key
                             if local_key < published_key:
                                 image.blockers.append(f"older than upstream release {published_version}")
                             elif not image.updated and os_family != "windows":
@@ -957,10 +1059,16 @@ def generate_manifest(config, output_file, dry_run=False):
                                 if published_pending is None:
                                     image.blockers.append("cannot read published Dockerfile at upstream GitCommit")
                                 else:
+                                    # Binaries already pending when this release was published are follow-ups, not blockers.
+                                    carried = set(pending) & set(published_pending)
+                                    image.deferred_arches = sorted(set(image.deferred_arches) | carried)
+                                    pending = sorted(set(pending) - carried)
                                     image.added_arches = sorted(
                                         (set(published_pending) & set(arches)) - still_pending
                                     )
                                     image.updated = bool(image.added_arches)
+                    if pending:
+                        image.blockers.append(f"pending binaries: {', '.join(pending)}")
                     ver_tag = f"{ver}-{pkg}-{distro}"
                     all_tags = f"{full_ver_tag}, {ver_tag}"
 
@@ -1043,7 +1151,17 @@ def generate_manifest(config, output_file, dry_run=False):
     if open_prs is None:
         cleanup.clear()
     print_deprecated_upstream_images(retired)
-    ready_releases = print_publish_summary(readiness, output_file, official_manifest is not None, open_prs)
+    for version in force_versions:
+        releases = [image.java_version for image in readiness[version] if image.java_version]
+        latest = max(releases, key=java_version_key, default=None)
+        for image in readiness[version]:
+            # Images already published at an older release can keep their upstream entry.
+            image.held_back = bool(
+                image.published and java_version_key(image.java_version) < java_version_key(latest)
+            )
+    ready_releases, statuses = print_publish_summary(
+        readiness, output_file, official_manifest is not None, open_prs,
+    )
     for pr in open_prs or []:
         if retired & pr.removed_directories:
             print(f"Upstream cleanup PR open: {pr.url}", file=sys.stderr)
@@ -1056,11 +1174,17 @@ def generate_manifest(config, output_file, dry_run=False):
         )
     elif retired and open_prs is None:
         print("Upstream cleanup UNKNOWN: open upstream PRs could not be checked.", file=sys.stderr)
+    if force_versions:
+        check_forced_versions(readiness, force_versions, statuses)
     added_architectures = {}
     deferred_architectures = {}
     follow_up_directories = {}
+    held_back_directories = {}
     for version in ready_releases:
-        images = readiness[version]
+        held = {image.directory for image in readiness[version] if image.held_back}
+        if held:
+            held_back_directories[version] = held
+        images = [image for image in readiness[version] if not image.held_back]
         affected = {image.directory for image in images if image.added_arches}
         if affected:
             follow_up_directories[version] = affected
@@ -1072,8 +1196,17 @@ def generate_manifest(config, output_file, dry_run=False):
             deferred_architectures[version] = deferred
     return PublicationPlan(
         official_manifest, manifest, ready_releases, open_prs is not None, cleanup,
-        added_architectures, deferred_architectures, follow_up_directories,
+        added_architectures, deferred_architectures, follow_up_directories, held_back_directories,
     )
+
+
+def parse_java_versions(value):
+    try:
+        return {int(version) for version in value.split(",")}
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected comma-separated Java versions such as 17,21,25; got {value!r}"
+        ) from None
 
 
 def main():
@@ -1087,13 +1220,23 @@ def main():
         "--dry-run", action="store_true",
         help="preview READY release updates and retired image cleanup without writing files or creating a PR",
     )
+    parser.add_argument(
+        "--force", type=parse_java_versions, default=set(), metavar="VERSIONS",
+        help="comma-separated Java versions (e.g. 17,21,25) to publish while binaries are still pending "
+             "for some architectures; prints the missing binaries and PR preview, then asks y/n before opening the PR",
+    )
     args = parser.parse_args()
     try:
         config = load_config()
         print_eol_warnings(config)
-        plan = generate_manifest(config, args.output_file, dry_run=args.dry_run)
-        if args.create_pr or args.dry_run:
-            create_publication_pr(plan, dry_run=args.dry_run)
+        plan = generate_manifest(
+            config, args.output_file, dry_run=args.dry_run, force_versions=args.force,
+        )
+        if args.create_pr or args.dry_run or args.force:
+            create_publication_pr(
+                plan, dry_run=args.dry_run,
+                confirm=confirm_publication if args.force else None,
+            )
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         details = error.stderr if isinstance(error, subprocess.CalledProcessError) else str(error)
         parser.exit(1, f"Error: {details or str(error)}\n")

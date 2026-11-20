@@ -63,9 +63,8 @@ RUN set -eux; \
          BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27.0.1.1%2B4/OpenJDK27U-jre_ppc64le_linux_hotspot_27.0.1.1_4.tar.gz'; \
          ;; \
        s390x) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-27.0.1.1+4.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='315afea73a15860c1c58e86227633cef77fb1dc547a626b646a6e6c5aa936031'; \
+         BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27.0.1.1%2B4/OpenJDK27U-jre_s390x_linux_hotspot_27.0.1.1_4.tar.gz'; \
          ;; \
        x86_64) \
          ESUM='9e15835ca3451a0089aac2c3667c009bc2743b9cb15030a14c6f5ec05f8d5aaf'; \

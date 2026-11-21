@@ -52,9 +52,8 @@ RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
        aarch64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-21.0.13.1+2.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='8c72816a6b308842d5ed1f13e5826b69c567da4784f7238d7e800efa71fe54b1'; \
+         BINARY_URL='https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.13.1%2B2/OpenJDK21U-jdk_aarch64_linux_hotspot_21.0.13.1_2.tar.gz'; \
          ;; \
        ppc64le) \
          ESUM='4d3d75690785cf593002446005427bb3c61de163f2469343572cdcb0d258ed62'; \

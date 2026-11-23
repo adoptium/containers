@@ -54,9 +54,8 @@ RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
        aarch64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-27.0.1.1+4.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='335431b750ed364047db057a5ff6a79bc65172f760c3e28af2bedd636eafa77a'; \
+         BINARY_URL='https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27.0.1.1%2B4/OpenJDK27U-jre_aarch64_linux_hotspot_27.0.1.1_4.tar.gz'; \
          ;; \
        ppc64le) \
          ESUM='c96bc02045a4fffe5225aed2e6834d69351abbefc1eaebc2393fcbebf94b9eed'; \

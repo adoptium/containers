@@ -59,9 +59,8 @@ RUN set -eux; \
          exit 1; \
          ;; \
        ppc64le) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-11.0.33.1+1.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='caacc20477e91bbc2d66ca53eba8ef4e7a4a26e2ed10d0fddcd76cc0765860ce'; \
+         BINARY_URL='https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33.1%2B1/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.33.1_1.tar.gz'; \
          ;; \
        s390x) \
          ESUM='fd09d70bc5902d2fb24532a9e6988459d545b5b921ae90c3c9b0d6b222eb2787'; \

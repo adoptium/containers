@@ -64,9 +64,8 @@ RUN set -eux; \
          BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5.1%2B2/OpenJDK25U-jdk_ppc64le_linux_hotspot_25.0.5.1_2.tar.gz'; \
          ;; \
        riscv64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk-25.0.5.1+2.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='9da409a595a4ff2ea1159b61a3380b9c3926527a9cecf57220fd621b86150cea'; \
+         BINARY_URL='https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5.1%2B2/OpenJDK25U-jdk_riscv64_linux_hotspot_25.0.5.1_2.tar.gz'; \
          ;; \
        s390x) \
          ESUM='01da4a2bbc08b3d7afb44de5bb83e2fbd838e06b83aabf3ca0204f916438e339'; \

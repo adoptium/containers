@@ -54,9 +54,8 @@ RUN set -eux; \
     ARCH="$(rpm --query --queryformat='%{ARCH}' rpm)"; \
     case "${ARCH}" in \
        aarch64) \
-         # TODO: This configured architecture is pending upstream binary availability for jdk8u514-b01.
-         echo "Temurin ${JAVA_VERSION} binary for ${ARCH} is not available yet; retry after it is published upstream."; \
-         exit 1; \
+         ESUM='5669548cd06075421e2c1f8c9e9430f4f5c25179f1a72ed3bb25358f8070ad74'; \
+         BINARY_URL='https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u514-b01/OpenJDK8U-jre_aarch64_linux_hotspot_8u514b01.tar.gz'; \
          ;; \
        ppc64le) \
          ESUM='2aa08df60fe2bf70a278d6ba82256e2dfca61232e199e21d8efe6b09bc657238'; \

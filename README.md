@@ -182,7 +182,11 @@ follow-up will publish them. Images already published upstream at an older
 release of the same Java version, such as Windows images whose binaries lag the
 Linux release, are held back: their upstream entries are kept unchanged, and the
 PR description lists them. Floating tags such as `27-jdk` and `27` then span both
-releases until those images are updated. All other blockers still apply: an
+releases until those images are updated. Version-specific shared tags that the
+held-back Windows images still claim, such as `27.0.1.0-jdk`, keep their previous
+Linux image through a `# backfill:` entry, so they do not become Windows-only.
+Later runs keep these entries unchanged and drop them once the Windows images are
+updated. All other blockers still apply: an
 architecture missing from the `case` block, missing images, stale images not yet
 published upstream, and images with no available binaries cannot be forced.
 Unsupported versions are rejected.

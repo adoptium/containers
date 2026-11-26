@@ -698,13 +698,91 @@ def print_deprecated_upstream_images(directories):
     )
 
 
+def get_block_fields(block):
+    return dict(
+        line.split(": ", 1) for line in block.splitlines()
+        if ": " in line and not line.startswith("#")
+    )
+
+
 def get_manifest_entries(manifest):
+    """Return the current entry for each directory, ignoring older-release backfill entries."""
     entries = {}
     for block in (manifest or "").split("\n\n"):
-        fields = dict(line.split(": ", 1) for line in block.splitlines() if ": " in line)
-        if "Directory" in fields:
-            entries[fields["Directory"]] = fields
+        fields = get_block_fields(block)
+        directory = fields.get("Directory")
+        if not directory:
+            continue
+        current = entries.get(directory)
+        release, current_release = get_entry_release(fields), current and get_entry_release(current)
+        if current is None or (
+            release and current_release and java_version_key(release) > java_version_key(current_release)
+        ):
+            entries[directory] = fields
     return entries
+
+
+def get_entry_tags(fields, names=("Tags", "SharedTags")):
+    return [tag for name in names for tag in fields.get(name, "").split(", ") if tag]
+
+
+def is_windows_entry(fields):
+    return fields.get("Architectures", "").startswith("windows-")
+
+
+def get_backfill_blocks(upstream_blocks, final_blocks):
+    """Re-add replaced non-Windows entries whose shared tags would otherwise be Windows-only."""
+    final_entries = [get_block_fields(block) for block in final_blocks]
+    claimed = {tag for fields in final_entries for tag in get_entry_tags(fields)}
+    non_windows = {
+        tag for fields in final_entries if not is_windows_entry(fields) for tag in get_entry_tags(fields)
+    }
+    backfills = []
+    for block in upstream_blocks:
+        fields = get_block_fields(block)
+        release = get_entry_release(fields)
+        if is_windows_entry(fields) or fields in final_entries or not release:
+            continue
+        orphans = [
+            tag for tag in get_entry_tags(fields, ("SharedTags",))
+            if tag in claimed and tag not in non_windows
+        ]
+        if not orphans:
+            continue
+        tags = [
+            tag for tag in get_entry_tags(fields, ("Tags",))
+            if tag.startswith(f"{release}-") and tag not in claimed
+        ]
+        if not tags:
+            raise ValueError(f"Cannot backfill {fields.get('Directory')}: no unclaimed {release} tags")
+        lines = [
+            f"# backfill: keep the previous Linux {release} around so "
+            + ", ".join(f'"{tag}"' for tag in orphans)
+            + f" does not end up Windows-only while the Windows images are still on {release}",
+            f"Tags: {', '.join(tags)}",
+            f"SharedTags: {', '.join(orphans)}",
+        ]
+        lines += [
+            line for line in block.splitlines()
+            if not line.startswith(("#", "Tags: ", "SharedTags: "))
+        ]
+        backfills.append(("\n".join(lines), set(orphans)))
+        claimed.update(tags)
+        non_windows.update(orphans)
+    return backfills
+
+
+def get_backfilled_tags(manifest):
+    """Return shared tags kept on older-release backfill entries, by Java version."""
+    current = get_manifest_entries(manifest)
+    backfilled = {}
+    for block in (manifest or "").split("\n\n"):
+        fields = get_block_fields(block)
+        directory = fields.get("Directory")
+        if directory and current[directory] != fields:
+            version = int(directory.split("/", 1)[0])
+            backfilled.setdefault(version, set()).update(get_entry_tags(fields, ("SharedTags",)))
+    return {version: sorted(tags) for version, tags in backfilled.items()}
 
 
 def merge_publication_manifest(
@@ -724,7 +802,8 @@ def merge_publication_manifest(
     upstream_blocks = {
         directory: block.strip("\n")
         for block in upstream.split("\n\n")
-        for directory in get_manifest_entries(block)
+        for directory, fields in get_manifest_entries(block).items()
+        if fields == upstream_entries[directory]
     }
     missing = cleanup_directories - upstream_entries.keys()
     if missing:
@@ -757,10 +836,21 @@ def merge_publication_manifest(
                 replacements[version].append(block.rstrip("\n"))
     if any(not blocks for blocks in replacements.values()):
         raise ValueError("A selected Java version has no generated manifest entries")
+    for version, version_blocks in replacements.items():
+        previous = [
+            block.strip("\n") for block in upstream.split("\n\n")
+            if get_block_fields(block).get("Directory", "").startswith(f"{version}/")
+        ]
+        for backfill, orphans in get_backfill_blocks(previous, version_blocks):
+            index = next(
+                index for index, block in enumerate(version_blocks)
+                if orphans & set(get_entry_tags(get_block_fields(block)))
+            )
+            version_blocks.insert(index, backfill)
 
     blocks = []
     replaced = set()
-    preserved_entries = {}
+    preserved_tags = set()
     for block in upstream.split("\n\n"):
         entries = get_manifest_entries(block)
         version = int(next(iter(entries)).split("/", 1)[0]) if entries else None
@@ -768,7 +858,9 @@ def merge_publication_manifest(
             if version not in replaced:
                 blocks.extend(replacements[version])
                 replaced.add(version)
-        elif follow_up_targets.intersection(entries):
+        elif follow_up_targets.intersection(entries) and all(
+            fields == upstream_entries[directory] for directory, fields in entries.items()
+        ):
             directory = next(iter(entries))
             commit = generated_entries[directory].get("GitCommit")
             if not commit or not entries[directory].get("GitCommit"):
@@ -777,27 +869,21 @@ def merge_publication_manifest(
             if count != 1:
                 raise ValueError(f"Follow-up target must have exactly one GitCommit: {directory}")
             blocks.append(block)
-            preserved_entries.update(entries)
+            preserved_tags.update(get_entry_tags(get_block_fields(block)))
         elif not cleanup_directories.intersection(entries):
             blocks.append(block)
-            preserved_entries.update(entries)
+            preserved_tags.update(get_entry_tags(get_block_fields(block)))
     for version in replacements:
         if version not in replaced:
             blocks.extend(replacements[version])
 
-    def tags(entries):
-        return {
-            tag
-            for entry in entries.values()
-            for field in ("Tags", "SharedTags")
-            for tag in entry.get(field, "").split(", ")
-            if tag
-        }
-
-    selected_entries = get_manifest_entries(
-        "\n\n".join(block for version_blocks in replacements.values() for block in version_blocks)
-    )
-    conflicts = tags(selected_entries) & tags(preserved_entries)
+    selected_tags = {
+        tag
+        for version_blocks in replacements.values()
+        for block in version_blocks
+        for tag in get_entry_tags(get_block_fields(block))
+    }
+    conflicts = selected_tags & preserved_tags
     if conflicts:
         raise ValueError(
             "Selected versions would conflict with preserved upstream tags: "
@@ -864,10 +950,11 @@ def prepare_publication_source(plan: PublicationPlan, versions=None) -> tuple[st
 
 def describe_publication(
     published_commit, releases, added, deferred_architectures, held_back_directories, cleanup,
-    added_since_opened=None,
+    added_since_opened=None, backfilled_tags=None,
 ):
     """Build the upstream PR title and description."""
     added_since_opened = added_since_opened or {}
+    backfilled_tags = backfilled_tags or {}
     title = ", ".join(
         f"{version} {release} add {', '.join(added[version])}" if version in added
         else f"{version} to {release}"
@@ -895,6 +982,13 @@ def describe_publication(
                 body += (
                     f"  - Not yet updated to `{release}`, so these images keep their current "
                     f"upstream entries: {format_image_targets(held)}\n"
+                )
+            backfilled = backfilled_tags.get(version)
+            if backfilled:
+                body += (
+                    "  - The previous Linux entries are kept for "
+                    + ", ".join(f"`{tag}`" for tag in backfilled)
+                    + " so those shared tags do not become Windows-only.\n"
                 )
             arches = added_since_opened.get(version)
             if arches:
@@ -934,6 +1028,7 @@ def update_publication_prs(plan: PublicationPlan, dry_run: bool = False, confirm
         title, body = describe_publication(
             published_commit, update.releases, {}, update.deferred_architectures,
             update.held_back_directories, update.pr.removed_directories, update.added_architectures,
+            get_backfilled_tags(manifest),
         )
         message = "eclipse-temurin: " + ", ".join(
             f"{version} {update.releases[version]} add {', '.join(arches)}"
@@ -1044,7 +1139,7 @@ def create_publication_pr(plan: PublicationPlan, dry_run: bool = False, confirm=
     branch = "eclipse-temurin-" + "-".join(branch_parts)
     title, body = describe_publication(
         published_commit, releases, added, plan.deferred_architectures,
-        plan.held_back_directories, cleanup,
+        plan.held_back_directories, cleanup, backfilled_tags=get_backfilled_tags(manifest),
     )
     if dry_run or confirm:
         heading = "Dry run: would open" if dry_run else "Proposed"

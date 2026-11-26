@@ -43,6 +43,8 @@ from dockerhub_doc_config_update import (
     generate_manifest,
     java_version_key,
     main,
+    describe_publication,
+    get_backfilled_tags,
     merge_publication_manifest,
     github_pages,
     PublicationPlan,
@@ -1688,6 +1690,60 @@ class TestPublicationManifest(unittest.TestCase):
     def test_missing_generated_version_is_an_error(self):
         with self.assertRaisesRegex(ValueError, "no generated manifest entries"):
             merge_publication_manifest(self.entry(17), self.entry(25), [17])
+
+    @staticmethod
+    def shared_entries(release, windows_release=None, commit=None):
+        windows_release = windows_release or release
+        return [
+            f"Tags: {release}-jdk-noble, 8-jdk-noble\nSharedTags: {release}-jdk, 8-jdk\n"
+            f"Architectures: amd64, arm64v8\nGitCommit: {commit or 'commit-' + release}\n"
+            "Directory: 8/jdk/ubuntu/noble",
+            f"Tags: {windows_release}-jdk-windowsservercore-ltsc2022\n"
+            f"SharedTags: {windows_release}-jdk, 8-jdk\nArchitectures: windows-amd64\n"
+            f"GitCommit: commit-{windows_release}\nDirectory: 8/jdk/windows/windowsservercore-ltsc2022",
+        ]
+
+    def test_held_back_windows_keeps_previous_linux_entry_for_shared_tags(self):
+        linux, windows = self.shared_entries("8u512-b09")
+        upstream = "\n\n".join([self.header, linux, windows]) + "\n"
+        new_linux, _ = self.shared_entries("8u514-b01")
+        held = {"8/jdk/windows/windowsservercore-ltsc2022"}
+        result = merge_publication_manifest(
+            upstream, new_linux + "\n\n" + windows, [8], held_back_directories=held,
+        )
+        backfill = (
+            '# backfill: keep the previous Linux 8u512-b09 around so "8u512-b09-jdk" does not end up '
+            "Windows-only while the Windows images are still on 8u512-b09\n"
+            "Tags: 8u512-b09-jdk-noble\nSharedTags: 8u512-b09-jdk\n"
+            "Architectures: amd64, arm64v8\nGitCommit: commit-8u512-b09\nDirectory: 8/jdk/ubuntu/noble"
+        )
+        self.assertEqual(result, "\n\n".join([self.header, new_linux, backfill, windows]) + "\n")
+        self.assertEqual(get_manifest_entries(result)["8/jdk/ubuntu/noble"]["GitCommit"], "commit-8u514-b01")
+        self.assertEqual(get_backfilled_tags(result), {8: ["8u512-b09-jdk"]})
+        _, body = describe_publication(
+            "main", {8: "8u514-b01"}, {}, {}, {8: held}, set(),
+            backfilled_tags=get_backfilled_tags(result),
+        )
+        self.assertIn("previous Linux entries are kept for `8u512-b09-jdk`", body)
+
+        # Later updates regenerate the backfill and never repoint it at the new release.
+        self.assertEqual(
+            merge_publication_manifest(result, new_linux + "\n\n" + windows, [8], held_back_directories=held),
+            result,
+        )
+        follow_up = merge_publication_manifest(
+            result, self.shared_entries("8u514-b01", commit="published-main")[0], [8],
+            follow_up_directories={8: {"8/jdk/ubuntu/noble"}},
+        )
+        self.assertIn(backfill, follow_up)
+        self.assertIn("GitCommit: published-main\nDirectory: 8/jdk/ubuntu/noble", follow_up)
+
+        # Once Windows moves to the new release, the backfill is no longer needed.
+        caught_up = "\n\n".join(self.shared_entries("8u514-b01"))
+        self.assertEqual(
+            merge_publication_manifest(result, caught_up, [8]),
+            "\n\n".join([self.header, caught_up]) + "\n",
+        )
 
     def test_shared_tag_conflict_does_not_modify_an_unselected_version(self):
         upstream = self.entry(17) + "\nSharedTags: latest\n\n" + self.entry(25)

@@ -22,12 +22,12 @@ FROM mcr.microsoft.com/windows/servercore:ltsc2025
 # $ProgressPreference: https://github.com/PowerShell/PowerShell/issues/2138#issuecomment-251261324
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV JAVA_VERSION=jdk-11.0.33+10
+ENV JAVA_VERSION=jdk-11.0.33.1+1
 
-RUN Write-Host ('Downloading https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33%2B10/OpenJDK11U-jdk_x64_windows_hotspot_11.0.33_10.msi ...'); \
-    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33%2B10/OpenJDK11U-jdk_x64_windows_hotspot_11.0.33_10.msi ; \
-    Write-Host ('Verifying sha256 (54cf7f8ade921c1a31cc590f80ae4df4be174af7385d874057dbe5d9e9f3c766) ...'); \
-    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne '54cf7f8ade921c1a31cc590f80ae4df4be174af7385d874057dbe5d9e9f3c766') { \
+RUN Write-Host ('Downloading https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33.1%2B1/OpenJDK11U-jdk_x64_windows_hotspot_11.0.33.1_1.msi ...'); \
+    curl.exe -LfsSo openjdk.msi https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.33.1%2B1/OpenJDK11U-jdk_x64_windows_hotspot_11.0.33.1_1.msi ; \
+    Write-Host ('Verifying sha256 (d915e54159eff1a3bcc42ceb40509fe97c28e4d2012fef8e8b555deb8c708350) ...'); \
+    if ((Get-FileHash openjdk.msi -Algorithm sha256).Hash -ne 'd915e54159eff1a3bcc42ceb40509fe97c28e4d2012fef8e8b555deb8c708350') { \
         Write-Host 'FAILED!'; \
         exit 1; \
     }; \
